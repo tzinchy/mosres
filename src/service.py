@@ -18,9 +18,7 @@ async def get_existing_building_and_aparts():
             'type[]': ['R',], #  "R": "Квартиры", "NR": "Коммерческие помещения", "P": "Паркинг"
             'open_sale': '1', #hz
             'map': 'forall', #hz
-            'pagesize': '1000000', #кол-во записей,
-            'finishing' : "FULL"
-            
+            'pagesize': 1_000_000, #кол-во записей,
         }
         """
         "finishing" : {

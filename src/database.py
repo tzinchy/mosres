@@ -19,6 +19,9 @@ CONVENTION = {
 
 
 class Base(DeclarativeBase):
+    __table_args__ = {
+        'schema' : 'mosquarter'
+    }
     created_at: Mapped[datetime] = MappedColumn(default=datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = MappedColumn(default=datetime.now(timezone.utc))
     metadata = MetaData(naming_convention=CONVENTION)
