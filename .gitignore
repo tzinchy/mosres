@@ -6,3 +6,9 @@ src/__pycache__
 flats.json 
 objectItems.json
 flats.json
+county.json
+filters.json 
+finishing.json
+metro.json
+status.json
+type.json
