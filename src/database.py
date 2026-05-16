@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
+from sqlalchemy import text
 from src.config import settings
 
 CONVENTION = {
@@ -20,9 +20,17 @@ CONVENTION = {
 
 class Base(DeclarativeBase):
 
-    version: Mapped[int] = mapped_column(default=0)
-    created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
+    version: Mapped[int] = mapped_column(nullable=True, server_default='0', default=0)  # ✅ Correct
+    created_at: Mapped[datetime] = mapped_column(
+        default=datetime.now(timezone.utc),
+        server_default=text("TIMEZONE('utc', NOW())"),
+        nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        default=datetime.now(timezone.utc),
+        server_default=text("TIMEZONE('utc', NOW())"),
+        nullable=True
+    )
     metadata = MetaData(naming_convention=CONVENTION)
 
 

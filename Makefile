@@ -3,7 +3,7 @@
 .PHONY: upgrade
 
 get:
-	uv run src/service.py
+	uv run -m src.service.py
 
 rev: 
 	alembic revision --autogenerate
