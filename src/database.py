@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, MappedColumn
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from src.config import settings
 
@@ -19,11 +19,10 @@ CONVENTION = {
 
 
 class Base(DeclarativeBase):
-    __table_args__ = {
-        'schema' : 'mosquarter'
-    }
-    created_at: Mapped[datetime] = MappedColumn(default=datetime.now(timezone.utc))
-    updated_at: Mapped[datetime] = MappedColumn(default=datetime.now(timezone.utc))
+
+    version: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(default=datetime.now(timezone.utc))
     metadata = MetaData(naming_convention=CONVENTION)
 
 

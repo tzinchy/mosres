@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field, AliasChoices, ConfigDict, TypeAdapter, AliasPath
-import datetime
 
 class Building(BaseModel):
     building_id: int = Field(None, validation_alias=AliasChoices('id', 'building_id', 'object_id'))
@@ -34,17 +33,17 @@ class NewApart(BaseModel):
     rooms: str
     floor: str
     block: str
-    area: float #but got str
-    price: float #but got str
-    price_m: float #but got str
+    area: str #but got str
+    price: str #but got str
+    price_m: str #but got str
     plan_s: str
     plan: str
     type: str 
     term_of_application: str #but got str
     open_sale: int
     reserve: int
-    y2_sell: int | str
-    for_sell : int | str
+    y2_sell: str
+    for_sell : str
     num_on_floor: str
     property: str
     advants: list[str]
