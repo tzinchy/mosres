@@ -35,8 +35,6 @@ class NewApartMixing:
     area: saorm.Mapped[str]  
     price: saorm.Mapped[str]  
     price_m: saorm.Mapped[str]  
-    plan_s: saorm.Mapped[str]
-    plan: saorm.Mapped[str]
     type: saorm.Mapped[str]
     term_of_application: saorm.Mapped[str]
     open_sale: saorm.Mapped[int]
