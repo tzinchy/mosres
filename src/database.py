@@ -19,15 +19,12 @@ CONVENTION = {
 
 
 class Base(DeclarativeBase):
-
-    version: Mapped[int] = mapped_column(nullable=False, server_default='0') 
+    version: Mapped[int] = mapped_column(nullable=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(),
-        nullable=False
+        server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        server_default=func.now(),
-        nullable=False
+        server_default=func.now(), nullable=False
     )
     metadata = MetaData(naming_convention=CONVENTION)
 

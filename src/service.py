@@ -24,9 +24,11 @@ APART_AND_BUILDINGS_PARAMS = {"type[]": ["R"], "pagesize": 1_000_000}
 
 FILTER_PARAMS = {"cmd": "filters", "pagesize": 1_000_000}
 
+
 async def insert_into_buildings(buildings):
     async with Session() as session:
-        await session.execute(text('''
+        await session.execute(
+            text("""
             INSERT INTO buildings (
                 building_id, address, code, district, latitude, longitude,
                 status_code, finishing_code, metro, metro_car,
@@ -38,8 +40,11 @@ async def insert_into_buildings(buildings):
                 :metro_walk, :floors, :flats, :vvod, :unique, :anons_texts,
                 :family_hypotec, :county
             ) ON CONFLICT (building_id) DO NOTHING
-        '''), buildings)
+        """),
+            buildings,
+        )
         await session.commit()
+
 
 async def insert_metro(metros: dict[int, Metro]):
     async with Session() as session:
@@ -62,20 +67,20 @@ async def insert_district_and_municipal_district(districts: dict[int, Metro]):
                                         ON conflict (district_id) DO NOTHING """),
                 params={
                     "district_id": int(key),
-                    "name": value['name'],
-                    "full_name": value['full_name'],
-                    "polygons": value['polygons'],
+                    "name": value["name"],
+                    "full_name": value["full_name"],
+                    "polygons": value["polygons"],
                 },
             )
-            for key, value in value['district'].items():
+            for key, value in value["district"].items():
                 await session.execute(
                     text("""insert into municipal_districts (municipal_district_id, name, polygons)
                                             VALUES (:municipal_district_id, :name, :polygons)
                                             ON conflict (municipal_district_id) DO NOTHING """),
                     params={
                         "municipal_district_id": int(key),
-                        "name": value['name'],
-                        "polygons": value['polygons'],
+                        "name": value["name"],
+                        "polygons": value["polygons"],
                     },
                 )
         await session.commit()
@@ -83,7 +88,8 @@ async def insert_district_and_municipal_district(districts: dict[int, Metro]):
 
 async def insert_into_new_apart(new_aparts):
     async with Session() as session:
-        await session.execute(text("""
+        await session.execute(
+            text("""
             INSERT INTO new_aparts (
                 new_apart_id, address, building, building_id, building_code,
                 number, rooms, floor, block, area, price, price_m, type, term_of_application, open_sale, reserve, y2_sell,
@@ -95,9 +101,10 @@ async def insert_into_new_apart(new_aparts):
                 :for_sell, :num_on_floor, :property, :advants, :article,
                 :price_with_discount, :percentage_discount, :auction, :block_name
             ) ON CONFLICT (new_apart_id) DO NOTHING
-        """), new_aparts)
+        """),
+            new_aparts,
+        )
         await session.commit()
-
 
 
 async def get_existing_building_and_aparts():
@@ -115,7 +122,6 @@ async def get_existing_building_and_aparts():
                     NewApart.model_validate(building).model_dump()
                     for building in result["housings"]["items"]
                 ]
-                print(buildings)
                 await insert_into_new_apart(new_aparts=new_apart)
                 await insert_into_buildings(buildings=buildings)
 
@@ -131,6 +137,8 @@ async def get_existing_filters():
                 county = DistrictAdapter.validate_python(result["filters"]["county"])
                 metro = MetroAdapter.validate_python(result["filters"]["metro"])
                 await insert_metro(metros=metro)
-                await insert_district_and_municipal_district(result["filters"]["county"])
+                await insert_district_and_municipal_district(
+                    result["filters"]["county"]
+                )
             else:
                 loguru.logger.error(f"Error {request.status}: {await request.text()}")

@@ -5,7 +5,7 @@ import datetime
 
 import asyncio
 
-SQL = '''
+SQL = """
 select new_apart_id, d."name" as distric,
 md."name" as municipal_district,
 new_aparts.address, 
@@ -46,17 +46,22 @@ floors,
 flats, 
 vvod,
 "unique",
-CONCAT('https://xn--80aae5aibotfo5h.xn--p1ai/obekty/', new_aparts.building_code, '/?flat_id=', new_aparts.new_apart_id)
+CONCAT('https://xn--80aae5aibotfo5h.xn--p1ai/obekty/', new_aparts.building_code, '/?flat_id=', new_aparts.new_apart_id),
+created_at, 
+updated_at
 	from new_aparts 
 join buildings b on (new_aparts.building_id)::integer = b.building_id
 join municipal_districts md on (md.municipal_district_id)::integer = b.district
 join districts d on (d.district_id)::integer = b.county 
-'''
+"""
+
+
 async def get_data():
     async with Session() as session:
         result = await session.execute(text(SQL))
         df = pd.DataFrame(result.mappings().all())
-        df.to_excel(f'{datetime.date.today().strftime("%Y-%m-%d")}.xlsx')
-    
-if __name__ == '__main__':
+        df.to_excel(f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx")
+
+
+if __name__ == "__main__":
     asyncio.run(get_data())
