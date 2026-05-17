@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, func
 from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
@@ -20,16 +20,14 @@ CONVENTION = {
 
 class Base(DeclarativeBase):
 
-    version: Mapped[int] = mapped_column(nullable=True, server_default='0', default=0)  # ✅ Correct
+    version: Mapped[int] = mapped_column(nullable=False, server_default='0') 
     created_at: Mapped[datetime] = mapped_column(
-        default=datetime.now(timezone.utc),
-        server_default=text("TIMEZONE('utc', NOW())"),
-        nullable=True
+        server_default=func.now(),
+        nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        default=datetime.now(timezone.utc),
-        server_default=text("TIMEZONE('utc', NOW())"),
-        nullable=True
+        server_default=func.now(),
+        nullable=False
     )
     metadata = MetaData(naming_convention=CONVENTION)
 

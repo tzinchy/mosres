@@ -1,18 +1,15 @@
-from pydantic import BaseModel, Field, AliasChoices, ConfigDict, TypeAdapter, AliasPath, field_serializer
-import json 
+from pydantic import BaseModel, Field, AliasChoices, ConfigDict, TypeAdapter, AliasPath
 
 
 class Building(BaseModel):
     building_id: int = Field(None, validation_alias=AliasChoices('id', 'building_id', 'object_id'))
-    address: str = Field(None, validate_alias=AliasChoices('name', 'address'))  #name
+    address: str | None = Field(default=None, validation_alias=AliasChoices('name'))
     code: str 
     district: int
     latitude: str = Field(None, validate_alias=AliasPath('coords', 0))#coords[0]
     longitude: str = Field(None, validate_alias=AliasPath('coords', 1)) #coords[1]
     status_code: str #status_code {FINISHED : "Введены в эксплуатацию", "Строится"}
-    soon:list[str] 
     finishing_code: str | None = None #"finishing" : {"FULL" : "С отделкой", "NO" : "Без отделки", "STD": "Отделка по стандарту реновации"}"
-    img: str
     metro: list[str] | None = None
     metro_car: list[str] | None = None
     metro_walk: list[str] | None = None
@@ -24,9 +21,10 @@ class Building(BaseModel):
     family_hypotec: int
     county: int #это короче чет типо и district и municipal_district по всей видимости так еще и метро наверное через ту же таблицу
     model_config = ConfigDict(extra='allow', coerce_numbers_to_str=True, populate_by_name=True)
+
 class NewApart(BaseModel):
     new_apart_id: int | None = Field(default=None, validation_alias=AliasChoices('id','new_apart_id'))
-    address: str | None = Field(default=None, validation_alias=AliasChoices('name', 'address'))
+    address: str | None = Field(default=None, validation_alias=AliasChoices('name'))
     building: str | None = Field(default=None, validation_alias=AliasChoices('object', 'building'))
     building_id: str | None = Field(default=None, validation_alias=AliasChoices('object_id', 'building_id'))
     building_code: str | None = Field(default=None, validation_alias=AliasChoices('object_code', 'building_code'))
@@ -37,8 +35,6 @@ class NewApart(BaseModel):
     area: str | None = None
     price: str | None = None
     price_m: str | None = None
-    plan_s: str | None = None
-    plan: str | None = None
     type: str | None = None
     term_of_application: str | None = None
     open_sale: int | None = None

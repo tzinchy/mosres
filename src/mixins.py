@@ -4,14 +4,13 @@ import sqlalchemy.dialects.postgresql as sapg
 
 
 class BuildingMixing: 
-    address: saorm.Mapped[str]
+    address: saorm.Mapped[str] = saorm.mapped_column(nullable=True)
     code: saorm.Mapped[str]
     district: saorm.Mapped[int]
     latitude: saorm.Mapped[str | None]
     longitude: saorm.Mapped[str | None]
     status_code: saorm.Mapped[str]
     finishing_code: saorm.Mapped[str | None]  # "finishing" : {"FULL" : "С отделкой", "NO" : "Без отделки", "STD": "Отделка по стандарту реновации"}
-    img: saorm.Mapped[str | None]
     metro: saorm.Mapped[list[str] | None] = saorm.mapped_column(sapg.ARRAY(sa.String), default=None)
     metro_car: saorm.Mapped[list[str] | None] = saorm.mapped_column(sapg.ARRAY(sa.String), default=None)
     metro_walk: saorm.Mapped[list[str] | None] = saorm.mapped_column(sapg.ARRAY(sa.String), default=None)
