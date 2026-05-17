@@ -6,8 +6,8 @@ class Building(BaseModel):
     address: str | None = Field(default=None, validation_alias=AliasChoices('name'))
     code: str 
     district: int
-    latitude: str = Field(None, validate_alias=AliasPath('coords', 0))#coords[0]
-    longitude: str = Field(None, validate_alias=AliasPath('coords', 1)) #coords[1]
+    latitude: str = Field(None, validation_alias=AliasPath('coords', 0))#coords[0]
+    longitude: str = Field(None, validation_alias=AliasPath('coords', 1)) #coords[1]
     status_code: str #status_code {FINISHED : "Введены в эксплуатацию", "Строится"}
     finishing_code: str | None = None #"finishing" : {"FULL" : "С отделкой", "NO" : "Без отделки", "STD": "Отделка по стандарту реновации"}"
     metro: list[str] | None = None
