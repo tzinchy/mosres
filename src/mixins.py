@@ -10,7 +10,6 @@ class BuildingMixing:
     latitude: saorm.Mapped[str | None]
     longitude: saorm.Mapped[str | None]
     status_code: saorm.Mapped[str]
-    soon: saorm.Mapped[list[str] | None] = saorm.mapped_column(sapg.ARRAY(sa.String))
     finishing_code: saorm.Mapped[str | None]  # "finishing" : {"FULL" : "С отделкой", "NO" : "Без отделки", "STD": "Отделка по стандарту реновации"}
     img: saorm.Mapped[str | None]
     metro: saorm.Mapped[list[str] | None] = saorm.mapped_column(sapg.ARRAY(sa.String), default=None)
@@ -22,7 +21,6 @@ class BuildingMixing:
     unique: saorm.Mapped[int | None]
     anons_texts: saorm.Mapped[list[str] | None] = saorm.mapped_column(sapg.ARRAY(sa.String), default=None)
     family_hypotec: saorm.Mapped[int]
-    gallery: saorm.Mapped[list[str]] = saorm.mapped_column(sapg.ARRAY(sa.String))
     county: saorm.Mapped[int]  # это типа и district и municipal_district, и метро через ту же таблицу
 
 class NewApartMixing:
@@ -51,6 +49,5 @@ class NewApartMixing:
     article: saorm.Mapped[str]
     price_with_discount: saorm.Mapped[str]
     percentage_discount: saorm.Mapped[str]
-    facing: saorm.Mapped[dict[str, str | None]] = saorm.mapped_column(sapg.JSONB)
     auction: saorm.Mapped[str | None] = saorm.mapped_column(default=None)
     block_name: saorm.Mapped[str]

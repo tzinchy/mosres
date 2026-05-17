@@ -69,8 +69,25 @@ async def insert_district(districts: dict[int, Metro]):
         await session.commit()
 
 
-async def insert_district_and_municipal_district(district: dict[int, District]):
-    pass
+async def insert_into_new_apart(new_aparts):
+    async with Session() as session:
+        await session.execute(text("""
+            INSERT INTO new_aparts (
+                new_apart_id, address, building, building_id, building_code,
+                number, rooms, floor, block, area, price, price_m, plan_s,
+                plan, type, term_of_application, open_sale, reserve, y2_sell,
+                for_sell, num_on_floor, property, advants, article,
+                price_with_discount, percentage_discount, auction, block_name
+            ) VALUES (
+                :new_apart_id, :address, :building, :building_id, :building_code,
+                :number, :rooms, :floor, :block, :area, :price, :price_m, :plan_s,
+                :plan, :type, :term_of_application, :open_sale, :reserve, :y2_sell,
+                :for_sell, :num_on_floor, :property, :advants, :article,
+                :price_with_discount, :percentage_discount, :auction, :block_name
+            )
+        """), new_aparts)
+        await session.commit()
+
 
 
 async def get_existing_building_and_aparts():
@@ -85,9 +102,10 @@ async def get_existing_building_and_aparts():
                     for building in result["objects"]["items"]
                 ]
                 new_apart = [
-                    NewApart.model_validate(building)
+                    NewApart.model_validate(building).model_dump()
                     for building in result["housings"]["items"]
                 ]
+                await insert_into_new_apart(new_aparts=new_apart)
 
             else:
                 loguru.logger.error(f"Error {request.status}: {await request.text()}")
