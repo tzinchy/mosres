@@ -13,3 +13,9 @@ metro.json
 status.json
 type.json
 .env
+*.xlsx
+*.xlsx#
+.xlsx
+.xlsx#
+.~lock.2026-05-17.xlsx#
+2026-05-17.xlsx
