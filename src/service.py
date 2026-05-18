@@ -29,7 +29,7 @@ async def insert_into_buildings(buildings):
     async with Session() as session:
         await session.execute(
             text("""
-            INSERT INTO buildings (
+            INSERT INTO buildings_temp (
                 building_id, address, code, district, latitude, longitude,
                 status_code, finishing_code, metro, metro_car,
                 metro_walk, floors, flats, vvod, "unique", anons_texts,
@@ -42,6 +42,11 @@ async def insert_into_buildings(buildings):
             ) ON CONFLICT (building_id) DO NOTHING
         """),
             buildings,
+        )
+        await session.execute(
+            text("""
+            insert into new_aprats (building_id) 
+                """)
         )
         await session.commit()
 
@@ -90,7 +95,7 @@ async def insert_into_new_apart(new_aparts):
     async with Session() as session:
         await session.execute(
             text("""
-            INSERT INTO new_aparts (
+            INSERT INTO new_aparts_temp (
                 new_apart_id, address, building, building_id, building_code,
                 number, rooms, floor, block, area, price, price_m, type, term_of_application, open_sale, reserve, y2_sell,
                 for_sell, num_on_floor, property, advants, article,
@@ -103,6 +108,43 @@ async def insert_into_new_apart(new_aparts):
             ) ON CONFLICT (new_apart_id) DO NOTHING
         """),
             new_aparts,
+        )
+        await session.execute(
+            text('''
+            insert into new_aparts (
+                new_apart_id, address, building,
+                building_id, building_code, "number",
+                rooms, "floor", block, area,
+                price, price_m, "type",
+                term_of_application, open_sale, reserve,
+                y2_sell, for_sell, num_on_floor,
+                property, advants, article, 
+                price_with_discount, percentage_discount, 
+                auction, block_name 
+            )
+            select new_apart_id, address, building,
+                building_id, building_code, "number",
+                rooms, "floor", block, area,
+                price, price_m, "type",
+                term_of_application, open_sale, reserve,
+                y2_sell, for_sell, num_on_floor,
+                property, advants, article, 
+                price_with_discount, percentage_discount, 
+                auction, block_name from new_aparts_temp
+            except 
+            select new_apart_id, address, building,
+                building_id, building_code, "number",
+                rooms, "floor", block, area,
+                price, price_m, "type",
+                term_of_application, open_sale, reserve,
+                y2_sell, for_sell, num_on_floor,
+                property, advants, article, 
+                price_with_discount, percentage_discount, 
+                auction, block_name from new_aparts
+            ON conflict (new_apart_id) DO UPDATE SET
+                updated_at = NOW(),
+                version = COALESCE(EXCLUDED.version, 0) + 1
+            ''')
         )
         await session.commit()
 

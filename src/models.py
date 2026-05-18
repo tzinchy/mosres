@@ -45,7 +45,7 @@ class Metro(Base):
 
 
 class NewApartHistory(Base, NewApartMixing):
-    __tablename__ = "new_apart_history"
+    __tablename__ = "new_aparts_history"
     new_apart_history_id: saorm.Mapped[int] = saorm.mapped_column(
         primary_key=True, autoincrement=True
     )
@@ -53,7 +53,7 @@ class NewApartHistory(Base, NewApartMixing):
 
 
 class BuildingHistory(Base, BuildingMixing):
-    __tablename__ = "building_history"
+    __tablename__ = "buildings_history"
     building_history_id: saorm.Mapped[int] = saorm.mapped_column(
         primary_key=True, autoincrement=True
     )
@@ -64,5 +64,5 @@ class BuildingTemp(Base, BuildingMixing):
     building_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True) 
 
 class NewApartTemp(Base, NewApartMixing):
-    __tablename__ = 'new_apart_temp'
+    __tablename__ = 'new_aparts_temp'
     new_apart_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True) 

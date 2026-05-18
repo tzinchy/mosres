@@ -2,8 +2,8 @@ import pandas as pd
 from src.database import Session
 from sqlalchemy import text
 import datetime
-
 import asyncio
+from src.service import get_existing_filters, get_existing_building_and_aparts
 
 SQL = """
 select new_apart_id, d."name" as distric,
@@ -57,10 +57,12 @@ join districts d on (d.district_id)::integer = b.county
 
 
 async def get_data():
-    async with Session() as session:
-        result = await session.execute(text(SQL))
-        df = pd.DataFrame(result.mappings().all())
-        df.to_excel(f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx")
+    await get_existing_filters() 
+    await get_existing_building_and_aparts()
+    # async with Session() as session:
+    #     result = await session.execute(text(SQL))
+    #     df = pd.DataFrame(result.mappings().all())
+    #     df.to_excel(f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx")
 
 
 if __name__ == "__main__":
