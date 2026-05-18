@@ -58,3 +58,11 @@ class BuildingHistory(Base, BuildingMixing):
         primary_key=True, autoincrement=True
     )
     building_id: saorm.Mapped[int]
+
+class BuildingTemp(Base, BuildingMixing):
+    __tablename__ = 'buildings_temp'
+    building_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True) 
+
+class NewApartTemp(Base, NewApartMixing):
+    __tablename__ = 'new_apart_temp'
+    new_apart_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True) 
