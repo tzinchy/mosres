@@ -109,43 +109,62 @@ async def insert_into_new_apart(new_aparts):
         """),
             new_aparts,
         )
+        await session.commit()
         await session.execute(
             text('''
-            insert into new_aparts (
-                new_apart_id, address, building,
-                building_id, building_code, "number",
-                rooms, "floor", block, area,
-                price, price_m, "type",
-                term_of_application, open_sale, reserve,
-                y2_sell, for_sell, num_on_floor,
-                property, advants, article, 
-                price_with_discount, percentage_discount, 
-                auction, block_name 
+            INSERT INTO new_aparts (
+                new_apart_id, address, building, building_id, building_code, "number",
+                rooms, "floor", block, area, price, price_m, "type",
+                term_of_application, open_sale, reserve, y2_sell, for_sell, num_on_floor,
+                property, advants, article, price_with_discount, percentage_discount,
+                auction, block_name
             )
-            select new_apart_id, address, building,
-                building_id, building_code, "number",
-                rooms, "floor", block, area,
-                price, price_m, "type",
-                term_of_application, open_sale, reserve,
-                y2_sell, for_sell, num_on_floor,
-                property, advants, article, 
-                price_with_discount, percentage_discount, 
-                auction, block_name from new_aparts_temp
-            except 
-            select new_apart_id, address, building,
-                building_id, building_code, "number",
-                rooms, "floor", block, area,
-                price, price_m, "type",
-                term_of_application, open_sale, reserve,
-                y2_sell, for_sell, num_on_floor,
-                property, advants, article, 
-                price_with_discount, percentage_discount, 
-                auction, block_name from new_aparts
-            ON conflict (new_apart_id) DO UPDATE SET
+            SELECT
+                new_apart_id, address, building, building_id, building_code, "number",
+                rooms, "floor", block, area, price, price_m, "type",
+                term_of_application, open_sale, reserve, y2_sell, for_sell, num_on_floor,
+                property, advants, article, price_with_discount, percentage_discount,
+                auction, block_name
+            FROM new_aparts_temp
+            EXCEPT
+            SELECT
+                new_apart_id, address, building, building_id, building_code, "number",
+                rooms, "floor", block, area, price, price_m, "type",
+                term_of_application, open_sale, reserve, y2_sell, for_sell, num_on_floor,
+                property, advants, article, price_with_discount, percentage_discount,
+                auction, block_name
+            FROM new_aparts
+            ON CONFLICT (new_apart_id) DO UPDATE SET
+                address = EXCLUDED.address,
+                building = EXCLUDED.building,
+                building_id = EXCLUDED.building_id,
+                building_code = EXCLUDED.building_code,
+                "number" = EXCLUDED."number",
+                rooms = EXCLUDED.rooms,
+                "floor" = EXCLUDED."floor",
+                block = EXCLUDED.block,
+                area = EXCLUDED.area,
+                price = EXCLUDED.price,
+                price_m = EXCLUDED.price_m,
+                "type" = EXCLUDED."type",
+                term_of_application = EXCLUDED.term_of_application,
+                open_sale = EXCLUDED.open_sale,
+                reserve = EXCLUDED.reserve,
+                y2_sell = EXCLUDED.y2_sell,
+                for_sell = EXCLUDED.for_sell,
+                num_on_floor = EXCLUDED.num_on_floor,
+                property = EXCLUDED.property,
+                advants = EXCLUDED.advants,
+                article = EXCLUDED.article,
+                price_with_discount = EXCLUDED.price_with_discount,
+                percentage_discount = EXCLUDED.percentage_discount,
+                auction = EXCLUDED.auction,
+                block_name = EXCLUDED.block_name,
                 updated_at = NOW(),
-                version = COALESCE(EXCLUDED.version, 0) + 1
+                version = COALESCE(EXCLUDED.version, 0) + 1;
             ''')
         )
+        await session.execute(text('truncate new_aparts_temp'))
         await session.commit()
 
 
@@ -165,7 +184,7 @@ async def get_existing_building_and_aparts():
                     for building in result["housings"]["items"]
                 ]
                 await insert_into_new_apart(new_aparts=new_apart)
-                await insert_into_buildings(buildings=buildings)
+                #await insert_into_buildings(buildings=buildings)
 
             else:
                 loguru.logger.error(f"Error {request.status}: {await request.text()}")

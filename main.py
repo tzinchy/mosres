@@ -47,8 +47,15 @@ flats,
 vvod,
 "unique",
 CONCAT('https://xn--80aae5aibotfo5h.xn--p1ai/obekty/', new_aparts.building_code, '/?flat_id=', new_aparts.new_apart_id),
-created_at, 
-updated_at
+new_aparts.created_at, 
+new_aparts.updated_at,
+anons_texts,
+case b.status_code
+    WHEN 'PROCESSING' then 'В процессе'
+    WHEN 'FINISHED' then 'Завершено'
+else
+	'Неизвестный тип'
+end as building_status
 	from new_aparts 
 join buildings b on (new_aparts.building_id)::integer = b.building_id
 join municipal_districts md on (md.municipal_district_id)::integer = b.district
@@ -59,10 +66,10 @@ join districts d on (d.district_id)::integer = b.county
 async def get_data():
     await get_existing_filters() 
     await get_existing_building_and_aparts()
-    # async with Session() as session:
-    #     result = await session.execute(text(SQL))
-    #     df = pd.DataFrame(result.mappings().all())
-    #     df.to_excel(f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx")
+    async with Session() as session:
+         result = await session.execute(text(SQL))
+         df = pd.DataFrame(result.mappings().all())
+         df.to_excel(f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx")
 
 
 if __name__ == "__main__":
