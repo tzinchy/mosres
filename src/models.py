@@ -4,17 +4,18 @@ import sqlalchemy.dialects.postgresql as sapg
 from src.database import Base
 from src.mixins import NewApartMixing, BuildingMixing
 
-
 class Building(Base, BuildingMixing):
     __tablename__ = "buildings"
 
     building_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
+    version: saorm.Mapped[int] = saorm.mapped_column(nullable=False, server_default="0")
 
 
 class NewApart(Base, NewApartMixing):
     __tablename__ = "new_aparts"
 
     new_apart_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
+    version: saorm.Mapped[int] = saorm.mapped_column(nullable=False, server_default="0")
 
 
 class MunicipalDistrict(Base):
@@ -50,6 +51,7 @@ class NewApartHistory(Base, NewApartMixing):
         primary_key=True, autoincrement=True
     )
     new_apart_id: saorm.Mapped[int]
+    version: saorm.Mapped[int] = saorm.mapped_column(nullable=False)
 
 
 class BuildingHistory(Base, BuildingMixing):
@@ -58,6 +60,8 @@ class BuildingHistory(Base, BuildingMixing):
         primary_key=True, autoincrement=True
     )
     building_id: saorm.Mapped[int]
+    version: saorm.Mapped[int] = saorm.mapped_column(nullable=False)
+
 
 class BuildingTemp(Base, BuildingMixing):
     __tablename__ = 'buildings_temp'

@@ -40,14 +40,53 @@ async def insert_into_buildings(buildings):
                 :metro_walk, :floors, :flats, :vvod, :unique, :anons_texts,
                 :family_hypotec, :county
             ) ON CONFLICT (building_id) DO NOTHING
-        """),
+            """),
             buildings,
         )
+        await session.commit()
         await session.execute(
-            text("""
-            insert into new_aprats (building_id) 
-                """)
+            text('''
+            INSERT INTO buildings (
+                building_id, address, code, district, latitude, longitude,
+                status_code, finishing_code, metro, metro_car,
+                metro_walk, floors, flats, vvod, "unique", anons_texts,
+                family_hypotec, county
+            )
+            SELECT
+                building_id, address, code, district, latitude, longitude,
+                status_code, finishing_code, metro, metro_car,
+                metro_walk, floors, flats, vvod, "unique", anons_texts,
+                family_hypotec, county
+            FROM buildings_temp
+            EXCEPT
+            SELECT
+                building_id, address, code, district, latitude, longitude,
+                status_code, finishing_code, metro, metro_car,
+                metro_walk, floors, flats, vvod, "unique", anons_texts,
+                family_hypotec, county
+            FROM buildings
+            ON CONFLICT (building_id) DO UPDATE SET
+                address = EXCLUDED.address,
+                code = EXCLUDED.code,
+                district = EXCLUDED.district,
+                latitude = EXCLUDED.latitude,
+                longitude = EXCLUDED.longitude,
+                status_code = EXCLUDED.status_code,
+                finishing_code = EXCLUDED.finishing_code,
+                metro = EXCLUDED.metro,
+                metro_car = EXCLUDED.metro_car,
+                metro_walk = EXCLUDED.metro_walk,
+                floors = EXCLUDED.floors,
+                flats = EXCLUDED.flats,
+                vvod = EXCLUDED.vvod,
+                "unique" = EXCLUDED."unique",
+                anons_texts = EXCLUDED.anons_texts,
+                family_hypotec = EXCLUDED.family_hypotec,
+                county = EXCLUDED.county,
+                updated_at = NOW();
+            ''')
         )
+        await session.execute(text('TRUNCATE buildings_temp'))
         await session.commit()
 
 
@@ -160,8 +199,7 @@ async def insert_into_new_apart(new_aparts):
                 percentage_discount = EXCLUDED.percentage_discount,
                 auction = EXCLUDED.auction,
                 block_name = EXCLUDED.block_name,
-                updated_at = NOW(),
-                version = COALESCE(EXCLUDED.version, 0) + 1;
+                updated_at = NOW()
             ''')
         )
         await session.execute(text('truncate new_aparts_temp'))
@@ -184,7 +222,7 @@ async def get_existing_building_and_aparts():
                     for building in result["housings"]["items"]
                 ]
                 await insert_into_new_apart(new_aparts=new_apart)
-                #await insert_into_buildings(buildings=buildings)
+                await insert_into_buildings(buildings=buildings)
 
             else:
                 loguru.logger.error(f"Error {request.status}: {await request.text()}")

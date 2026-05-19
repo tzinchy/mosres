@@ -1,9 +1,13 @@
-CREATE OR REPLACE function public.insert_new_apart_history()
-    RETURNS TRIGGER
-    LANGUAGE plpgsql
+-- DROP FUNCTION public.insert_new_apart_history();
+
+CREATE OR REPLACE FUNCTION public.insert_new_apart_history()
+ RETURNS trigger
+ LANGUAGE plpgsql
 AS $function$
 DECLARE 
 BEGIN
+	NEW."version" := COALESCE(NEW."version", 0) + 1;
+
     INSERT INTO new_aparts_history (
         new_apart_id, address, building,
         building_id, building_code, "number",
@@ -28,15 +32,17 @@ BEGIN
         NEW.price_with_discount, NEW.percentage_discount, 
         NEW.auction, NEW.block_name,
         NEW.created_at, NEW.updated_at,
-        NEW."version");
+		NEW."version");
     RETURN NEW;
 END;
-$function$;
+$function$
+;
 
-
-CREATE OR REPLACE TRIGGER new_apart_history_trigger BEFORE INSERT OR UPDATE
+CREATE OR REPLACE TRIGGER new_apart_history_trigger 
+BEFORE INSERT OR UPDATE
 ON new_aparts
-EXECUTE FUNCTION insert_new_apart_history ();
+FOR EACH ROW  
+EXECUTE FUNCTION insert_new_apart_history();
 
 
 

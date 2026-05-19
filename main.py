@@ -55,7 +55,8 @@ case b.status_code
     WHEN 'FINISHED' then 'Завершено'
 else
 	'Неизвестный тип'
-end as building_status
+end as building_status,
+new_aparts."version"
 	from new_aparts 
 join buildings b on (new_aparts.building_id)::integer = b.building_id
 join municipal_districts md on (md.municipal_district_id)::integer = b.district
