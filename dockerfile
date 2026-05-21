@@ -14,5 +14,5 @@ RUN uv sync --frozen --no-dev
 
 EXPOSE 5457
 COPY src/ src/
-
+VOLUME [ "fastapi:/src/excel" ]
 ENTRYPOINT ["uv", "run", "uvicorn", "src.api:app", "--reload", "--port", "5457", "--host", "0.0.0.0"]
