@@ -3,102 +3,112 @@
 # THIRD_DATA = https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php?cmd=filters&open_sale=1
 # https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php?type[]=R&open_sale=1&map=forall&pagesize=100000&object=95265
 # https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php?cmd=filters&open_sale=1
+import datetime
+import pathlib
+
+import aiofiles
 import aiohttp
 import loguru
-from src.schemas import (
-    MetroAdapter,
-    DistrictAdapter,
-    Building,
-    NewApart,
-    Metro,
-)
-from src.database import Session
-from sqlalchemy import text
-import datetime
 import pandas as pd
-import pathlib
+from sqlalchemy import text
+
+from src.database import Session
+from src.schemas import (
+    Building,
+    DistrictAdapter,
+    Metro,
+    MetroAdapter,
+    NewApart,
+)
 
 BASE_URL = (
     "https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php"
 )
-
 
 APART_AND_BUILDINGS_PARAMS = {"type[]": ["R"], "pagesize": 1_000_000}
 
 FILTER_PARAMS = {"cmd": "filters", "pagesize": 1_000_000}
 
 
+def create_placheholders(columns: list[str]) -> tuple[str, str]:
+    return ", ".join(columns), ", ".join([f":{col}" for col in columns])
+
+
+def create_placheholders_with_excluded(columns: list[str]) -> tuple[str, str, str]:
+    insert_columns, values_columns = create_placheholders(columns)
+    return (
+        insert_columns,
+        values_columns,
+        ", ".join([f"{column} = EXCLUDED.{column}" for column in columns]),
+    )
+
+
 async def insert_into_buildings(buildings):
+    buildings_columns = [
+        "building_id",
+        "address",
+        "code",
+        "district",
+        "latitude",
+        "longitude",
+        "status_code",
+        "finishing_code",
+        "metro",
+        "metro_car",
+        "metro_walk",
+        "floors",
+        "flats",
+        "vvod",
+        "unique",
+        "anons_texts",
+        "family_hypotec",
+        "county",
+    ]
+    buildings_insert_columns, buildings_values_columns, biuldings_excluded_columns = (
+        create_placheholders_with_excluded(buildings_columns)
+    )
     async with Session() as session:
         await session.execute(
-            text("""
+            text(f"""
             INSERT INTO buildings_temp (
-                building_id, address, code, district, latitude, longitude,
-                status_code, finishing_code, metro, metro_car,
-                metro_walk, floors, flats, vvod, "unique", anons_texts,
-                family_hypotec, county
+                {buildings_insert_columns}
             ) VALUES (
-                :building_id, :address, :code, :district, :latitude, :longitude,
-                :status_code, :finishing_code, :metro, :metro_car,
-                :metro_walk, :floors, :flats, :vvod, :unique, :anons_texts,
-                :family_hypotec, :county
+                {buildings_values_columns}
             ) ON CONFLICT (building_id) DO NOTHING
             """),
             buildings,
         )
-        await session.commit()
         await session.execute(
-            text('''
+            text(f"""
             INSERT INTO buildings (
-                building_id, address, code, district, latitude, longitude,
-                status_code, finishing_code, metro, metro_car,
-                metro_walk, floors, flats, vvod, "unique", anons_texts,
-                family_hypotec, county
+                {buildings_insert_columns}
             )
             SELECT
-                building_id, address, code, district, latitude, longitude,
-                status_code, finishing_code, metro, metro_car,
-                metro_walk, floors, flats, vvod, "unique", anons_texts,
-                family_hypotec, county
+                {buildings_insert_columns}
             FROM buildings_temp
             EXCEPT
             SELECT
-                building_id, address, code, district, latitude, longitude,
-                status_code, finishing_code, metro, metro_car,
-                metro_walk, floors, flats, vvod, "unique", anons_texts,
-                family_hypotec, county
+                {buildings_insert_columns}
             FROM buildings
             ON CONFLICT (building_id) DO UPDATE SET
-                address = EXCLUDED.address,
-                code = EXCLUDED.code,
-                district = EXCLUDED.district,
-                latitude = EXCLUDED.latitude,
-                longitude = EXCLUDED.longitude,
-                status_code = EXCLUDED.status_code,
-                finishing_code = EXCLUDED.finishing_code,
-                metro = EXCLUDED.metro,
-                metro_car = EXCLUDED.metro_car,
-                metro_walk = EXCLUDED.metro_walk,
-                floors = EXCLUDED.floors,
-                flats = EXCLUDED.flats,
-                vvod = EXCLUDED.vvod,
-                "unique" = EXCLUDED."unique",
-                anons_texts = EXCLUDED.anons_texts,
-                family_hypotec = EXCLUDED.family_hypotec,
-                county = EXCLUDED.county,
+                {biuldings_excluded_columns},
                 updated_at = NOW();
-            ''')
+            """)
         )
-        await session.execute(text('TRUNCATE buildings_temp'))
+        await session.execute(text("TRUNCATE buildings_temp"))
         await session.commit()
 
 
 async def insert_metro(metros: dict[int, Metro]):
+    metro_columns = ["metro_id", "name", "color"]
+    metro_insert_columns, metro_values_columns = create_placheholders(metro_columns)
     async with Session() as session:
         for key, value in metros.items():
             await session.execute(
                 text(
-                    "insert into metros (metro_id, name, color) VALUES (:metro_id, :name, :color) ON conflict (metro_id) DO NOTHING "
+                    f"""insert into metros ({metro_insert_columns})
+                    VALUES ({metro_values_columns})
+                    ON conflict (metro_id) DO NOTHING """
                 ),
                 params={"metro_id": int(key), "name": value.name, "color": value.color},
             )
@@ -106,11 +116,19 @@ async def insert_metro(metros: dict[int, Metro]):
 
 
 async def insert_district_and_municipal_district(districts: dict[int, Metro]):
+    district_columns = ["district_id", "name", "full_name", "polygons"]
+    district_insert_columns, district_values_columns = create_placheholders(
+        district_columns
+    )
+    municipal_district_columns = ["municipal_district_id", "name", "polygons"]
+    municipal_district_insert_columns, municipal_district_values_columns = (
+        create_placheholders(municipal_district_columns)
+    )
     async with Session() as session:
         for key, value in districts.items():
             await session.execute(
-                text("""insert into districts (district_id, name, full_name, polygons)
-                                        VALUES (:district_id, :name, :full_name, :polygons)
+                text(f"""insert into districts ({district_insert_columns})
+                                        VALUES ({district_values_columns})
                                         ON conflict (district_id) DO NOTHING """),
                 params={
                     "district_id": int(key),
@@ -121,8 +139,8 @@ async def insert_district_and_municipal_district(districts: dict[int, Metro]):
             )
             for key, value in value["district"].items():
                 await session.execute(
-                    text("""insert into municipal_districts (municipal_district_id, name, polygons)
-                                            VALUES (:municipal_district_id, :name, :polygons)
+                    text(f"""insert into municipal_districts ({municipal_district_insert_columns})
+                                            VALUES ({municipal_district_values_columns})
                                             ON conflict (municipal_district_id) DO NOTHING """),
                     params={
                         "municipal_district_id": int(key),
@@ -134,78 +152,66 @@ async def insert_district_and_municipal_district(districts: dict[int, Metro]):
 
 
 async def insert_into_new_apart(new_aparts):
+    new_apart_columns = [
+        "new_apart_id",
+        "address",
+        "building",
+        "building_id",
+        "building_code",
+        "number",
+        "rooms",
+        "floor",
+        "block",
+        "area",
+        "price",
+        "price_m",
+        "type",
+        "term_of_application",
+        "open_sale",
+        "reserve",
+        "y2_sell",
+        "for_sell",
+        "num_on_floor",
+        "property",
+        "advants",
+        "article",
+        "price_with_discount",
+        "percentage_discount",
+        "auction",
+        "block_name",
+    ]
+    new_apart_insert_columns, new_apart_values_columns, new_apart_excluded_columns = (
+        create_placheholders_with_excluded(new_apart_columns)
+    )
     async with Session() as session:
         await session.execute(
-            text("""
+            text(f"""
             INSERT INTO new_aparts_temp (
-                new_apart_id, address, building, building_id, building_code,
-                number, rooms, floor, block, area, price, price_m, type, term_of_application, open_sale, reserve, y2_sell,
-                for_sell, num_on_floor, property, advants, article,
-                price_with_discount, percentage_discount, auction, block_name
+                {new_apart_insert_columns}
             ) VALUES (
-                :new_apart_id, :address, :building, :building_id, :building_code,
-                :number, :rooms, :floor, :block, :area, :price, :price_m, :type, :term_of_application, :open_sale, :reserve, :y2_sell,
-                :for_sell, :num_on_floor, :property, :advants, :article,
-                :price_with_discount, :percentage_discount, :auction, :block_name
+                {new_apart_values_columns}
             ) ON CONFLICT (new_apart_id) DO NOTHING
         """),
             new_aparts,
         )
-        await session.commit()
         await session.execute(
-            text('''
+            text(f"""
             INSERT INTO new_aparts (
-                new_apart_id, address, building, building_id, building_code, "number",
-                rooms, "floor", block, area, price, price_m, "type",
-                term_of_application, open_sale, reserve, y2_sell, for_sell, num_on_floor,
-                property, advants, article, price_with_discount, percentage_discount,
-                auction, block_name
+                {new_apart_insert_columns}
             )
             SELECT
-                new_apart_id, address, building, building_id, building_code, "number",
-                rooms, "floor", block, area, price, price_m, "type",
-                term_of_application, open_sale, reserve, y2_sell, for_sell, num_on_floor,
-                property, advants, article, price_with_discount, percentage_discount,
-                auction, block_name
+                {new_apart_insert_columns}
             FROM new_aparts_temp
             EXCEPT
             SELECT
-                new_apart_id, address, building, building_id, building_code, "number",
-                rooms, "floor", block, area, price, price_m, "type",
-                term_of_application, open_sale, reserve, y2_sell, for_sell, num_on_floor,
-                property, advants, article, price_with_discount, percentage_discount,
-                auction, block_name
+                {new_apart_insert_columns}
             FROM new_aparts
             ON CONFLICT (new_apart_id) DO UPDATE SET
-                address = EXCLUDED.address,
-                building = EXCLUDED.building,
-                building_id = EXCLUDED.building_id,
-                building_code = EXCLUDED.building_code,
-                "number" = EXCLUDED."number",
-                rooms = EXCLUDED.rooms,
-                "floor" = EXCLUDED."floor",
-                block = EXCLUDED.block,
-                area = EXCLUDED.area,
-                price = EXCLUDED.price,
-                price_m = EXCLUDED.price_m,
-                "type" = EXCLUDED."type",
-                term_of_application = EXCLUDED.term_of_application,
-                open_sale = EXCLUDED.open_sale,
-                reserve = EXCLUDED.reserve,
-                y2_sell = EXCLUDED.y2_sell,
-                for_sell = EXCLUDED.for_sell,
-                num_on_floor = EXCLUDED.num_on_floor,
-                property = EXCLUDED.property,
-                advants = EXCLUDED.advants,
-                article = EXCLUDED.article,
-                price_with_discount = EXCLUDED.price_with_discount,
-                percentage_discount = EXCLUDED.percentage_discount,
-                auction = EXCLUDED.auction,
-                block_name = EXCLUDED.block_name,
+                {new_apart_excluded_columns}
                 updated_at = NOW()
-            ''')
+            """)
         )
-        await session.execute(text('truncate new_aparts_temp'))
+        await session.execute(text("truncate new_aparts_temp"))
         await session.commit()
 
 
@@ -236,8 +242,12 @@ async def get_existing_filters():
         async with session.get(url=BASE_URL, params=FILTER_PARAMS) as request:
             if request.status == 200:
                 result = await request.json()
-                county = DistrictAdapter.validate_python(result["filters"]["county"])
-                metro = MetroAdapter.validate_python(result["filters"]["metro"])
+                county = DistrictAdapter.validate_python(  # noqa
+                    result["filters"]["county"]
+                )
+                metro = MetroAdapter.validate_python(
+                    result["filters"]["metro"]
+                )  # ruff ignore
                 await insert_metro(metros=metro)
                 await insert_district_and_municipal_district(
                     result["filters"]["county"]
@@ -245,75 +255,30 @@ async def get_existing_filters():
             else:
                 loguru.logger.error(f"Error {request.status}: {await request.text()}")
 
+
 async def update_all_data_and_get_new_file():
-    SQL = """
-        select new_apart_id, d."name" as distric,
-        md."name" as municipal_district,
-        new_aparts_history.address, 
-        building, 
-        number, 
-        rooms,
-        floor,
-        block,
-        area,
-        price,
-        price_m, 
-        CASE new_aparts_history."type"
-            WHEN 'R'  THEN 'Жилая'
-            WHEN 'NR' THEN 'Коммерческие помещения'
-            WHEN 'P'  THEN 'Паркинг'
-            ELSE 'Неизвестный тип'
-        end, 
-        term_of_application, 
-        open_sale, 
-        reserve, 
-        y2_sell, 
-        for_sell, 
-        new_aparts_history.num_on_floor, 
-        property, 
-        article, 
-        price_with_discount, 
-        percentage_discount,
-        auction, 
-        block_name, 
-        case b.finishing_code
-            when 'STD' then 'Отделка по стандарту реновации'
-            when 'NO' then 'Без отделки'
-            when 'FULL' then 'С отделкой'
-        else
-            'Неизвестный тип'
-        end as status_code, 
-        floors,
-        flats, 
-        vvod,
-        "unique",
-        CONCAT('https://xn--80aae5aibotfo5h.xn--p1ai/obekty/', new_aparts_history.building_code, '/?flat_id=', new_aparts_history.new_apart_id),
-        new_aparts_history.created_at, 
-        new_aparts_history.updated_at,
-        anons_texts,
-        case b.status_code
-            WHEN 'PROCESSING' then 'В процессе'
-            WHEN 'FINISHED' then 'Завершено'
-        else
-            'Неизвестный тип'
-        end as building_status,
-        new_aparts_history."version"
-            from new_aparts_history 
-        join buildings b on (new_aparts_history.building_id)::integer = b.building_id
-        join municipal_districts md on (md.municipal_district_id)::integer = b.district
-        join districts d on (d.district_id)::integer = b.county 
-    """
-    folder = pathlib.Path('src/excel')
-    folder.mkdir(parents=True, exist_ok=True)
-    file_path = folder.joinpath(f'{datetime.date.today().strftime('%Y-%m-%d')}.xlsx')
+    main_folder = pathlib.Path("src")
+    async with aiofiles.open(
+        main_folder.joinpath("sql", "table_with_versions.sql")
+    ) as f:
+        SQL = await f.read()
+    excel_folder = main_folder.joinpath("excel")
+    excel_folder.mkdir(parents=True, exist_ok=True)
+    file_path = excel_folder.joinpath(
+        f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
+    )
     if file_path.exists():
-        return f"{folder.joinpath(datetime.date.today().strftime('%Y-%m-%d'))}.xlsx", f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
-    await get_existing_filters() 
+        return (
+            f"{excel_folder.joinpath(datetime.date.today().strftime('%Y-%m-%d'))}.xlsx",
+            f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx",
+        )
+    await get_existing_filters()
     await get_existing_building_and_aparts()
     async with Session() as session:
-         result = await session.execute(text(SQL))
-         df = pd.DataFrame(result.mappings().all())
-         df.to_excel(file_path)
-         return f"{folder.joinpath(datetime.date.today().strftime('%Y-%m-%d'))}.xlsx", f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
-
-    
+        result = await session.execute(text(SQL))
+        df = pd.DataFrame(result.mappings().all())
+        df.to_excel(file_path)
+        return (
+            f"{excel_folder.joinpath(datetime.date.today().strftime('%Y-%m-%d'))}.xlsx",
+            f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx",
+        )
