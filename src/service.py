@@ -191,43 +191,43 @@ async def insert_into_new_apart(new_aparts):
 
 async def get_existing_building_and_aparts():
     retry_options = ExponentialRetry(attempts=3)
-    retry_client = RetryClient(raise_for_status=False, retry_options=retry_options)
-    async with retry_client.get(
-        url=BASE_URL, params=APART_AND_BUILDINGS_PARAMS
-    ) as request:
-        if request.status == 200:
-            result: dict = await request.json()
-            buildings = [
-                BuildingSchema.model_validate(building).model_dump()
-                for building in result["objects"]["items"]
-            ]
-            new_apart = [
-                NewApartSchema.model_validate(building).model_dump()
-                for building in result["housings"]["items"]
-            ]
-            await insert_into_new_apart(new_aparts=new_apart)
-            await insert_into_buildings(buildings=buildings)
+    async with RetryClient(raise_for_status=False, retry_options=retry_options) as retry_client:
+        async with retry_client.get(
+            url=BASE_URL, params=APART_AND_BUILDINGS_PARAMS
+        ) as request:
+            if request.status == 200:
+                result: dict = await request.json()
+                buildings = [
+                    BuildingSchema.model_validate(building).model_dump()
+                    for building in result["objects"]["items"]
+                ]
+                new_apart = [
+                    NewApartSchema.model_validate(building).model_dump()
+                    for building in result["housings"]["items"]
+                ]
+                await insert_into_new_apart(new_aparts=new_apart)
+                await insert_into_buildings(buildings=buildings)
 
-        else:
-            loguru.logger.error(f"Error {request.status}: {await request.text()}")
+            else:
+                loguru.logger.error(f"Error {request.status}: {await request.text()}")
 
 
 async def get_existing_filters():
     retry_options = ExponentialRetry(attempts=3)
-    async with retry_client = RetryClient(raise_for_status=False, retry_options=retry_options)
-    async with retry_client.get(url=BASE_URL, params=FILTER_PARAMS) as request:
-        if request.status == 200:
-            result = await request.json()
-            county = DistrictAdapter.validate_python(  # noqa
-                result["filters"]["county"]
-            )
-            metro = MetroAdapter.validate_python(
-                result["filters"]["metro"]
-            )  # ruff ignore
-            await insert_metro(metros=metro)
-            await insert_district_and_municipal_district(result["filters"]["county"])
-        else:
-            loguru.logger.error(f"Error {request.status}: {await request.text()}")
+    async with RetryClient(raise_for_status=False, retry_options=retry_options) as retry_client:
+        async with retry_client.get(url=BASE_URL, params=FILTER_PARAMS) as request:
+            if request.status == 200:
+                result = await request.json()
+                county = DistrictAdapter.validate_python(  # noqa
+                    result["filters"]["county"]
+                )
+                metro = MetroAdapter.validate_python(
+                    result["filters"]["metro"]
+                )  # ruff ignore
+                await insert_metro(metros=metro)
+                await insert_district_and_municipal_district(result["filters"]["county"])
+            else:
+                loguru.logger.error(f"Error {request.status}: {await request.text()}")
 
 
 async def update_all_data_and_get_new_file():
