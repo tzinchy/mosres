@@ -51,7 +51,7 @@ async def insert_into_buildings(buildings):
     buildings_columns = [
         "building_id", "address", "code", "district", "latitude", "longitude", "status_code",
         "finishing_code", "metro", "metro_car", "metro_walk", "floors", "flats", "vvod",
-        "unique", "anons_texts", "family_hypotec", "county",
+        "anons_texts", "family_hypotec", "county",
     ]
     # fmt: on
     buildings_insert_columns, buildings_values_columns, biuldings_excluded_columns = (

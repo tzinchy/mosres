@@ -38,7 +38,6 @@ select
     floors,
     flats,
     vvod,
-    "unique",
     CONCAT(
         'https://xn--80aae5aibotfo5h.xn--p1ai/obekty/',
         new_aparts_history.building_code,

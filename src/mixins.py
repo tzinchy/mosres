@@ -25,7 +25,6 @@ class BuildingMixing:
     floors: saorm.Mapped[str | None]
     flats: saorm.Mapped[str | None] = None  # исправлено: было saorm[str | None]
     vvod: saorm.Mapped[str | None]
-    unique: saorm.Mapped[int | None]
     anons_texts: saorm.Mapped[list[str] | None] = saorm.mapped_column(
         sapg.ARRAY(sa.String), default=None
     )

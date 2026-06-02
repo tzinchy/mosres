@@ -20,7 +20,6 @@ class BuildingSchema(BaseModel):
     floors: str | None = None
     flats: str | None = None
     vvod: str | None = None
-    unique: int | None = None
     anons_texts: list[str] | None = None
     family_hypotec: int
     county: int  # это короче чет типо и district и municipal_district по всей видимости так еще и метро наверное через ту же таблицу
