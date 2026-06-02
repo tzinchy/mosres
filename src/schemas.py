@@ -1,7 +1,7 @@
-from pydantic import BaseModel, Field, AliasChoices, ConfigDict, TypeAdapter, AliasPath
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter
 
 
-class Building(BaseModel):
+class BuildingSchema(BaseModel):
     building_id: int = Field(
         None, validation_alias=AliasChoices("id", "building_id", "object_id")
     )
@@ -29,7 +29,7 @@ class Building(BaseModel):
     )
 
 
-class NewApart(BaseModel):
+class NewApartSchema(BaseModel):
     new_apart_id: int | None = Field(
         default=None, validation_alias=AliasChoices("id", "new_apart_id")
     )
@@ -67,24 +67,24 @@ class NewApart(BaseModel):
     model_config = ConfigDict(coerce_numbers_to_str=True, extra="allow")
 
 
-class MunicipalDistrict(BaseModel):
+class MunicipalDistrictSchema(BaseModel):
     name: str
     polygons: dict[str, str]
 
 
-class District(BaseModel):
+class DistrictSchema(BaseModel):
     name: str
     full_name: str
     polygons: str
-    municipal_district: dict[str, MunicipalDistrict] = Field(
+    municipal_district: dict[str, MunicipalDistrictSchema] = Field(
         AliasChoices("district", "districts")
     )
 
 
-class Metro(BaseModel):
+class MetroSchema(BaseModel):
     name: str
     color: str
 
 
-DistrictAdapter = TypeAdapter(dict[str, District])
-MetroAdapter = TypeAdapter(dict[str, Metro])
+DistrictAdapter = TypeAdapter(dict[str, DistrictSchema])
+MetroAdapter = TypeAdapter(dict[str, MetroSchema])

@@ -7,18 +7,20 @@ import datetime
 import pathlib
 
 import aiofiles
-import aiohttp
 import loguru
 import pandas as pd
-from sqlalchemy import text
+from aiohttp_retry import ExponentialRetry, RetryClient
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import Session
+from src.models import Building, BuildingHistory, District, NewApart, NewApartHistory
 from src.schemas import (
-    Building,
+    BuildingSchema,
     DistrictAdapter,
-    Metro,
     MetroAdapter,
-    NewApart,
+    MetroSchema,
+    NewApartSchema,
 )
 
 BASE_URL = (
@@ -30,6 +32,7 @@ APART_AND_BUILDINGS_PARAMS = {"type[]": ["R"], "pagesize": 1_000_000}
 FILTER_PARAMS = {"cmd": "filters", "pagesize": 1_000_000}
 
 
+# todo(GLOBAL): extract query builder logic from api to placeholder builder
 def create_placheholders(columns: list[str]) -> tuple[str, str]:
     return ", ".join(columns), ", ".join([f":{col}" for col in columns])
 
@@ -44,26 +47,13 @@ def create_placheholders_with_excluded(columns: list[str]) -> tuple[str, str, st
 
 
 async def insert_into_buildings(buildings):
+    # fmt: off
     buildings_columns = [
-        "building_id",
-        "address",
-        "code",
-        "district",
-        "latitude",
-        "longitude",
-        "status_code",
-        "finishing_code",
-        "metro",
-        "metro_car",
-        "metro_walk",
-        "floors",
-        "flats",
-        "vvod",
-        "unique",
-        "anons_texts",
-        "family_hypotec",
-        "county",
+        "building_id", "address", "code", "district", "latitude", "longitude", "status_code",
+        "finishing_code", "metro", "metro_car", "metro_walk", "floors", "flats", "vvod",
+        "unique", "anons_texts", "family_hypotec", "county",
     ]
+    # fmt: on
     buildings_insert_columns, buildings_values_columns, biuldings_excluded_columns = (
         create_placheholders_with_excluded(buildings_columns)
     )
@@ -99,7 +89,7 @@ async def insert_into_buildings(buildings):
         await session.commit()
 
 
-async def insert_metro(metros: dict[int, Metro]):
+async def insert_metro(metros: dict[int, MetroSchema]):
     metro_columns = ["metro_id", "name", "color"]
     metro_insert_columns, metro_values_columns = create_placheholders(metro_columns)
     async with Session() as session:
@@ -115,21 +105,25 @@ async def insert_metro(metros: dict[int, Metro]):
         await session.commit()
 
 
-async def insert_district_and_municipal_district(districts: dict[int, Metro]):
+async def insert_district_and_municipal_district(districts: dict[int, District]):
+
     district_columns = ["district_id", "name", "full_name", "polygons"]
     district_insert_columns, district_values_columns = create_placheholders(
         district_columns
     )
+
     municipal_district_columns = ["municipal_district_id", "name", "polygons"]
     municipal_district_insert_columns, municipal_district_values_columns = (
         create_placheholders(municipal_district_columns)
     )
+
     async with Session() as session:
         for key, value in districts.items():
             await session.execute(
                 text(f"""insert into districts ({district_insert_columns})
                                         VALUES ({district_values_columns})
                                         ON conflict (district_id) DO NOTHING """),
+                # todo: Add Pydantic
                 params={
                     "district_id": int(key),
                     "name": value["name"],
@@ -152,34 +146,14 @@ async def insert_district_and_municipal_district(districts: dict[int, Metro]):
 
 
 async def insert_into_new_apart(new_aparts):
+    # fmt: off
     new_apart_columns = [
-        "new_apart_id",
-        "address",
-        "building",
-        "building_id",
-        "building_code",
-        "number",
-        "rooms",
-        "floor",
-        "block",
-        "area",
-        "price",
-        "price_m",
-        "type",
-        "term_of_application",
-        "open_sale",
-        "reserve",
-        "y2_sell",
-        "for_sell",
-        "num_on_floor",
-        "property",
-        "advants",
-        "article",
-        "price_with_discount",
-        "percentage_discount",
-        "auction",
-        "block_name",
+        "new_apart_id", "address", "building", "building_id", "building_code", "number", "rooms", "floor",
+        "block", "area", "price", "price_m", "type", "term_of_application", "open_sale", "reserve", "y2_sell", "for_sell", "num_on_floor",
+        "property", "advants", "article", "price_with_discount", "percentage_discount",
+        "auction", "block_name",
     ]
+    # fmt: on
     new_apart_insert_columns, new_apart_values_columns, new_apart_excluded_columns = (
         create_placheholders_with_excluded(new_apart_columns)
     )
@@ -207,7 +181,7 @@ async def insert_into_new_apart(new_aparts):
                 {new_apart_insert_columns}
             FROM new_aparts
             ON CONFLICT (new_apart_id) DO UPDATE SET
-                {new_apart_excluded_columns}
+                {new_apart_excluded_columns},
                 updated_at = NOW()
             """)
         )
@@ -216,44 +190,44 @@ async def insert_into_new_apart(new_aparts):
 
 
 async def get_existing_building_and_aparts():
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            url=BASE_URL, params=APART_AND_BUILDINGS_PARAMS
-        ) as request:
-            if request.status == 200:
-                result: dict = await request.json()
-                buildings = [
-                    Building.model_validate(building).model_dump()
-                    for building in result["objects"]["items"]
-                ]
-                new_apart = [
-                    NewApart.model_validate(building).model_dump()
-                    for building in result["housings"]["items"]
-                ]
-                await insert_into_new_apart(new_aparts=new_apart)
-                await insert_into_buildings(buildings=buildings)
+    retry_options = ExponentialRetry(attempts=3)
+    retry_client = RetryClient(raise_for_status=False, retry_options=retry_options)
+    async with retry_client.get(
+        url=BASE_URL, params=APART_AND_BUILDINGS_PARAMS
+    ) as request:
+        if request.status == 200:
+            result: dict = await request.json()
+            buildings = [
+                BuildingSchema.model_validate(building).model_dump()
+                for building in result["objects"]["items"]
+            ]
+            new_apart = [
+                NewApartSchema.model_validate(building).model_dump()
+                for building in result["housings"]["items"]
+            ]
+            await insert_into_new_apart(new_aparts=new_apart)
+            await insert_into_buildings(buildings=buildings)
 
-            else:
-                loguru.logger.error(f"Error {request.status}: {await request.text()}")
+        else:
+            loguru.logger.error(f"Error {request.status}: {await request.text()}")
 
 
 async def get_existing_filters():
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url=BASE_URL, params=FILTER_PARAMS) as request:
-            if request.status == 200:
-                result = await request.json()
-                county = DistrictAdapter.validate_python(  # noqa
-                    result["filters"]["county"]
-                )
-                metro = MetroAdapter.validate_python(
-                    result["filters"]["metro"]
-                )  # ruff ignore
-                await insert_metro(metros=metro)
-                await insert_district_and_municipal_district(
-                    result["filters"]["county"]
-                )
-            else:
-                loguru.logger.error(f"Error {request.status}: {await request.text()}")
+    retry_options = ExponentialRetry(attempts=3)
+    async with retry_client = RetryClient(raise_for_status=False, retry_options=retry_options)
+    async with retry_client.get(url=BASE_URL, params=FILTER_PARAMS) as request:
+        if request.status == 200:
+            result = await request.json()
+            county = DistrictAdapter.validate_python(  # noqa
+                result["filters"]["county"]
+            )
+            metro = MetroAdapter.validate_python(
+                result["filters"]["metro"]
+            )  # ruff ignore
+            await insert_metro(metros=metro)
+            await insert_district_and_municipal_district(result["filters"]["county"])
+        else:
+            loguru.logger.error(f"Error {request.status}: {await request.text()}")
 
 
 async def update_all_data_and_get_new_file():
@@ -282,3 +256,31 @@ async def update_all_data_and_get_new_file():
             f"{excel_folder.joinpath(datetime.date.today().strftime('%Y-%m-%d'))}.xlsx",
             f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx",
         )
+
+
+async def get_new_aparts_table(session: AsyncSession) -> pd.DataFrame:
+    result = await session.execute(select(NewApart))
+    return result.mappings().all()
+
+
+async def get_new_buildings_table(session: AsyncSession) -> pd.DataFrame:
+    result = await session.execute(select(Building))
+    return result.mappings().all()
+
+
+async def get_new_aparts_history(new_apart_id, session: AsyncSession) -> pd.DataFrame:
+    result = await session.execute(
+        select(NewApartHistory).where(NewApartHistory.new_apart_id == new_apart_id)
+    )
+    return result.mappings().all()
+
+
+async def get_new_buildings_history(
+    new_building_id, session: AsyncSession
+) -> pd.DataFrame:
+    result = await session.execute(
+        select(BuildingHistory).where(
+            BuildingHistory.new_building_id == new_building_id
+        )
+    )
+    return result.mappings().all()

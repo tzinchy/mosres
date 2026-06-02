@@ -7,7 +7,7 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore", frozen=True
     )
     DB: PostgresDsn = PostgresDsn(
-        "postgresql+asyncpg://postgres:password@localhost:5456"
+        "postgresql+asyncpg://postgres:password@localhost:5432"
     )
 
 

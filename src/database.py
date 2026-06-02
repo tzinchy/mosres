@@ -1,11 +1,12 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
-from sqlalchemy import MetaData, func
+from sqlalchemy import MetaData, String, func
 from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
 from src.config import settings
 
 CONVENTION = {
@@ -25,6 +26,7 @@ class Base(DeclarativeBase):
         server_default=func.now(), nullable=False
     )
     metadata = MetaData(naming_convention=CONVENTION)
+    notes: Mapped[str] = mapped_column(String, nullable=True)
 
 
 engine = create_async_engine(

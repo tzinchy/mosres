@@ -114,6 +114,18 @@ wheels = [
 ]
 
 [[package]]
+name = "aiohttp-retry"
+version = "2.9.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9d/61/ebda4d8e3d8cfa1fd3db0fb428db2dd7461d5742cea35178277ad180b033/aiohttp_retry-2.9.1.tar.gz", hash = "sha256:8eb75e904ed4ee5c2ec242fefe85bf04240f685391c4879d8f541d6028ff01f1", size = 13608, upload-time = "2024-11-06T10:44:54.574Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/99/84ba7273339d0f3dfa57901b846489d2e5c2cd731470167757f1935fffbd/aiohttp_retry-2.9.1-py3-none-any.whl", hash = "sha256:66d2759d1921838256a05a3f80ad7e724936f083e35be5abb5e16eed6be6dc54", size = 9981, upload-time = "2024-11-06T10:44:52.917Z" },
+]
+
+[[package]]
 name = "aiosignal"
 version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -563,6 +575,7 @@ dependencies = [
     { name = "aiofiles" },
     { name = "aiogram" },
     { name = "aiohttp" },
+    { name = "aiohttp-retry" },
     { name = "alembic" },
     { name = "alembic-utils" },
     { name = "asyncpg" },
@@ -572,7 +585,6 @@ dependencies = [
     { name = "pandas" },
     { name = "pydantic-settings" },
     { name = "requests" },
-    { name = "sqlalchemy" },
     { name = "uvicorn" },
     { name = "uvloop" },
     { name = "xlsxwriter" },
@@ -583,6 +595,7 @@ requires-dist = [
     { name = "aiofiles", specifier = ">=25.1.0" },
     { name = "aiogram", specifier = ">=3.28.2" },
     { name = "aiohttp", specifier = ">=3.13.5" },
+    { name = "aiohttp-retry", specifier = ">=2.9.1" },
     { name = "alembic", specifier = ">=1.18.4" },
     { name = "alembic-utils", specifier = ">=0.8.8" },
     { name = "asyncpg", specifier = ">=0.31.0" },
@@ -592,7 +605,6 @@ requires-dist = [
     { name = "pandas", specifier = ">=3.0.3" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
     { name = "requests", specifier = ">=2.34.2" },
-    { name = "sqlalchemy", extras = ["postgres"], specifier = ">=2.0.49" },
     { name = "uvicorn", specifier = ">=0.46.0" },
     { name = "uvloop", specifier = ">=0.22.1" },
     { name = "xlsxwriter", specifier = ">=3.2.9" },
