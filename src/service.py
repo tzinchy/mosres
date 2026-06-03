@@ -21,11 +21,16 @@ from src.schemas import (
     MetroAdapter,
     MetroSchema,
     NewApartSchema,
+    NewApartHistorySchema
 )
+import numpy as np
 
 BASE_URL = (
     "https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php"
 )
+MAIN_FOLDER = pathlib.Path("src")
+EXCEL_FOLDER = MAIN_FOLDER.joinpath("excel")
+EXCEL_FOLDER.mkdir(parents=True, exist_ok=True)
 
 APART_AND_BUILDINGS_PARAMS = {"type[]": ["R"], "pagesize": 1_000_000}
 
@@ -231,20 +236,16 @@ async def get_existing_filters():
 
 
 async def update_all_data_and_get_new_file():
-    main_folder = pathlib.Path("src")
     async with aiofiles.open(
-        main_folder.joinpath("sql", "table_with_versions.sql")
+        MAIN_FOLDER.joinpath("sql", "table_with_versions.sql")
     ) as f:
         SQL = await f.read()
-    excel_folder = main_folder.joinpath("excel")
-    excel_folder.mkdir(parents=True, exist_ok=True)
-    file_path = excel_folder.joinpath(
-        f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
-    )
+    file_name = f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
+    file_path = EXCEL_FOLDER.joinpath(file_name)
     if file_path.exists():
         return (
-            f"{excel_folder.joinpath(datetime.date.today().strftime('%Y-%m-%d'))}.xlsx",
-            f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx",
+            file_path,
+            file_name
         )
     await get_existing_filters()
     await get_existing_building_and_aparts()
@@ -253,8 +254,9 @@ async def update_all_data_and_get_new_file():
         df = pd.DataFrame(result.mappings().all())
         df.to_excel(file_path)
         return (
-            f"{excel_folder.joinpath(datetime.date.today().strftime('%Y-%m-%d'))}.xlsx",
-            f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx",
+            file_path,
+            file_name
+
         )
 
 
@@ -284,3 +286,13 @@ async def get_new_buildings_history(
         )
     )
     return result.mappings().all()
+
+async def insert_data(): 
+    df = pd.read_excel(EXCEL_FOLDER.joinpath('2026-06-01.xlsx'))
+    df = df.astype(object).replace({np.nan: None, 'NaN': None, 'nan': None})  # reassign
+    df = df.sort_values(['new_apart_id', 'version'])                           # reassign
+    df.rename(columns={'case': 'type'}, inplace=True)
+    data = [NewApartHistory(**NewApartHistorySchema(**row.to_dict()).model_dump()) for _, row in df.iterrows()]
+    async with Session() as session:
+        session.add_all(data)
+        await session.commit()

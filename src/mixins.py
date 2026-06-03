@@ -35,28 +35,28 @@ class BuildingMixing:
 
 
 class NewApartMixing:
-    address: saorm.Mapped[str]
-    building: saorm.Mapped[str]
-    building_id: saorm.Mapped[str]
-    building_code: saorm.Mapped[str]
-    number: saorm.Mapped[str]
-    rooms: saorm.Mapped[str]
-    floor: saorm.Mapped[str]
-    block: saorm.Mapped[str]
-    area: saorm.Mapped[str]
-    price: saorm.Mapped[str]
-    price_m: saorm.Mapped[str]
-    type: saorm.Mapped[str]
-    term_of_application: saorm.Mapped[str]
-    open_sale: saorm.Mapped[int]
-    reserve: saorm.Mapped[int]
-    y2_sell: saorm.Mapped[str]
-    for_sell: saorm.Mapped[str]
-    num_on_floor: saorm.Mapped[str]
-    property: saorm.Mapped[str]
-    advants: saorm.Mapped[list[str]] = saorm.mapped_column(sapg.ARRAY(sa.String))
-    article: saorm.Mapped[str]
-    price_with_discount: saorm.Mapped[str]
-    percentage_discount: saorm.Mapped[str]
-    auction: saorm.Mapped[str | None] = saorm.mapped_column(default=None)
-    block_name: saorm.Mapped[str]
+    address: saorm.Mapped[str | None]
+    building: saorm.Mapped[str | None]
+    building_id: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    building_code: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    number: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True) 
+    rooms: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    floor: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    block: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True) 
+    area: saorm.Mapped[str | None]= saorm.mapped_column(nullable=True)
+    price: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True) 
+    price_m: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    type: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True) 
+    term_of_application: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    open_sale: saorm.Mapped[int | None] = saorm.mapped_column(nullable=True)
+    reserve: saorm.Mapped[int] = saorm.mapped_column(nullable=True) 
+    y2_sell: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    for_sell: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    num_on_floor: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    property: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    advants: saorm.Mapped[list[str] | None] = saorm.mapped_column(sapg.ARRAY(sa.String), nullable=True)
+    article: saorm.Mapped[str | None] =  saorm.mapped_column(nullable=True)
+    price_with_discount: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
+    percentage_discount: saorm.Mapped[str | None] =  saorm.mapped_column(nullable=True)
+    auction: saorm.Mapped[str | None] = saorm.mapped_column(default=None, nullable=True)
+    block_name: saorm.Mapped[str] = saorm.mapped_column(default=None, nullable=True)

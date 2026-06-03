@@ -1,5 +1,6 @@
-from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter
-
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, model_validator
+import pandas as pd
+from typing import Any
 
 class BuildingSchema(BaseModel):
     building_id: int = Field(
@@ -84,6 +85,46 @@ class MetroSchema(BaseModel):
     name: str
     color: str
 
+class NewApartHistorySchema(BaseModel):
+    model_config = {"coerce_numbers_to_str": True}  # автоматически int/float → str
+
+    new_apart_id: int
+    version: int
+    address: str
+    building: str
+    building_id: str | None = None
+    building_code: str | None = None
+    number: str          # придёт 801 (int) → станет "801"
+    rooms: str
+    floor: str
+    block: str | None = None
+    area: str
+    price: str
+    price_m: str
+    type: str
+    term_of_application: str
+    open_sale: int
+    reserve: int
+    y2_sell: str | None = None
+    for_sell: str | None = None
+    num_on_floor: str | None = None
+    property: str | None = None
+    article: str | None = None
+    price_with_discount: str | None = None
+    percentage_discount: str | None = None
+    auction: str | None = None
+    block_name: str | None = None
+    created_at: Any = None
+    updated_at: Any = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def replace_nan(cls, values: dict) -> dict:
+        """Заменяем все NaN/nan-строки на None до валидации."""
+        return {
+            k: (None if (isinstance(v, float) and pd.isna(v)) or v in ("NaN", "nan") else v)
+            for k, v in values.items()
+        }
 
 DistrictAdapter = TypeAdapter(dict[str, DistrictSchema])
 MetroAdapter = TypeAdapter(dict[str, MetroSchema])
