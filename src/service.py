@@ -242,11 +242,6 @@ async def update_all_data_and_get_new_file():
         SQL = await f.read()
     file_name = f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
     file_path = EXCEL_FOLDER.joinpath(file_name)
-    if file_path.exists():
-        return (
-            file_path,
-            file_name
-        )
     await get_existing_filters()
     await get_existing_building_and_aparts()
     async with Session() as session:
@@ -287,12 +282,17 @@ async def get_new_buildings_history(
     )
     return result.mappings().all()
 
-async def insert_data(): 
-    df = pd.read_excel(EXCEL_FOLDER.joinpath('2026-06-01.xlsx'))
-    df = df.astype(object).replace({np.nan: None, 'NaN': None, 'nan': None})  # reassign
-    df = df.sort_values(['new_apart_id', 'version'])                           # reassign
+async def insert_data(file_name: str): 
+    df = pd.read_excel(EXCEL_FOLDER.joinpath(file_name))
+    df.astype(object).replace({np.nan: None, 'NaN': None, 'nan': None}, inplace=True)  # reassign
+    df.sort_values(['new_apart_id', 'version'], inplace=True)                           # reassign
     df.rename(columns={'case': 'type'}, inplace=True)
     data = [NewApartHistory(**NewApartHistorySchema(**row.to_dict()).model_dump()) for _, row in df.iterrows()]
     async with Session() as session:
+        async with aiofiles.open(
+            MAIN_FOLDER.joinpath("sql", "backup_from_excel_file.sql")
+        ) as f:
+            SQL = await f.read()
         session.add_all(data)
+        await session.execute(SQL)
         await session.commit()
