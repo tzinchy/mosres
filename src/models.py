@@ -1,4 +1,3 @@
-import sqlalchemy as sa
 import sqlalchemy.orm as saorm
 import sqlalchemy.dialects.postgresql as sapg
 from src.database import Base
