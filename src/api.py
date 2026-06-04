@@ -14,7 +14,7 @@ app.add_middleware(
     allow_headers=["*"],          
 )
 
-@app.get('/file')
+@app.get('/file', description='Получить файл о квартирах текущего дня. Для этого нажать "try it out" -> "execute" -> "нажать на ссылку"')
 async def get_data_from_db():
     path, filename = await update_all_data_and_get_new_file()
     return FileResponse(path=path, filename=filename, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

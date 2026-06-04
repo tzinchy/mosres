@@ -162,6 +162,7 @@ async def insert_into_new_apart(new_aparts):
     new_apart_insert_columns, new_apart_values_columns, new_apart_excluded_columns = (
         create_placheholders_with_excluded(new_apart_columns)
     )
+    #todo: вынести формирование вот этого в utils
     async with Session() as session:
         await session.execute(
             text(f"""
