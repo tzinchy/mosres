@@ -12,7 +12,8 @@ ENV UV_PYTHON_DOWNLOADS=never \
 COPY pyproject.toml .python-version uv.lock .
 RUN uv sync --frozen --no-dev
 
+COPY .env .
 EXPOSE 5457
 COPY src/ src/
-VOLUME [ "fastapi:/src/excel" ]
+VOLUME [ "/src/excel" ]
 ENTRYPOINT ["uv", "run", "uvicorn", "src.api:app", "--reload", "--port", "5457", "--host", "0.0.0.0"]
