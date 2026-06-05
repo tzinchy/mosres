@@ -3,6 +3,7 @@ import sqlalchemy.dialects.postgresql as sapg
 from src.database import Base
 from src.mixins import NewApartMixing, BuildingMixing
 
+
 class Building(Base, BuildingMixing):
     __tablename__ = "buildings"
 
@@ -63,9 +64,12 @@ class BuildingHistory(Base, BuildingMixing):
 
 
 class BuildingTemp(Base, BuildingMixing):
-    __tablename__ = 'buildings_temp'
-    building_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True) 
+    __tablename__ = "buildings_temp"
+    building_id: saorm.Mapped[int] = saorm.mapped_column(
+        primary_key=True, autoincrement=True
+    )
+
 
 class NewApartTemp(Base, NewApartMixing):
-    __tablename__ = 'new_aparts_temp'
-    new_apart_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True) 
+    __tablename__ = "new_aparts_temp"
+    new_apart_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
