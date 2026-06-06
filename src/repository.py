@@ -76,11 +76,11 @@ async def get_new_buildings_history(new_building_id, session: AsyncSession):
 
 
 async def get_buildings_apartments(*, building_id: int, session: AsyncSession):
-    result = await session.excecute(
+    result = await session.execute(
         select(NewApart).where(NewApart.building_id == building_id)
     )
     return result.mappings().all()
 
 async def get_data_for_excel_file(sql : str, session : AsyncSession):
     result = await session.execute(text(sql))
-    result.mappings().all()
+    return result.mappings().all()

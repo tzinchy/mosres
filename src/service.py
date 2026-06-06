@@ -25,6 +25,8 @@ from src.repository import (
     get_data_for_excel_file,
 )
 from src.utils import read_from_sql_folder
+import asyncio
+from aiohttp.http_exceptions import HttpBadRequest
 
 BASE_URL = (
     "https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php"
@@ -55,16 +57,18 @@ class MosResService:
     METRO_COLUMNS = ['metro_id', 'name', 'color']
     # fmt: on
 
-    async def udpate_all_data(self):
+    async def update_all_data(self):
         async with Session() as session:
             async with session.begin():
                 logger.info("insert districts")
-                (
-                    metro_data,
-                    district_data,
-                    municipal_district_data,
-                ) = await self.get_metro_district_municipal_district()
-                buildings_data, new_aparts_data = await self.get_building_and_aparts()
+                metro_res, buildings_res = await asyncio.gather(
+                    self.get_metro_district_municipal_district(),
+                    self.get_building_and_aparts()
+                )
+
+                metro_data, district_data, municipal_district_data = metro_res
+                buildings_data, new_aparts_data = buildings_res
+
                 await insert_into_table(
                     table="districts",
                     columns=self.DISTRICT_COLUMNS,
@@ -120,10 +124,10 @@ class MosResService:
                 )
 
                 logger.info("insert new_aparts complete")
+                return {'status' : 'success'}
 
-                await session.commit()
 
-    async def get_building_and_aparts():
+    async def get_building_and_aparts(self):
         retry_options = ExponentialRetry(attempts=3)
         async with RetryClient(
             raise_for_status=False, retry_options=retry_options
@@ -137,15 +141,16 @@ class MosResService:
                         BuildingSchema.model_validate(building).model_dump()
                         for building in result["objects"]["items"]
                     ]
-                    new_apart = [
+                    new_aparts = [
                         NewApartSchema.model_validate(building).model_dump()
                         for building in result["housings"]["items"]
                     ]
-                    return buildings, new_apart
+                    return buildings, new_aparts
                 else:
                     logger.error(f"Error {request.status}: {await request.text()}")
+                    raise HttpBadRequest()
 
-    async def get_metro_district_municipal_district():
+    async def get_metro_district_municipal_district(self):
         retry_options = ExponentialRetry(attempts=3)
         async with RetryClient(
             raise_for_status=False, retry_options=retry_options
@@ -153,41 +158,43 @@ class MosResService:
             async with retry_client.get(url=BASE_URL, params=FILTER_PARAMS) as request:
                 if request.status == 200:
                     result = await request.json()
-                    DistrictAdapter.validate_python(  # noqa
+                    districts_response =DistrictAdapter.validate_python(  # noqa
                         result["filters"]["county"]
                     )
                     metro = MetroAdapter.validate_python(result["filters"]["metro"])
+
                     metro = [
                         MetroSchemaForInsert.model_validate(
-                            {"metro_id": metro_id, **value}
+                            {"metro_id": metro_id, **value.model_dump()}
                         ).model_dump()
-                        for metro_id, value in result["filters"]["metro"].items()
+                        for metro_id, value in metro.items()
                     ]
                     districts = [
                         DistrictSchemaForInsert.model_validate(
-                            {"district_id": district_id, **value}
+                            {"district_id": district_id, **value.model_dump()}
                         ).model_dump()
-                        for district_id, value in result["filters"]["county"].items()
+                        for district_id, value in districts_response.items()
                     ]
 
                     municipal_districts = [
                         MunicipalDistrictSchemaForInsert.model_validate(
-                            {"municipal_district_id": municipal_district_id, **value}
+                            {"municipal_district_id": municipal_district_id, **value.model_dump()}
                         ).model_dump()
-                        for _, district in result["filters"]["county"].items()
-                        for municipal_district_id, value in district["district"].items()
+                        for _, district in districts_response.items()
+                        for municipal_district_id, value in district.municipal_district.items()
                     ]
 
                     return metro, districts, municipal_districts
                 else:
                     logger.error(f"Error {request.status}: {await request.text()}")
+                    raise HttpBadRequest()
 
     async def get_excel_file(
         self,
     ):
         file_name = f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
         file_path = EXCEL_FOLDER.joinpath(file_name)
-        await self.udpate_all_data()
+        await self.update_all_data()
         query = read_from_sql_folder("table_with_versions")
         async with Session() as session:
             pd.DataFrame(

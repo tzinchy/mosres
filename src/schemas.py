@@ -91,7 +91,7 @@ class DistrictSchemaForInsert(DistrictSchemaBase):
 
 class DistrictSchemaForTypeAdapter(DistrictSchemaBase):
     municipal_district: dict[str, MunicipalDistrictSchemaBase] = Field(
-        AliasChoices("district", "districts")
+        validation_alias=AliasChoices("district", "districts")
     )
     model_config = ConfigDict(extra="ignore")
 

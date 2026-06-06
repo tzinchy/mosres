@@ -30,7 +30,7 @@ async def get_excel_file_for_current_date(mosres_service : MosResService = Depen
 
 @app.get("/update_data")
 async def update_data(mosres_service: MosResService = Depends(get_mosres_service)):
-    await mosres_service.udpate_all_data()
+    await mosres_service.update_all_data()
 
 
 @app.get("/new_aparts", tags=["new-apart"])

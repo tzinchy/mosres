@@ -22,12 +22,12 @@ def response_format(satext: bool):
     return decorator
 
 
-def create_placheholders(columns: list[str]) -> tuple[str, str]:
+def create_placeholders(columns: list[str]) -> tuple[str, str]:
     return ", ".join(columns), ", ".join([f":{col}" for col in columns])
 
 
-def create_placheholders_with_excluded(columns: list[str]) -> tuple[str, str, str]:
-    insert_columns, values_columns = create_placheholders(columns)
+def create_placeholders_with_excluded(columns: list[str]) -> tuple[str, str, str]:
+    insert_columns, values_columns = create_placeholders(columns)
     return (
         insert_columns,
         values_columns,
@@ -39,7 +39,7 @@ def create_placheholders_with_excluded(columns: list[str]) -> tuple[str, str, st
 def create_insert_query_for_table(
     table: str, columns: list[str], on_conflict_column: str
 ) -> str:
-    insert_columns, values_columns = create_placheholders(columns=columns)
+    insert_columns, values_columns = create_placeholders(columns=columns)
     return f"""
     INSERT INTO {table} (
         {insert_columns}
@@ -53,7 +53,7 @@ def create_insert_query_for_table(
 def create_insert_query_for_table_with_except_from_temp(
     table: str, temp_table: str, columns: str, on_conflict_column: str
 ) -> str:
-    insert_columns, _, excluded_columns = create_placheholders_with_excluded(
+    insert_columns, _, excluded_columns = create_placeholders_with_excluded(
         columns=columns
     )
     return f"""
@@ -76,7 +76,6 @@ def create_insert_query_for_table_with_except_from_temp(
 def create_truncate_query(table : str) -> str:
     return f"truncate {table}"
 
-@response_format(satext=True)
 async def read_from_sql_folder(filename : str):
     """Необходимо передавать только название файла
        Все файлы в папке по умолчанию .sql
@@ -84,4 +83,5 @@ async def read_from_sql_folder(filename : str):
     async with aiofiles.open(
         MAIN_FOLDER.joinpath("sql", f"{filename}.sql")
     ) as f:
-        return await f.read()
+        query = await f.read()
+        return text(query)
