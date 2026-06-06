@@ -34,20 +34,20 @@ async def update_data(mosres_service: MosResService = Depends(get_mosres_service
 
 
 @app.get("/new_aparts", tags=["new-apart"])
-async def get_new_apats():
-    pass
+async def get_new_apats(new_aparts_ids : list[int] | None = None, mosres_service: MosResService = Depends(get_mosres_service)):
+    await mosres_service.get_new_aparts_table(new_aparts_ids=new_aparts_ids)
 
 
 @app.get("/new_aparts/{new_apart_id}/versions", tags=["new-apart"])
-async def get_new_apart_versions(new_apart_id: int):
-    pass
+async def get_new_apart_versions(new_apart_id: int, mosres_service: MosResService = Depends(get_mosres_service)):
+    return await mosres_service.get_new_aparts_history(new_apart_id)
 
 
 @app.get("/buildings")
-async def get_buildings():
-    pass
+async def get_buildings(mosres_service: MosResService = Depends(get_mosres_service)):
+    return await mosres_service.get_buildings_table()
 
 
 @app.get("/buildings/{building_id}/versions", tags=["buildings"])
-async def get_buildings_versions(building_id: int):
-    pass
+async def get_buildings_versions(building_id: int, mosres_service: MosResService = Depends(get_mosres_service)):
+    return await mosres_service.get_buildings_history(building_id)

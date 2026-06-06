@@ -50,7 +50,10 @@ async def insert_into_table(
 async def get_new_aparts_table(
     *, new_apart_ids: list[int] | None, session: AsyncSession
 ):
-    result = await session.execute(select(NewApart))
+    stmt = select(NewApart)
+    if new_apart_ids:
+        stmt.where(NewApart.new_apart_id.in_(new_apart_ids))
+    result = await session.execute(stmt)
     return result.mappings().all()
 
 
@@ -61,15 +64,15 @@ async def get_new_aparts_history(new_apart_id, session: AsyncSession):
     return result.mappings().all()
 
 
-async def get_new_buildings_table(session: AsyncSession):
+async def get_buildings_table(session: AsyncSession):
     result = await session.execute(select(Building))
     return result.mappings().all()
 
 
-async def get_new_buildings_history(new_building_id, session: AsyncSession):
+async def get_buildings_history(building_id, session: AsyncSession):
     result = await session.execute(
         select(BuildingHistory).where(
-            BuildingHistory.new_building_id == new_building_id
+            BuildingHistory.building_id == building_id
         )
     )
     return result.mappings().all()

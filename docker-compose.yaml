@@ -11,14 +11,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # api:
-  #   build:
-  #     dockerfile: dockerfile
-  #   ports:
-  #     - "5457:5457"
-  #   volumes:
-  #     - fastapi:/src/excel
-
 volumes:
   postgres_data:
-  # fastapi:
+

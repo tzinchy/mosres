@@ -1,8 +1,3 @@
-# FIRST_DATA = https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php?cmd=filters&open_sale=1
-# SECOND_DATA = https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php?type[]=R&open_sale=1&map=forall&pagesize=100000
-# THIRD_DATA = https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php?cmd=filters&open_sale=1
-# https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php?type[]=R&open_sale=1&map=forall&pagesize=100000&object=95265
-# https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php?cmd=filters&open_sale=1
 import datetime
 
 from src.config import EXCEL_FOLDER
@@ -23,6 +18,11 @@ from src.repository import (
     insert_into_table,
     upsert_with_except_from_temp_table,
     get_data_for_excel_file,
+    get_buildings_apartments,
+    get_new_aparts_history,
+    get_new_aparts_table,
+    get_buildings_history,
+    get_buildings_table
 )
 from src.utils import read_from_sql_folder
 import asyncio
@@ -201,3 +201,23 @@ class MosResService:
                 await get_data_for_excel_file(query=query, session=session)
             ).to_excel(file_path)
         return file_path, file_name
+    
+    async def get_buildings_apartments(building_id : int):
+        async with Session() as session:
+            return await get_buildings_apartments(building_id=building_id, session=session)
+
+    async def get_buildings_history(building_id : int): 
+        async with Session() as session:
+            return await get_buildings_history(building_id=building_id, session=session)
+    
+    async def get_buildings_table():
+        async with Session() as session:
+            return await get_buildings_table(session=session)
+        
+    async def get_new_aparts_history(new_apart_id : int | None = None):
+        async with Session() as session:
+            return await get_new_aparts_history(new_apart_id=new_apart_id, session=session)
+    
+    async def get_new_aparts_table(new_apartd_ids : list[int] = None):
+        async with Session() as session:
+            return await get_new_aparts_history(new_apartd_ids=new_apartd_ids, session=session)
