@@ -20,4 +20,4 @@ VOLUME [ "/app/src/excel" ]
 EXPOSE 5437
 # Migrations are NOT run automatically — apply them against your database with
 #   make upgrade      (or: uv run alembic upgrade head)
-CMD ["uv", "run", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "5437"]
+CMD ["uv", "run", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "5433"]
