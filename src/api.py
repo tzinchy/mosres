@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.depends import get_mosres_service, MosResService
 from src.scheduler import build_scheduler
+from src.schemas import ApartRow
 
 
 @asynccontextmanager
@@ -52,7 +53,7 @@ async def update_data(mosres_service: MosResService = Depends(get_mosres_service
     return await mosres_service.update_all_data()
 
 
-@app.get("/aparts", tags=["aparts"])
+@app.get("/aparts", tags=["aparts"], response_model=list[ApartRow])
 async def get_aparts(
     building_id: int | None = None,
     favorites_only: bool = False,

@@ -93,6 +93,30 @@ async def get_data_for_excel_file(sql: str, session: AsyncSession):
     return result.mappings().all()
 
 
+async def get_aparts_table(
+    *,
+    building_id: int | None,
+    favorites_only: bool,
+    discount_only: bool,
+    price_drop_only: bool,
+    q: str | None,
+    session: AsyncSession,
+):
+    sql = await read_from_sql_folder("aparts_table")
+    result = await session.execute(
+        text(sql),
+        {
+            "building_id": building_id,
+            "favorites_only": favorites_only,
+            "discount_only": discount_only,
+            "price_drop_only": price_drop_only,
+            "q": q,
+            "q_like": f"%{q}%" if q else None,
+        },
+    )
+    return result.mappings().all()
+
+
 async def refresh_building_price_stats(*, session: AsyncSession) -> int:
     sql = await read_from_sql_folder("building_price_stats_refresh")
     result = await session.execute(text(sql))

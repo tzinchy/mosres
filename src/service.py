@@ -6,6 +6,7 @@ import pandas as pd
 from aiohttp_retry import ExponentialRetry, RetryClient
 from src.database import Session
 from src.schemas import (
+    ApartRow,
     BuildingSchema,
     DistrictAdapter,
     MetroAdapter,
@@ -22,6 +23,7 @@ from src.repository import (
     get_new_aparts_history,
     get_buildings_history,
     get_buildings_table,
+    get_aparts_table,
     refresh_building_price_stats,
     get_building_price_dynamics,
 )
@@ -219,9 +221,25 @@ class MosResService:
         async with Session() as session:
             return await get_new_aparts_history(new_apart_id=new_apart_id, session=session)
 
-    async def get_aparts_table(self, **_filters):
-        # TODO(Task 6): real aggregating query
-        return []
+    async def get_aparts_table(
+        self,
+        *,
+        building_id: int | None = None,
+        favorites_only: bool = False,
+        discount_only: bool = False,
+        price_drop_only: bool = False,
+        q: str | None = None,
+    ) -> list[ApartRow]:
+        async with Session() as session:
+            rows = await get_aparts_table(
+                building_id=building_id,
+                favorites_only=favorites_only,
+                discount_only=discount_only,
+                price_drop_only=price_drop_only,
+                q=q,
+                session=session,
+            )
+        return [ApartRow.model_validate(dict(r)) for r in rows]
 
     async def refresh_all(self) -> dict:
         await self.update_all_data()
