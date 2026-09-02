@@ -156,6 +156,22 @@ async def get_dashboard_metrics(*, favorites_only: bool, session: AsyncSession):
     return result.mappings().one()
 
 
+async def get_dashboard_timeseries(
+    *, favorites_only: bool, days: int, session: AsyncSession
+):
+    sql = await read_from_sql_folder("dashboard_timeseries")
+    result = await session.execute(
+        text(sql), {"favorites_only": favorites_only, "days": days}
+    )
+    return result.mappings().all()
+
+
+async def get_buildings_stats(*, session: AsyncSession):
+    sql = await read_from_sql_folder("buildings_stats")
+    result = await session.execute(text(sql))
+    return result.mappings().all()
+
+
 async def record_refresh_run(*, ok: bool, session: AsyncSession) -> None:
     await session.execute(
         text("INSERT INTO refresh_runs (ok) VALUES (:ok)"), {"ok": ok}

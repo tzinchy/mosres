@@ -8,8 +8,10 @@ from src.database import Session
 from src.schemas import (
     ApartRow,
     BuildingRow,
+    BuildingStat,
     FavoriteToggleResult,
     DashboardMetrics,
+    DashboardPoint,
     RefreshStatus,
     BuildingSchema,
     DistrictAdapter,
@@ -22,7 +24,6 @@ from src.schemas import (
 from src.repository import (
     insert_into_table,
     upsert_with_except_from_temp_table,
-    get_data_for_excel_file,
     get_buildings_apartments,
     get_new_aparts_history,
     get_buildings_history,
@@ -34,10 +35,11 @@ from src.repository import (
     refresh_building_price_stats,
     get_building_price_dynamics,
     get_dashboard_metrics,
+    get_dashboard_timeseries,
+    get_buildings_stats,
     record_refresh_run,
     get_last_refresh,
 )
-from src.utils import read_from_sql_folder
 import asyncio
 from aiohttp.http_exceptions import HttpBadRequest
 
@@ -202,18 +204,50 @@ class MosResService:
                     logger.error(f"Error {request.status}: {await request.text()}")
                     raise HttpBadRequest()
 
+    EXPORT_COLUMNS = {
+        "new_apart_id": "ID",
+        "address": "Адрес",
+        "building": "Дом",
+        "number": "№",
+        "rooms": "Комнат",
+        "floor": "Этаж",
+        "area": "Площадь, м²",
+        "type_label": "Тип",
+        "price": "Цена, ₽",
+        "price_prev": "Прошлая цена, ₽",
+        "price_delta_prev": "Δ к прошлой, ₽",
+        "price_delta_prev_pct": "Δ к прошлой, %",
+        "price_max": "Максимум, ₽",
+        "price_delta_max_pct": "Δ к максимуму, %",
+        "has_discount": "Скидка",
+        "discount_pct": "Скидка, %",
+        "discount_is_new": "Скидка новая",
+        "reserve": "В резерве",
+        "is_family": "Семейная ипотека",
+        "is_favorite": "Избранное",
+        "plan_url": "Планировка",
+        "tour_3d_url": "3D-тур",
+        "mosres_url": "Ссылка",
+        "updated_at": "Обновлено",
+    }
+
     async def get_excel_file(
-        self,
-    ):
-        file_name = f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
+        self, *, favorites_only: bool = False, building_id: int | None = None
+    ) -> tuple[str, str]:
+        rows = await self.get_aparts_table(
+            favorites_only=favorites_only, building_id=building_id
+        )
+        frame = pd.DataFrame([r.model_dump() for r in rows])
+        if not frame.empty:
+            frame = frame.reindex(columns=list(self.EXPORT_COLUMNS)).rename(
+                columns=self.EXPORT_COLUMNS
+            )
+
+        suffix = "-favorites" if favorites_only else ""
+        file_name = f"{datetime.date.today():%Y-%m-%d}{suffix}.xlsx"
         file_path = EXCEL_FOLDER.joinpath(file_name)
-        await self.update_all_data()
-        query = await read_from_sql_folder("table_with_versions")
-        async with Session() as session:
-            pd.DataFrame(
-                await get_data_for_excel_file(sql=query, session=session)
-            ).to_excel(file_path)
-        return file_path, file_name
+        frame.to_excel(file_path, index=False)
+        return str(file_path), file_name
     
     async def get_buildings_apartments(self, building_id: int):
         async with Session() as session:
@@ -286,6 +320,21 @@ class MosResService:
                 favorites_only=favorites_only, session=session
             )
         return DashboardMetrics.model_validate(dict(row))
+
+    async def get_dashboard_timeseries(
+        self, favorites_only: bool = False, days: int = 30
+    ) -> list[DashboardPoint]:
+        days = max(1, min(days, 180))
+        async with Session() as session:
+            rows = await get_dashboard_timeseries(
+                favorites_only=favorites_only, days=days, session=session
+            )
+        return [DashboardPoint.model_validate(dict(r)) for r in rows]
+
+    async def get_buildings_stats(self) -> list[BuildingStat]:
+        async with Session() as session:
+            rows = await get_buildings_stats(session=session)
+        return [BuildingStat.model_validate(dict(r)) for r in rows]
 
     async def get_refresh_status(self) -> RefreshStatus:
         async with Session() as session:

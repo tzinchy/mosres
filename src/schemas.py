@@ -23,6 +23,7 @@ class ApartRow(BaseModel):
     property: str | None = None
     is_family: bool = False
     price: float | None = None
+    price_m: float | None = None
     price_prev: float | None = None
     price_delta_prev: float | None = None
     price_delta_prev_pct: float | None = None
@@ -37,6 +38,7 @@ class ApartRow(BaseModel):
     tour_3d_url: str | None = None
     metro: list[MetroStop] = []
     family_hypotec: int | None = None
+    deal_score: float | None = None
     mosres_url: str
     updated_at: datetime.datetime
 
@@ -49,6 +51,13 @@ class FavoriteToggleResult(BaseModel):
 class DashboardMetrics(BaseModel):
     aparts_total: int
     favorites_total: int
+    buildings_total: int
+    reserved_total: int
+    discount_total: int
+    family_total: int
+    portfolio_value: float | None = None
+    avg_price: float | None = None
+    avg_price_m: float | None = None
     new_today: int
     changed_today: int
     price_drops_today: int
@@ -57,6 +66,33 @@ class DashboardMetrics(BaseModel):
     discounts_appeared_today: int
     reserved_today: int
     unreserved_today: int
+
+
+class DashboardPoint(BaseModel):
+    day: datetime.date
+    new_aparts: int
+    changes: int
+    drops: int
+    rises: int
+    new_discounts: int
+    reserved: int
+    avg_change_pct: float | None = None
+
+
+class BuildingStat(BaseModel):
+    building_id: int
+    address: str | None = None
+    status_label: str | None = None
+    img_url: str | None = None
+    aparts: int
+    avg_price: float | None = None
+    min_price: float | None = None
+    avg_price_m: float | None = None
+    reserved: int
+    with_discount: int
+    family: int
+    new_week: int
+    favorites_count: int = 0
 
 
 class RefreshStatus(BaseModel):
@@ -82,6 +118,7 @@ class BuildingRow(BaseModel):
     img_url: str | None = None
     gallery_urls: list[str] = []
     metro: list[MetroStop] = []
+    favorites_count: int = 0
 
 
 class BuildingPricePoint(BaseModel):

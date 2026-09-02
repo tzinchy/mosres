@@ -32,8 +32,15 @@ SELECT
         )
         FROM unnest(b.gallery) AS g
     ), ARRAY[]::text[]) AS gallery_urls,
-    COALESCE(mm.stops, '[]'::jsonb) AS metro
+    COALESCE(mm.stops, '[]'::jsonb) AS metro,
+    COALESCE(ff.cnt, 0) AS favorites_count
 FROM buildings b
+LEFT JOIN LATERAL (
+    SELECT count(*) AS cnt
+    FROM favorites f
+    JOIN new_aparts na2 ON na2.new_apart_id = f.new_apart_id
+    WHERE na2.building_id ~ '^\d+$' AND (na2.building_id)::int = b.building_id
+) ff ON true
 LEFT JOIN LATERAL (
     SELECT jsonb_agg(
         jsonb_build_object(

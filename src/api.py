@@ -10,7 +10,9 @@ from src.schemas import (
     ApartRow,
     BuildingPricePoint,
     BuildingRow,
+    BuildingStat,
     DashboardMetrics,
+    DashboardPoint,
     FavoriteToggleResult,
     RefreshStatus,
 )
@@ -50,9 +52,15 @@ async def root():
     return RedirectResponse(url="/docs")
 
 
-@app.get("/file", description="Для получения файла со всей информацией")
-async def get_excel_file_for_current_date(mosres_service : MosResService = Depends(get_mosres_service)):
-    path, filename = await mosres_service.get_excel_file()
+@app.get("/file", description="Выгрузка квартир в Excel (с учётом фильтров)")
+async def get_excel_file_for_current_date(
+    favorites_only: bool = False,
+    building_id: int | None = None,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    path, filename = await mosres_service.get_excel_file(
+        favorites_only=favorites_only, building_id=building_id
+    )
     return FileResponse(
         path=path,
         filename=filename,
@@ -95,6 +103,28 @@ async def get_dashboard(
     mosres_service: MosResService = Depends(get_mosres_service),
 ):
     return await mosres_service.get_dashboard(favorites_only=favorites_only)
+
+
+@app.get(
+    "/dashboard/timeseries",
+    tags=["dashboard"],
+    response_model=list[DashboardPoint],
+)
+async def get_dashboard_timeseries(
+    favorites_only: bool = False,
+    days: int = 30,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_dashboard_timeseries(
+        favorites_only=favorites_only, days=days
+    )
+
+
+@app.get("/buildings/stats", tags=["buildings"], response_model=list[BuildingStat])
+async def get_buildings_stats(
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_buildings_stats()
 
 
 @app.get("/status", tags=["dashboard"], response_model=RefreshStatus)

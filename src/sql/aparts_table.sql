@@ -1,16 +1,28 @@
 WITH cur AS (
     SELECT
         new_apart_id,
+        building_id,
         NULLIF(regexp_replace(price, '\D', '', 'g'), '')::numeric AS price_num,
-        NULLIF(TRIM(COALESCE(price_with_discount, '')), '') IS NOT NULL AS has_discount
+        NULLIF(regexp_replace(price_m, '\D', '', 'g'), '')::numeric AS pm,
+        NULLIF(regexp_replace(COALESCE(price_with_discount, ''), '\D', '', 'g'), '')::numeric AS disc_price
     FROM new_aparts
+),
+bavg AS (
+    SELECT building_id, avg(pm) AS avg_pm
+    FROM cur
+    WHERE pm IS NOT NULL
+    GROUP BY building_id
 ),
 hp AS (
     SELECT
         new_apart_id,
         version,
         NULLIF(regexp_replace(price, '\D', '', 'g'), '')::numeric AS price_num,
-        NULLIF(TRIM(COALESCE(price_with_discount, '')), '') IS NOT NULL AS had_discount
+        (
+            NULLIF(regexp_replace(COALESCE(price_with_discount, ''), '\D', '', 'g'), '')::numeric > 0
+            AND NULLIF(regexp_replace(COALESCE(price_with_discount, ''), '\D', '', 'g'), '')::numeric
+                < NULLIF(regexp_replace(price, '\D', '', 'g'), '')::numeric
+        ) AS had_discount
     FROM new_aparts_history
 )
 SELECT
@@ -20,6 +32,7 @@ SELECT
     na.property,
     (COALESCE(na.property, '') ILIKE '%семейн%')                          AS is_family,
     cur.price_num                                                        AS price,
+    cur.pm                                                               AS price_m,
     prev.price_num                                                       AS price_prev,
     (cur.price_num - prev.price_num)                                     AS price_delta_prev,
     CASE WHEN prev.price_num > 0
@@ -29,10 +42,16 @@ SELECT
     CASE WHEN mx.price_max > 0
          THEN round((cur.price_num - mx.price_max) / mx.price_max * 100, 1)
     END                                                                  AS price_delta_max_pct,
-    cur.has_discount,
-    (cur.has_discount AND NOT COALESCE(prev.had_discount, false))        AS discount_is_new,
-    NULLIF(regexp_replace(COALESCE(na.percentage_discount, ''), '\D', '', 'g'), '')::numeric
-                                                                        AS discount_pct,
+    COALESCE(cur.disc_price > 0 AND cur.disc_price < cur.price_num, false) AS has_discount,
+    COALESCE(
+        cur.disc_price > 0 AND cur.disc_price < cur.price_num
+        AND NOT COALESCE(prev.had_discount, false),
+        false
+    )                                                                  AS discount_is_new,
+    NULLIF(
+        NULLIF(regexp_replace(COALESCE(na.percentage_discount, ''), '\D', '', 'g'), '')::numeric,
+        0
+    )                                                                  AS discount_pct,
     (fav.new_apart_id IS NOT NULL)                                       AS is_favorite,
     CASE
         WHEN na.plan_s ~ '^/'  THEN 'https://xn--80aae5aibotfo5h.xn--p1ai' || na.plan_s
@@ -52,6 +71,13 @@ SELECT
     END                                                                  AS type_label,
     COALESCE(mm.stops, '[]'::jsonb)                                       AS metro,
     b.family_hypotec                                                     AS family_hypotec,
+    round(
+        COALESCE(GREATEST(0, -CASE WHEN mx.price_max > 0
+            THEN (cur.price_num - mx.price_max) / mx.price_max * 100 END), 0)
+        + COALESCE(NULLIF(regexp_replace(COALESCE(na.percentage_discount, ''), '\D', '', 'g'), '')::numeric, 0)
+        + COALESCE(GREATEST(0, (ba.avg_pm - cur.pm) / NULLIF(ba.avg_pm, 0) * 100), 0),
+        1
+    )                                                                    AS deal_score,
     concat(
         'https://xn--80aae5aibotfo5h.xn--p1ai/obekty/',
         na.building_code, '/?flat_id=', na.new_apart_id
@@ -59,6 +85,7 @@ SELECT
     na.updated_at
 FROM new_aparts na
 JOIN cur ON cur.new_apart_id = na.new_apart_id
+LEFT JOIN bavg ba ON ba.building_id = na.building_id
 LEFT JOIN buildings b
     ON na.building_id ~ '^\d+$' AND (na.building_id)::int = b.building_id
 LEFT JOIN LATERAL (
@@ -95,7 +122,10 @@ WHERE (
         OR (na.building_id ~ '^\d+$' AND (na.building_id)::int = ANY(string_to_array(:building_ids, ',')::int[]))
       )
   AND (NOT CAST(:favorites_only AS boolean) OR fav.new_apart_id IS NOT NULL)
-  AND (NOT CAST(:discount_only AS boolean) OR cur.has_discount)
+  AND (
+        NOT CAST(:discount_only AS boolean)
+        OR COALESCE(cur.disc_price > 0 AND cur.disc_price < cur.price_num, false)
+      )
   AND (
         NOT CAST(:price_drop_only AS boolean)
         OR (prev.price_num IS NOT NULL AND cur.price_num < prev.price_num)
