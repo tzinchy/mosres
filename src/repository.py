@@ -4,6 +4,7 @@ from src.utils import (
     create_insert_query_for_table,
     create_insert_query_for_table_with_except_from_temp,
     create_truncate_query,
+    read_from_sql_folder,
 )
 from src.models import NewApartHistory, Building, BuildingHistory, NewApart
 from sqlalchemy import select, text
@@ -89,4 +90,21 @@ async def get_buildings_apartments(*, building_id: int, session: AsyncSession):
 
 async def get_data_for_excel_file(sql: str, session: AsyncSession):
     result = await session.execute(text(sql))
+    return result.mappings().all()
+
+
+async def refresh_building_price_stats(*, session: AsyncSession) -> int:
+    sql = await read_from_sql_folder("building_price_stats_refresh")
+    result = await session.execute(text(sql))
+    return result.rowcount
+
+
+async def get_building_price_dynamics(*, building_id: int, session: AsyncSession):
+    result = await session.execute(
+        text(
+            "SELECT snapshot_date, avg_price_m, min_price_m, median_price_m, apart_count "
+            "FROM building_price_stats WHERE building_id = :b ORDER BY snapshot_date"
+        ),
+        {"b": building_id},
+    )
     return result.mappings().all()

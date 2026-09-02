@@ -22,6 +22,8 @@ from src.repository import (
     get_new_aparts_history,
     get_buildings_history,
     get_buildings_table,
+    refresh_building_price_stats,
+    get_building_price_dynamics,
 )
 from src.utils import read_from_sql_folder
 import asyncio
@@ -220,3 +222,16 @@ class MosResService:
     async def get_aparts_table(self, **_filters):
         # TODO(Task 6): real aggregating query
         return []
+
+    async def refresh_all(self) -> dict:
+        await self.update_all_data()
+        async with Session() as session:
+            async with session.begin():
+                await refresh_building_price_stats(session=session)
+        return {"status": "success"}
+
+    async def get_building_price_dynamics(self, building_id: int):
+        async with Session() as session:
+            return await get_building_price_dynamics(
+                building_id=building_id, session=session
+            )
