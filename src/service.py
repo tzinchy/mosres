@@ -275,6 +275,7 @@ class MosResService:
         discount_only: bool = False,
         price_drop_only: bool = False,
         reserved_only: bool = False,
+        available_only: bool = False,
         family_only: bool = False,
         q: str | None = None,
     ) -> list[ApartRow]:
@@ -286,6 +287,7 @@ class MosResService:
                 discount_only=discount_only,
                 price_drop_only=price_drop_only,
                 reserved_only=reserved_only,
+                available_only=available_only,
                 family_only=family_only,
                 q=q,
                 session=session,

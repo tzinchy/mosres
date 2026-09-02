@@ -1,11 +1,10 @@
+import { AlertTriangle, Info } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { DashboardChart } from "@/components/DashboardChart";
-import { BuildingsStatsTable } from "@/components/BuildingsStatsTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAparts } from "@/hooks/useAparts";
 import {
-  useBuildingsStats,
   useDashboard,
   useDashboardTimeseries,
   useStatus,
@@ -20,14 +19,21 @@ const PERIODS = [
   { days: 180, label: "полгода" },
 ];
 
+const CHART_HELP =
+  "Каждая точка — события за один день по всему списку (или по избранному). " +
+  "Считаются переходы между версиями квартиры: подешевела, подорожала, появилась новая скидка, " +
+  "добавилась новая квартира. Данные накапливаются с каждым обновлением.";
+
 export function DashboardPage() {
   const [favOnly, setFavOnly] = useState(false);
   const [days, setDays] = useState(30);
   const { data: m, isLoading } = useDashboard(favOnly);
   const ts = useDashboardTimeseries(favOnly, days);
-  const stats = useBuildingsStats();
   const { data: status } = useStatus();
-  const drops = useAparts({ price_drop_only: true, favorites_only: favOnly || undefined });
+  const drops = useAparts({
+    price_drop_only: true,
+    favorites_only: favOnly || undefined,
+  });
 
   const topMovers = useMemo(
     () =>
@@ -39,14 +45,39 @@ export function DashboardPage() {
   );
 
   return (
-    <div className="space-y-8 p-5 md:p-8">
+    <div className="mx-auto max-w-[1200px] space-y-8 p-5 md:p-8">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-lg font-semibold">Сводка</h1>
         <Toggle value={favOnly} onChange={setFavOnly} />
       </div>
 
+      {m && (m.favorites_reserved > 0 || m.favorites_reserved_today > 0) && (
+        <Link
+          to="/aparts?favorites_only=1&reserved_only=1"
+          className="flex items-start gap-3 rounded-lg border border-neg/40 bg-neg-soft px-4 py-3 text-sm"
+        >
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-neg" />
+          <span>
+            <span className="font-medium text-neg">
+              {m.favorites_reserved} избранн
+              {plural(m.favorites_reserved, "ая", "ых", "ых")} квартир
+              {plural(m.favorites_reserved, "а", "ы", "")} в резерве
+            </span>
+            {m.favorites_reserved_today > 0 && (
+              <span className="text-muted-foreground">
+                {" "}
+                · сегодня ушло {m.favorites_reserved_today}
+              </span>
+            )}
+            <span className="block text-muted-foreground">
+              Открыть список →
+            </span>
+          </span>
+        </Link>
+      )}
+
       {isLoading || !m ? (
-        <Skeleton className="h-40 w-full rounded-lg" />
+        <Skeleton className="h-32 w-full rounded-lg" />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-x-10 gap-y-5 sm:flex sm:flex-wrap sm:items-end">
@@ -81,7 +112,9 @@ export function DashboardPage() {
           </div>
 
           <section>
-            <SectionTitle>Сегодня</SectionTitle>
+            <SectionTitle help="События за сегодня. Нажмите на плитку — откроется отфильтрованный список.">
+              Сегодня
+            </SectionTitle>
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-4 lg:grid-cols-8">
               <Metric label="Новых" value={m.new_today} to="/aparts" />
               <Metric label="Изменений" value={m.changed_today} to="/aparts" />
@@ -96,7 +129,7 @@ export function DashboardPage() {
 
           <section>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-medium">Динамика изменений</h2>
+              <SectionTitle help={CHART_HELP}>Динамика изменений</SectionTitle>
               <div className="flex gap-1 text-xs">
                 {PERIODS.map((p) => (
                   <button
@@ -117,7 +150,7 @@ export function DashboardPage() {
             </div>
             {ts.isLoading && <Skeleton className="h-72 w-full" />}
             {ts.data && ts.data.every((p) => p.changes + p.new_aparts === 0) && (
-              <p className="text-sm text-muted-foreground">
+              <p className="rounded-lg border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
                 Пока нет истории изменений — она накапливается с каждым обновлением
                 данных (каждые {status?.interval_minutes ?? 30} мин).
               </p>
@@ -129,13 +162,15 @@ export function DashboardPage() {
 
           {topMovers.length > 0 && (
             <section>
-              <SectionTitle>Сильнее всего подешевели сегодня</SectionTitle>
+              <SectionTitle help="Наибольшее снижение цены среди изменившихся сегодня квартир.">
+                Сильнее всего подешевели сегодня
+              </SectionTitle>
               <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
                 {topMovers.map((r) => (
                   <Link
                     key={r.new_apart_id}
                     to="/aparts?price_drop_only=1"
-                    className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-secondary/50"
+                    className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-secondary/60"
                   >
                     <span className="min-w-0 truncate text-sm">
                       {r.address}, кв. {r.number}
@@ -148,22 +183,25 @@ export function DashboardPage() {
               </div>
             </section>
           )}
-
-          <section>
-            <SectionTitle>По домам</SectionTitle>
-            {stats.isLoading && <Skeleton className="h-64 w-full" />}
-            {stats.data && stats.data.length > 0 && (
-              <BuildingsStatsTable rows={stats.data} />
-            )}
-          </section>
         </>
       )}
 
       <p className="text-xs text-muted-foreground">
-        Данные обновлены {relTime(status?.last_refresh)}.
+        Данные обновлены {relTime(status?.last_refresh)}.{" "}
+        <Link to="/buildings" className="text-primary hover:underline">
+          Статистика по домам →
+        </Link>
       </p>
     </div>
   );
+}
+
+function plural(n: number, one: string, few: string, many: string): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
+  return many;
 }
 
 function Toggle({
@@ -197,9 +235,24 @@ function Toggle({
   );
 }
 
-const SectionTitle = ({ children }: { children: React.ReactNode }) => (
-  <h2 className="mb-3 text-sm font-medium">{children}</h2>
-);
+function SectionTitle({
+  children,
+  help,
+}: {
+  children: React.ReactNode;
+  help?: string;
+}) {
+  return (
+    <h2 className="mb-3 flex items-center gap-1.5 text-sm font-medium">
+      {children}
+      {help && (
+        <span title={help} className="cursor-help text-muted-foreground">
+          <Info size={13} />
+        </span>
+      )}
+    </h2>
+  );
+}
 
 function Big({ label, value }: { label: string; value: string }) {
   return (
@@ -257,7 +310,7 @@ function Metric({
             ? "text-reserve"
             : "";
   return (
-    <Link to={to} className="bg-card px-4 py-3.5 transition-colors hover:bg-secondary/50">
+    <Link to={to} className="bg-card px-4 py-3.5 transition-colors hover:bg-secondary/60">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className={cn("tnum mt-1 text-2xl font-medium", toneCls)}>{value}</div>
     </Link>

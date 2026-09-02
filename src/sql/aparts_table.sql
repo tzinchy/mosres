@@ -132,6 +132,7 @@ WHERE (
         OR (prev.price_num IS NOT NULL AND cur.price_num < prev.price_num)
       )
   AND (NOT CAST(:reserved_only AS boolean) OR na.reserve = 1)
+  AND (NOT CAST(:available_only AS boolean) OR COALESCE(na.reserve, 0) = 0)
   AND (NOT CAST(:family_only AS boolean) OR COALESCE(na.property, '') ILIKE '%семейн%')
   AND (
         CAST(:q AS text) IS NULL

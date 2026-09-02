@@ -67,6 +67,8 @@ class DashboardMetrics(BaseModel):
     discounts_appeared_today: int
     reserved_today: int
     unreserved_today: int
+    favorites_reserved: int
+    favorites_reserved_today: int
 
 
 class DashboardPoint(BaseModel):

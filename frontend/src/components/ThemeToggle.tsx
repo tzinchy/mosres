@@ -13,7 +13,7 @@ function apply(mode: Mode) {
 }
 
 export function initTheme() {
-  apply((localStorage.getItem(KEY) as Mode) ?? "system");
+  apply((localStorage.getItem(KEY) as Mode) ?? "dark");
 }
 
 const order: Mode[] = ["system", "light", "dark"];
@@ -21,7 +21,7 @@ const icon = { system: Monitor, light: Sun, dark: Moon };
 
 export function ThemeToggle() {
   const [mode, setMode] = useState<Mode>(
-    () => (localStorage.getItem(KEY) as Mode) ?? "system",
+    () => (localStorage.getItem(KEY) as Mode) ?? "dark",
   );
 
   useEffect(() => {

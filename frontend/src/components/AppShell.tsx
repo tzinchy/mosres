@@ -1,4 +1,4 @@
-import { LayoutDashboard, Map as MapIcon, Table2 } from "lucide-react";
+import { Building2, LayoutDashboard, Map as MapIcon, Table2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const nav = [
   { to: "/", label: "Сводка", icon: LayoutDashboard, end: true },
   { to: "/aparts", label: "Квартиры", icon: Table2, end: false },
+  { to: "/buildings", label: "Дома", icon: Building2, end: true },
   { to: "/map", label: "Карта", icon: MapIcon, end: false },
 ];
 

@@ -2,21 +2,17 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@import "@fontsource/ibm-plex-sans/cyrillic-400.css";
-@import "@fontsource/ibm-plex-sans/cyrillic-500.css";
-@import "@fontsource/ibm-plex-sans/cyrillic-600.css";
-@import "@fontsource/ibm-plex-sans/latin-400.css";
-@import "@fontsource/ibm-plex-sans/latin-500.css";
-@import "@fontsource/ibm-plex-sans/latin-600.css";
-@import "@fontsource/ibm-plex-mono/cyrillic-400.css";
-@import "@fontsource/ibm-plex-mono/cyrillic-500.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
 @import "@fontsource/ibm-plex-mono/latin-400.css";
 @import "@fontsource/ibm-plex-mono/latin-500.css";
+@import "@fontsource/ibm-plex-mono/cyrillic-400.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
 
   --color-background: var(--background);
@@ -45,79 +41,82 @@
   --color-reserve: var(--reserve);
   --color-reserve-soft: var(--reserve-soft);
 
-  --radius-sm: 3px;
-  --radius-md: 5px;
-  --radius-lg: 7px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
   --radius-xl: 10px;
 }
 
+/* dark is the primary look (Supabase-style: obsidian canvas, phosphor-green accent) */
 :root {
-  --background: oklch(0.986 0.003 240);
-  --foreground: oklch(0.21 0.02 245);
-  --card: oklch(1 0 0);
-  --card-foreground: var(--foreground);
-  --popover: oklch(1 0 0);
-  --popover-foreground: var(--foreground);
-  --primary: oklch(0.5 0.16 260);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.95 0.006 245);
-  --secondary-foreground: oklch(0.3 0.02 245);
-  --muted: oklch(0.96 0.005 245);
-  --muted-foreground: oklch(0.52 0.02 245);
-  --accent: oklch(0.95 0.02 260);
-  --accent-foreground: oklch(0.4 0.1 260);
-  --destructive: oklch(0.55 0.19 25);
-  --border: oklch(0.91 0.006 245);
-  --input: oklch(0.9 0.006 245);
-  --ring: oklch(0.5 0.16 260);
+  --background: #f7f7f6;
+  --foreground: #1c1c1b;
+  --card: #ffffff;
+  --card-foreground: #1c1c1b;
+  --popover: #ffffff;
+  --popover-foreground: #1c1c1b;
+  --primary: #1a8a5c;
+  --primary-foreground: #ffffff;
+  --secondary: #ececeb;
+  --secondary-foreground: #33332f;
+  --muted: #efefee;
+  --muted-foreground: #6f6f6a;
+  --accent: #e6f5ee;
+  --accent-foreground: #16744d;
+  --destructive: #c4442e;
+  --border: #e2e2df;
+  --input: #d6d6d2;
+  --ring: #1a8a5c;
 
-  --pos: oklch(0.58 0.19 150);
-  --pos-soft: oklch(0.93 0.09 152);
-  --neg: oklch(0.6 0.2 32);
-  --neg-soft: oklch(0.93 0.08 40);
-  --reserve: oklch(0.55 0.22 295);
-  --reserve-soft: oklch(0.93 0.07 295);
+  --pos: #157a48;
+  --pos-soft: #dcf1e5;
+  --neg: #b45309;
+  --neg-soft: #f7e7d3;
+  --reserve: #6d45c9;
+  --reserve-soft: #ece3fb;
 
-  --radius: 5px;
+  --radius: 8px;
 }
 
 .dark {
-  --background: oklch(0.19 0.015 250);
-  --foreground: oklch(0.93 0.008 245);
-  --card: oklch(0.22 0.016 250);
-  --card-foreground: var(--foreground);
-  --popover: oklch(0.22 0.016 250);
-  --popover-foreground: var(--foreground);
-  --primary: oklch(0.68 0.14 258);
-  --primary-foreground: oklch(0.16 0.02 250);
-  --secondary: oklch(0.27 0.018 250);
-  --secondary-foreground: oklch(0.9 0.01 245);
-  --muted: oklch(0.26 0.016 250);
-  --muted-foreground: oklch(0.65 0.015 245);
-  --accent: oklch(0.3 0.03 258);
-  --accent-foreground: oklch(0.85 0.06 258);
-  --destructive: oklch(0.62 0.18 25);
-  --border: oklch(0.31 0.016 250);
-  --input: oklch(0.34 0.016 250);
-  --ring: oklch(0.68 0.14 258);
+  --background: #121212;
+  --foreground: #fafafa;
+  --card: #171717;
+  --card-foreground: #fafafa;
+  --popover: #1c1c1c;
+  --popover-foreground: #fafafa;
+  --primary: #3ecf8e;
+  --primary-foreground: #0d1f16;
+  --secondary: #242424;
+  --secondary-foreground: #ededed;
+  --muted: #202020;
+  --muted-foreground: #8f8f8f;
+  --accent: #17281f;
+  --accent-foreground: #6fe0af;
+  --destructive: #f0603f;
+  --border: #2c2c2c;
+  --input: #3a3a3a;
+  --ring: #3ecf8e;
 
-  --pos: oklch(0.76 0.19 150);
-  --pos-soft: oklch(0.32 0.09 150);
-  --neg: oklch(0.72 0.19 35);
-  --neg-soft: oklch(0.34 0.1 35);
-  --reserve: oklch(0.76 0.17 295);
-  --reserve-soft: oklch(0.33 0.08 295);
+  --pos: #3ecf8e;
+  --pos-soft: #14322380;
+  --neg: #f0a33f;
+  --neg-soft: #3a2c1580;
+  --reserve: #b79cf7;
+  --reserve-soft: #251d3c80;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/40;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-feature-settings: "cv05", "ss01";
+    letter-spacing: -0.011em;
   }
-  /* ledger figures: aligned, unambiguous */
+  html {
+    color-scheme: light dark;
+  }
   .tnum {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;

@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ApartsPage } from "@/pages/ApartsPage";
 import { BuildingPage } from "@/pages/BuildingPage";
+import { BuildingsListPage } from "@/pages/BuildingsListPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { MapPage } from "@/pages/MapPage";
 
@@ -23,6 +24,7 @@ export default function App() {
             <Routes>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/aparts" element={<ApartsPage />} />
+              <Route path="/buildings" element={<BuildingsListPage />} />
               <Route path="/buildings/:id" element={<BuildingPage />} />
               <Route path="/map" element={<MapPage />} />
             </Routes>

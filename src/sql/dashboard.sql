@@ -37,6 +37,17 @@ h AS (
 ),
 today AS (
     SELECT * FROM h WHERE updated_at::date = now()::date
+),
+fh AS (
+    SELECT
+        nah.new_apart_id,
+        nah.version,
+        nah.updated_at,
+        COALESCE(nah.reserve, 0) AS reserve,
+        lag(COALESCE(nah.reserve, 0))
+            OVER (PARTITION BY nah.new_apart_id ORDER BY nah.version) AS prev_reserve
+    FROM new_aparts_history nah
+    WHERE nah.new_apart_id IN (SELECT new_apart_id FROM fav)
 )
 SELECT
     (SELECT count(*) FROM scope)                                   AS aparts_total,
@@ -68,5 +79,15 @@ SELECT
                                                                   AS discounts_appeared_today,
     count(*) FILTER (WHERE reserve = 1 AND prev_reserve = 0 AND version > 1)
                                                                   AS reserved_today,
-    count(*) FILTER (WHERE reserve = 0 AND prev_reserve = 1)       AS unreserved_today
+    count(*) FILTER (WHERE reserve = 0 AND prev_reserve = 1)       AS unreserved_today,
+    (
+        SELECT count(*) FROM new_aparts na
+        JOIN favorites f ON f.new_apart_id = na.new_apart_id
+        WHERE COALESCE(na.reserve, 0) = 1
+    )                                                             AS favorites_reserved,
+    (
+        SELECT count(*) FROM fh
+        WHERE updated_at::date = now()::date
+          AND reserve = 1 AND prev_reserve = 0 AND version > 1
+    )                                                             AS favorites_reserved_today
 FROM today;

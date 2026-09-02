@@ -1,4 +1,4 @@
-import { FileDown, RotateCw, Star } from "lucide-react";
+import { Download, RotateCw, Star } from "lucide-react";
 import { API_BASE } from "@/lib/api";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,14 +19,15 @@ const TOGGLES: { key: keyof ApartFilters; label: string }[] = [
   { key: "favorites_only", label: "Избранное" },
   { key: "price_drop_only", label: "Дешевле стало" },
   { key: "discount_only", label: "Со скидкой" },
+  { key: "available_only", label: "Не в резерве" },
   { key: "reserved_only", label: "В резерве" },
   { key: "family_only", label: "Семейная" },
 ];
 
-function buildingQuery(f: ApartFilters): string {
+function fileQuery(f: ApartFilters, favorites = false): string {
   const p = new URLSearchParams();
-  if (f.favorites_only) p.set("favorites_only", "true");
-  if (f.building_id) p.set("building_id", String(f.building_id));
+  if (favorites || f.favorites_only) p.set("favorites_only", "true");
+  if (!favorites && f.building_id) p.set("building_id", String(f.building_id));
   const s = p.toString();
   return s ? `?${s}` : "";
 }
@@ -42,16 +43,81 @@ export function ApartsToolbar({
 }) {
   const buildings = useBuildings();
   const refresh = useRefreshData();
-  const set = (patch: Partial<ApartFilters>) => onChange({ ...value, ...patch });
+
+  const set = (patch: Partial<ApartFilters>) => {
+    const next = { ...value, ...patch };
+    if (patch.available_only) next.reserved_only = undefined;
+    if (patch.reserved_only) next.available_only = undefined;
+    onChange(next);
+  };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Input
-        placeholder="Адрес, дом или номер"
-        defaultValue={value.q ?? ""}
-        onChange={(e) => set({ q: e.target.value || undefined })}
-        className="h-9 w-56"
-      />
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Адрес, дом или номер"
+          defaultValue={value.q ?? ""}
+          onChange={(e) => set({ q: e.target.value || undefined })}
+          className="h-9 w-56"
+        />
+        <Select
+          value={value.building_id ? String(value.building_id) : "all"}
+          onValueChange={(v) =>
+            set({ building_id: v === "all" ? undefined : Number(v) })
+          }
+        >
+          <SelectTrigger className="h-9 w-52">
+            <SelectValue placeholder="Все дома" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Все дома</SelectItem>
+            {(buildings.data ?? []).map((b) => (
+              <SelectItem key={b.building_id} value={String(b.building_id)}>
+                {b.address ?? `Дом ${b.building_id}`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="ml-auto flex items-center gap-2">
+          {count !== undefined && (
+            <span className="tnum mr-1 text-sm text-muted-foreground">
+              {count} кв.
+            </span>
+          )}
+          <a
+            href={`${API_BASE}/file${fileQuery(value)}`}
+            download
+            title="Выгрузить показанные квартиры в Excel"
+            className={buttonVariants({ variant: "outline", size: "sm", className: "h-9" })}
+          >
+            <Download size={14} className="mr-1.5" />
+            Excel
+          </a>
+          <a
+            href={`${API_BASE}/file${fileQuery(value, true)}`}
+            download
+            title="Выгрузить избранное в Excel"
+            className={buttonVariants({ variant: "outline", size: "sm", className: "h-9" })}
+          >
+            <Star size={14} className="mr-1.5" />
+            Избранное
+          </a>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-9"
+            onClick={() => refresh.mutate()}
+            disabled={refresh.isPending}
+          >
+            <RotateCw
+              size={14}
+              className={cn("mr-1.5", refresh.isPending && "animate-spin")}
+            />
+            Обновить
+          </Button>
+        </div>
+      </div>
 
       <div className="flex flex-wrap gap-1.5">
         {TOGGLES.map(({ key, label }) => {
@@ -64,70 +130,14 @@ export function ApartsToolbar({
               className={cn(
                 "rounded-full border px-3 py-1.5 text-xs transition-colors",
                 on
-                  ? "border-primary bg-primary/10 font-medium text-primary"
-                  : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                  ? "border-primary bg-primary/15 font-medium text-primary"
+                  : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground",
               )}
             >
               {label}
             </button>
           );
         })}
-      </div>
-
-      <Select
-        value={value.building_id ? String(value.building_id) : "all"}
-        onValueChange={(v) =>
-          set({ building_id: v === "all" ? undefined : Number(v) })
-        }
-      >
-        <SelectTrigger className="h-9 w-52">
-          <SelectValue placeholder="Все дома" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Все дома</SelectItem>
-          {(buildings.data ?? []).map((b) => (
-            <SelectItem key={b.building_id} value={String(b.building_id)}>
-              {b.address ?? `Дом ${b.building_id}`}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      <div className="ml-auto flex items-center gap-2">
-        {count !== undefined && (
-          <span className="tnum mr-1 text-sm text-muted-foreground">
-            {count} кв.
-          </span>
-        )}
-        <a
-          href={`${API_BASE}/file${buildingQuery(value)}`}
-          title="Выгрузить видимые квартиры в Excel"
-          className={buttonVariants({ variant: "outline", size: "sm", className: "h-9" })}
-        >
-          <FileDown size={14} className="mr-1.5" />
-          Excel
-        </a>
-        <a
-          href={`${API_BASE}/file?favorites_only=true`}
-          title="Выгрузить избранное в Excel"
-          className={buttonVariants({ variant: "outline", size: "sm", className: "h-9" })}
-        >
-          <Star size={14} className="mr-1.5" />
-          Избранное
-        </a>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-9"
-          onClick={() => refresh.mutate()}
-          disabled={refresh.isPending}
-        >
-          <RotateCw
-            size={14}
-            className={cn("mr-1.5", refresh.isPending && "animate-spin")}
-          />
-          Обновить
-        </Button>
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ const BOOL_KEYS: (keyof ApartFilters)[] = [
   "discount_only",
   "price_drop_only",
   "reserved_only",
+  "available_only",
   "family_only",
   "best_only",
 ];

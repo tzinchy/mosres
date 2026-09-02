@@ -101,6 +101,8 @@ export interface DashboardMetrics {
   discounts_appeared_today: number;
   reserved_today: number;
   unreserved_today: number;
+  favorites_reserved: number;
+  favorites_reserved_today: number;
 }
 
 export interface DashboardPoint {
