@@ -294,14 +294,15 @@ Query-параметры (все опциональные): `building_id: int`, 
    (`replace_entity` функций). Починка `MosResService` (`self`), `repository`, `api`.
    Синхронизировать сырой SQL-файл. Проверка: два прогона `update_data` подряд без изменений
    данных → 0 новых строк в `new_aparts_history`, `version` не растёт; изменение цены руками в
-   БД → +1 строка, `version +1`.
+   БД → +1 строка, `version +1`. testcontainers-conftest (PostgresContainer + `alembic upgrade head`)
+   ставится здесь же.
 2. **Новые таблицы + шедулер.** Модели `Favorite`, `BuildingPriceStat`; миграция; `refresh_all()`,
    `refresh_building_price_stats()`; `src/scheduler.py`; `lifespan` в `api.py`; `apscheduler` в
    зависимостях. Проверка: старт приложения регистрирует job; ручной вызов `refresh_all()`
-   пишет строки в `building_price_stats`.
+   пишет строки в `building_price_stats` (тест против testcontainers).
 3. **Backend-эндпоинты.** Агрегирующий SQL `/aparts` + фильтры; `/favorites` тоглы;
-   `/buildings/{id}/price-dynamics`; схемы ответов. Проверка: pytest на SQL-агрегаты
-   (фикстура с 2–3 версиями квартиры → корректные `price_prev`, `price_max`, `discount_is_new`).
+   `/buildings/{id}/price-dynamics`; схемы ответов. Проверка: pytest против Postgres в
+   testcontainers на все вычисляемые поля и фильтры.
 4. **Frontend scaffold + таблица.** Vite+React+TS, Tailwind, shadcn init, роутинг, TanStack
    Query/Table, экран `/` со всеми колонками и фильтрами, тогл избранного, кнопка обновления.
 5. **Frontend экран дома.** `/buildings/:id`, график Recharts с переключателем метрики,
@@ -309,15 +310,29 @@ Query-параметры (все опциональные): `building_id: int`, 
 
 ## Тестирование
 
-- **Версионность:** pytest — вставка строки в `new_aparts` дважды с одинаковыми данными → одна
-  запись истории; с разной ценой → две, `version` 1→2.
-- **Агрегаты `/aparts`:** pytest — фикстура `new_aparts` + `new_aparts_history` (3 версии,
-  скидка появляется в v3) → проверка всех вычисляемых полей.
-- **Favorites:** pytest — POST дважды идемпотентно, DELETE убирает, `/aparts` отражает
-  `is_favorite`.
-- **price-dynamics:** pytest — две даты в `building_price_stats` → ряд из 2 точек по возрастанию.
-- **Frontend:** без формального фреймворка (не запрошено); ручная проверка сценариев
-  тогла/фильтров/графика.
+Backend-тесты гоняются против **реального Postgres в testcontainers** — триггеры и SQL-агрегаты
+(`percentile_cont`, `LATERAL`, `IS DISTINCT FROM`, `regexp_replace`) специфичны для PG, sqlite/моки
+не подходят.
+
+- Зависимости (dev): `pytest`, `pytest-asyncio`, `testcontainers[postgres]`, `httpx` (ASGI-клиент).
+- Фикстуры (`tests/conftest.py`):
+  - session-scoped: `PostgresContainer("postgres:16")` поднимается один раз, из него берётся DSN;
+  - `alembic upgrade head` против контейнера (создаёт таблицы + trigger-функции + триггеры);
+  - function-scoped: транзакция с откатом после каждого теста (или TRUNCATE нужных таблиц);
+  - `app` с переопределённым `settings.DB` / engine на DSN контейнера, `httpx.AsyncClient`
+    с `ASGITransport`; шедулер в тестах не стартует (флаг в `lifespan`).
+
+Сценарии:
+- **Версионность:** UPDATE `new_aparts` теми же данными → 0 новых строк в `new_aparts_history`,
+  `version` не меняется; UPDATE с новой ценой → +1 строка, `version` 1→2. То же для `buildings`.
+- **Агрегаты `/aparts`:** сид `new_aparts` + 3 версии в `new_aparts_history`, скидка появляется
+  в v3 → проверка `price_prev`, `price_delta_prev(_pct)`, `price_max`, `price_delta_max_pct`,
+  `has_discount`, `discount_is_new`, `mosres_url`.
+- **Фильтры `/aparts`:** `favorites_only`, `discount_only`, `price_drop_only`, `building_id`, `q`.
+- **Favorites:** `POST` дважды идемпотентно, `DELETE` убирает, `/aparts` отражает `is_favorite`.
+- **price-dynamics:** две даты в `building_price_stats` → ряд из 2 точек по возрастанию
+  `snapshot_date`; повторный `refresh_building_price_stats` в тот же день перезаписывает (upsert).
+- **Frontend:** без формального фреймворка (не запрошено); ручная проверка тогла/фильтров/графика.
 
 ## Открытые допущения
 
