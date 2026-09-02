@@ -14,6 +14,7 @@ const SERIES = [
   { key: "drops", label: "Подешевели", color: "var(--pos)" },
   { key: "rises", label: "Подорожали", color: "var(--neg)" },
   { key: "new_discounts", label: "Новые скидки", color: "var(--chart-3)" },
+  { key: "became_family", label: "Стали по семейной", color: "var(--chart-5)" },
   { key: "new_aparts", label: "Новые", color: "var(--chart-1)" },
 ] as const;
 

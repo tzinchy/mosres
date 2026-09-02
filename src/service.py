@@ -13,6 +13,7 @@ from src.schemas import (
     FavoriteToggleResult,
     DashboardMetrics,
     DashboardPoint,
+    DashboardChange,
     MetroStat,
     Notification,
     PriceHistoryPoint,
@@ -43,6 +44,8 @@ from src.repository import (
     get_building_price_dynamics,
     get_dashboard_metrics,
     get_dashboard_timeseries,
+    get_dashboard_changes,
+    get_history_date_range,
     get_buildings_stats,
     get_notifications,
     get_metro_stats,
@@ -60,6 +63,12 @@ BASE_URL = (
 APART_AND_BUILDINGS_PARAMS = {"type[]": ["R"], "pagesize": 1_000_000}
 
 FILTER_PARAMS = {"cmd": "filters", "pagesize": 1_000_000}
+
+
+def _clamp_date(
+    d: datetime.date, lo: datetime.date, hi: datetime.date
+) -> datetime.date:
+    return max(lo, min(d, hi))
 
 
 class MosResService:
@@ -342,14 +351,45 @@ class MosResService:
         return DashboardMetrics.model_validate(dict(row))
 
     async def get_dashboard_timeseries(
-        self, favorites_only: bool = False, days: int = 30
+        self,
+        favorites_only: bool = False,
+        date_from: datetime.date | None = None,
+        date_to: datetime.date | None = None,
     ) -> list[DashboardPoint]:
-        days = max(1, min(days, 180))
+        today = datetime.date.today()
+        floor = today - datetime.timedelta(days=400)  # bounds generate_series
         async with Session() as session:
+            rng = await get_history_date_range(session=session)
+            date_from = _clamp_date(
+                date_from or rng["history_from"] or today, floor, today
+            )
+            date_to = _clamp_date(
+                date_to or rng["history_to"] or today, floor, today
+            )
+            if date_from > date_to:
+                date_from = date_to
             rows = await get_dashboard_timeseries(
-                favorites_only=favorites_only, days=days, session=session
+                favorites_only=favorites_only,
+                date_from=date_from,
+                date_to=date_to,
+                session=session,
             )
         return [DashboardPoint.model_validate(dict(r)) for r in rows]
+
+    async def get_dashboard_changes(
+        self,
+        date: datetime.date | None = None,
+        favorites_only: bool = False,
+    ) -> list[DashboardChange]:
+        today = datetime.date.today()
+        date = _clamp_date(
+            date or today, today - datetime.timedelta(days=3650), today
+        )
+        async with Session() as session:
+            rows = await get_dashboard_changes(
+                favorites_only=favorites_only, date=date, session=session
+            )
+        return [DashboardChange.model_validate(dict(r)) for r in rows]
 
     async def get_buildings_stats(self) -> list[BuildingStat]:
         async with Session() as session:
@@ -375,9 +415,12 @@ class MosResService:
     async def get_refresh_status(self) -> RefreshStatus:
         async with Session() as session:
             last = await get_last_refresh(session=session)
+            rng = await get_history_date_range(session=session)
         return RefreshStatus(
             last_refresh=last,
             interval_minutes=settings.REFRESH_INTERVAL_MINUTES,
+            history_from=rng["history_from"],
+            history_to=rng["history_to"],
         )
 
     async def add_favorite(self, new_apart_id: int) -> FavoriteToggleResult:

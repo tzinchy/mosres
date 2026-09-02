@@ -35,3 +35,10 @@ export function relTime(iso: string | null | undefined): string {
 export function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 }
+
+/** local calendar date as YYYY-MM-DD (not UTC — matches <input type="date">) */
+export function todayISO(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}

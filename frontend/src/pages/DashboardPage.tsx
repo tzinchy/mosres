@@ -1,7 +1,8 @@
 import { AlertTriangle, Info } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { DashboardBreakdowns } from "@/components/DashboardBreakdowns";
+import { DashboardChanges } from "@/components/DashboardChanges";
 import { DashboardChart } from "@/components/DashboardChart";
 import { MetroChart } from "@/components/MetroChart";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
@@ -14,42 +15,46 @@ import {
   usePriceHistory,
   useStatus,
 } from "@/hooks/useDashboard";
-import { money, pct, relTime } from "@/lib/format";
+import { money, pct, relTime, shortDate, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
-
-const PERIODS = [
-  { days: 7, label: "7 дней" },
-  { days: 30, label: "30 дней" },
-  { days: 90, label: "3 месяца" },
-  { days: 180, label: "полгода" },
-];
 
 const CHART_HELP =
   "Каждая точка — события за один день по всему списку (или по избранному). " +
-  "Считаются переходы между версиями квартиры: подешевела, подорожала, появилась новая скидка, " +
-  "добавилась новая квартира. Данные накапливаются с каждым обновлением.";
+  "Считаются реальные переходы между версиями квартиры: подешевела, подорожала, " +
+  "появилась скидка, стала доступна по семейной ипотеке, добавилась новая. " +
+  "Смена служебных полей (ссылка на картинку планировки и т.п.) не считается.";
+
+const dateInputCls =
+  "tnum rounded-md border border-border bg-card px-2 py-1 text-xs";
 
 export function DashboardPage() {
   const [favOnly, setFavOnly] = useState(false);
-  const [days, setDays] = useState(30);
   const { data: m, isLoading } = useDashboard(favOnly);
-  const ts = useDashboardTimeseries(favOnly, days);
   const { data: status } = useStatus();
   const metro = useMetroStats();
   const priceHistory = usePriceHistory();
   const all = useAparts({ favorites_only: favOnly || undefined });
-  const drops = useAparts({
-    price_drop_only: true,
-    favorites_only: favOnly || undefined,
-  });
 
-  const topMovers = useMemo(
-    () =>
-      [...(drops.data ?? [])]
-        .filter((r) => r.price_delta_prev != null)
-        .sort((a, b) => (a.price_delta_prev ?? 0) - (b.price_delta_prev ?? 0))
-        .slice(0, 6),
-    [drops.data],
+  const [params, setParams] = useSearchParams();
+  const date = params.get("date") || todayISO();
+  const setDate = (d: string) =>
+    setParams(
+      (p) => {
+        p.set("date", d || todayISO());
+        return p;
+      },
+      { replace: true },
+    );
+
+  // chart date range: defaults to the full history span, user can narrow it
+  const [cf, setCf] = useState<string | null>(null);
+  const [ct, setCt] = useState<string | null>(null);
+  const chartFrom = cf ?? status?.history_from ?? "";
+  const chartTo = ct ?? status?.history_to ?? todayISO();
+  const ts = useDashboardTimeseries(
+    favOnly,
+    chartFrom || undefined,
+    chartTo || undefined,
   );
 
   return (
@@ -129,12 +134,29 @@ export function DashboardPage() {
             </SectionTitle>
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-6">
               <Metric label="Новых" value={m.new_today} to="/aparts" />
-              <Metric label="Изменений" value={m.changed_today} to="/aparts" />
+              <Metric label="Изменений" value={m.changed_today} to={`/?date=${todayISO()}`} />
               <Metric label="Подешевели" value={m.price_drops_today} tone="pos" to="/aparts?price_drop_only=1" />
               <Metric label="Подорожали" value={m.price_rises_today} tone="neg" to="/aparts" />
               <Metric label="Новых скидок" value={m.discounts_appeared_today} tone="pos" to="/aparts?discount_only=1" />
               <Metric label="Ушло в резерв" value={m.reserved_today} tone="reserve" to="/aparts?reserved_only=1" />
             </div>
+          </section>
+
+          <section id="changes">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <SectionTitle help="Квартиры, у которых в выбранную дату изменилась цена, скидка, статус резерва или доступность по семейной ипотеке. По умолчанию — сегодня.">
+                Изменения за {shortDate(date)}
+              </SectionTitle>
+              <input
+                type="date"
+                value={date}
+                min={status?.history_from ?? undefined}
+                max={todayISO()}
+                onChange={(e) => setDate(e.target.value)}
+                className={dateInputCls}
+              />
+            </div>
+            <DashboardChanges date={date} favOnly={favOnly} />
           </section>
 
           {all.data && all.data.length > 0 && (
@@ -149,22 +171,24 @@ export function DashboardPage() {
           <section>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <SectionTitle help={CHART_HELP}>Динамика изменений</SectionTitle>
-              <div className="flex gap-1 text-xs">
-                {PERIODS.map((p) => (
-                  <button
-                    key={p.days}
-                    type="button"
-                    onClick={() => setDays(p.days)}
-                    className={cn(
-                      "rounded-full px-2.5 py-1 transition-colors",
-                      days === p.days
-                        ? "bg-primary/15 font-medium text-primary"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {p.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={chartFrom}
+                  min={status?.history_from ?? undefined}
+                  max={chartTo}
+                  onChange={(e) => setCf(e.target.value)}
+                  className={dateInputCls}
+                />
+                <span className="text-xs text-muted-foreground">—</span>
+                <input
+                  type="date"
+                  value={chartTo}
+                  min={chartFrom || undefined}
+                  max={todayISO()}
+                  onChange={(e) => setCt(e.target.value)}
+                  className={dateInputCls}
+                />
               </div>
             </div>
             {ts.isLoading && <Skeleton className="h-72 w-full" />}
@@ -201,29 +225,6 @@ export function DashboardPage() {
             </section>
           )}
 
-          {topMovers.length > 0 && (
-            <section>
-              <SectionTitle help="Наибольшее снижение цены среди изменившихся сегодня квартир.">
-                Сильнее всего подешевели сегодня
-              </SectionTitle>
-              <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-                {topMovers.map((r) => (
-                  <Link
-                    key={r.new_apart_id}
-                    to="/aparts?price_drop_only=1"
-                    className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-secondary/60"
-                  >
-                    <span className="min-w-0 truncate text-sm">
-                      {r.address}, кв. {r.number}
-                    </span>
-                    <span className="tnum shrink-0 text-sm text-pos">
-                      {money(r.price)} ₽ · {pct(r.price_delta_prev_pct)}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
         </>
       )}
 

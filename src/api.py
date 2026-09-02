@@ -1,3 +1,4 @@
+import datetime
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends
@@ -13,6 +14,7 @@ from src.schemas import (
     BuildingStat,
     Comment,
     CommentIn,
+    DashboardChange,
     DashboardMetrics,
     DashboardPoint,
     FavoriteToggleResult,
@@ -154,11 +156,27 @@ async def get_dashboard(
 )
 async def get_dashboard_timeseries(
     favorites_only: bool = False,
-    days: int = 30,
+    date_from: datetime.date | None = None,
+    date_to: datetime.date | None = None,
     mosres_service: MosResService = Depends(get_mosres_service),
 ):
     return await mosres_service.get_dashboard_timeseries(
-        favorites_only=favorites_only, days=days
+        favorites_only=favorites_only, date_from=date_from, date_to=date_to
+    )
+
+
+@app.get(
+    "/dashboard/changes",
+    tags=["dashboard"],
+    response_model=list[DashboardChange],
+)
+async def get_dashboard_changes(
+    date: datetime.date | None = None,
+    favorites_only: bool = False,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_dashboard_changes(
+        date=date, favorites_only=favorites_only
     )
 
 

@@ -7,10 +7,13 @@ from tests.conftest import seed_apart, seed_building
 
 
 async def test_timeseries_returns_a_row_per_day(client, db):
+    import datetime
+
     await seed_building(db)
     await seed_apart(db, new_apart_id=1)
     await db.commit()
-    r = await client.get("/dashboard/timeseries", params={"days": 7})
+    frm = (datetime.date.today() - datetime.timedelta(days=6)).isoformat()
+    r = await client.get("/dashboard/timeseries", params={"date_from": frm})
     assert r.status_code == 200
     pts = r.json()
     assert len(pts) == 7

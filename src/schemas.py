@@ -91,7 +91,20 @@ class DashboardPoint(BaseModel):
     rises: int
     new_discounts: int
     reserved: int
+    became_family: int
     avg_change_pct: float | None = None
+
+
+class DashboardChange(BaseModel):
+    new_apart_id: int
+    address: str | None = None
+    number: str | None = None
+    # price_drop | price_rise | discount_new | discount_gone
+    # | reserved | unreserved | family_on | family_off
+    kind: str
+    prev_price: float | None = None
+    next_price: float | None = None
+    pct: float | None = None
 
 
 class Notification(BaseModel):
@@ -149,6 +162,8 @@ class BuildingStat(BaseModel):
 class RefreshStatus(BaseModel):
     last_refresh: datetime.datetime | None = None
     interval_minutes: int
+    history_from: datetime.date | None = None
+    history_to: datetime.date | None = None
 
 
 class BuildingRow(BaseModel):

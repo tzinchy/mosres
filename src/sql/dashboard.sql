@@ -22,6 +22,7 @@ h AS (
                 < NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric
         ) AS has_disc,
         COALESCE(nah.reserve, 0) AS reserve,
+        (COALESCE(nah.property, '') ILIKE '%семейн%') AS fam,
         lag(NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric)
             OVER w AS prev_price,
         lag(
@@ -29,7 +30,8 @@ h AS (
             AND NULLIF(regexp_replace(COALESCE(nah.price_with_discount, ''), '\D', '', 'g'), '')::numeric
                 < NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric
         ) OVER w AS prev_disc,
-        lag(COALESCE(nah.reserve, 0)) OVER w AS prev_reserve
+        lag(COALESCE(nah.reserve, 0)) OVER w AS prev_reserve,
+        lag(COALESCE(nah.property, '') ILIKE '%семейн%') OVER w AS prev_fam
     FROM new_aparts_history nah
     WHERE NOT CAST(:favorites_only AS boolean)
        OR nah.new_apart_id IN (SELECT new_apart_id FROM fav)
@@ -65,7 +67,12 @@ SELECT
     (SELECT round(avg(price_num)) FROM scope)                      AS avg_price,
     (SELECT round(avg(pm)) FROM scope)                             AS avg_price_m,
     count(*) FILTER (WHERE version = 1)                            AS new_today,
-    count(*) FILTER (WHERE version > 1)                            AS changed_today,
+    count(*) FILTER (WHERE version > 1 AND (
+            (prev_price IS NOT NULL AND price_num IS DISTINCT FROM prev_price)
+            OR has_disc IS DISTINCT FROM COALESCE(prev_disc, FALSE)
+            OR reserve IS DISTINCT FROM COALESCE(prev_reserve, 0)
+            OR fam IS DISTINCT FROM COALESCE(prev_fam, FALSE)
+        ))                                                        AS changed_today,
     count(*) FILTER (WHERE prev_price IS NOT NULL AND price_num < prev_price)
                                                                   AS price_drops_today,
     count(*) FILTER (WHERE prev_price IS NOT NULL AND price_num > prev_price)

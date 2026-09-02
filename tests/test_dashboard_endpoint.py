@@ -25,6 +25,7 @@ async def test_dashboard_counts_today_changes(client, db):
     m = r.json()
     assert m["aparts_total"] == 4
     assert m["new_today"] == 4
+    assert m["changed_today"] == 3  # drop + discount + reserve
     assert m["price_drops_today"] == 1
     assert m["discounts_appeared_today"] == 1
     assert m["reserved_today"] == 1

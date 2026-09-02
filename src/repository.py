@@ -195,13 +195,38 @@ async def get_dashboard_metrics(*, favorites_only: bool, session: AsyncSession):
 
 
 async def get_dashboard_timeseries(
-    *, favorites_only: bool, days: int, session: AsyncSession
+    *, favorites_only: bool, date_from, date_to, session: AsyncSession
 ):
     sql = await read_from_sql_folder("dashboard_timeseries")
     result = await session.execute(
-        text(sql), {"favorites_only": favorites_only, "days": days}
+        text(sql),
+        {
+            "favorites_only": favorites_only,
+            "date_from": date_from,
+            "date_to": date_to,
+        },
     )
     return result.mappings().all()
+
+
+async def get_dashboard_changes(
+    *, favorites_only: bool, date, session: AsyncSession
+):
+    sql = await read_from_sql_folder("dashboard_changes")
+    result = await session.execute(
+        text(sql), {"favorites_only": favorites_only, "date": date}
+    )
+    return result.mappings().all()
+
+
+async def get_history_date_range(*, session: AsyncSession):
+    result = await session.execute(
+        text(
+            "SELECT min(updated_at::date) AS history_from, "
+            "max(updated_at::date) AS history_to FROM new_aparts_history"
+        )
+    )
+    return result.mappings().one()
 
 
 async def get_buildings_stats(*, session: AsyncSession):

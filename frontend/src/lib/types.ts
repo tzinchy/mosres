@@ -172,7 +172,28 @@ export interface DashboardPoint {
   rises: number;
   new_discounts: number;
   reserved: number;
+  became_family: number;
   avg_change_pct: number | null;
+}
+
+export type ChangeKind =
+  | "price_drop"
+  | "price_rise"
+  | "discount_new"
+  | "discount_gone"
+  | "reserved"
+  | "unreserved"
+  | "family_on"
+  | "family_off";
+
+export interface DashboardChange {
+  new_apart_id: number;
+  address: string | null;
+  number: string | null;
+  kind: ChangeKind;
+  prev_price: number | null;
+  next_price: number | null;
+  pct: number | null;
 }
 
 export interface BuildingStat {
@@ -194,4 +215,6 @@ export interface BuildingStat {
 export interface RefreshStatus {
   last_refresh: string | null;
   interval_minutes: number;
+  history_from: string | null;
+  history_to: string | null;
 }

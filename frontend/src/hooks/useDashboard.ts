@@ -3,6 +3,7 @@ import { apiGet } from "@/lib/api";
 import type {
   ApartVersion,
   BuildingStat,
+  DashboardChange,
   DashboardMetrics,
   DashboardPoint,
   MetroStat,
@@ -18,13 +19,28 @@ export const useDashboard = (favoritesOnly: boolean) =>
       apiGet<DashboardMetrics>("/dashboard", { favorites_only: favoritesOnly }),
   });
 
-export const useDashboardTimeseries = (favoritesOnly: boolean, days = 30) =>
+export const useDashboardTimeseries = (
+  favoritesOnly: boolean,
+  dateFrom?: string,
+  dateTo?: string,
+) =>
   useQuery({
-    queryKey: ["dashboard-ts", favoritesOnly, days],
+    queryKey: ["dashboard-ts", favoritesOnly, dateFrom ?? "", dateTo ?? ""],
     queryFn: () =>
       apiGet<DashboardPoint[]>("/dashboard/timeseries", {
         favorites_only: favoritesOnly,
-        days,
+        date_from: dateFrom,
+        date_to: dateTo,
+      }),
+  });
+
+export const useDashboardChanges = (date: string, favoritesOnly: boolean) =>
+  useQuery({
+    queryKey: ["dashboard-changes", date, favoritesOnly],
+    queryFn: () =>
+      apiGet<DashboardChange[]>("/dashboard/changes", {
+        date,
+        favorites_only: favoritesOnly,
       }),
   });
 
