@@ -5,6 +5,11 @@ CREATE OR REPLACE FUNCTION public.insert_buildings_history()
  LANGUAGE plpgsql
 AS $function$
 BEGIN
+    IF TG_OP = 'INSERT'
+       AND EXISTS (SELECT 1 FROM buildings WHERE building_id = NEW.building_id) THEN
+        RETURN NEW;
+    END IF;
+
     IF TG_OP = 'UPDATE' THEN
         IF ROW(
             OLD.address, OLD.code, OLD.district, OLD.latitude, OLD.longitude,
@@ -17,8 +22,9 @@ BEGIN
             NEW.floors, NEW.flats, NEW.vvod, NEW.anons_texts, NEW.family_hypotec, NEW.county,
             NEW.img, NEW.gallery
         ) THEN
-            RETURN NEW;
+            RETURN NULL;
         END IF;
+        NEW.updated_at := now();
     END IF;
 
     NEW."version" := COALESCE(OLD."version", 0) + 1;

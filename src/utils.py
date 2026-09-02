@@ -54,23 +54,26 @@ def create_insert_query_for_table(
 def create_insert_query_for_table_with_except_from_temp(
     table: str, temp_table: str, columns: str, on_conflict_column: str
 ) -> str:
-    insert_columns, _, excluded_columns = create_placeholders_with_excluded(
-        columns=columns
+    """Upsert every scraped row from the temp table into the target.
+
+    No client-side change detection — the target's BEFORE INSERT OR UPDATE trigger
+    is the single source of truth: it cancels no-op updates (RETURN NULL) and only
+    then bumps ``version`` / writes a history row. ``updated_at`` is set by the
+    trigger on a real change, so it is intentionally left out of the SET list.
+    """
+    _, _, excluded_columns = create_placeholders_with_excluded(
+        columns=[c for c in columns if c != on_conflict_column]
     )
+    all_columns, _ = create_placeholders(columns)
     return f"""
     INSERT INTO {table} (
-        {insert_columns}
+        {all_columns}
     )
     SELECT
-        {insert_columns}
+        {all_columns}
     FROM {temp_table}
-    EXCEPT
-    SELECT
-        {insert_columns}
-    FROM {table}
     ON CONFLICT ({on_conflict_column}) DO UPDATE SET
-        {excluded_columns},
-        updated_at = NOW()
+        {excluded_columns}
     """
 
 

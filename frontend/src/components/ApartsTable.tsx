@@ -108,7 +108,16 @@ export function ApartsTable({
     }),
     col.accessor("price", {
       header: "Цена, ₽",
-      cell: (c) => <span className="tnum font-medium">{money(c.getValue())}</span>,
+      cell: (c) => (
+        <div className="tnum leading-tight">
+          <div className="font-medium">{money(c.getValue())}</div>
+          {c.row.original.price_m != null && (
+            <div className="text-xs text-muted-foreground">
+              {money(c.row.original.price_m)} / м²
+            </div>
+          )}
+        </div>
+      ),
     }),
     col.accessor("price_delta_prev", {
       header: "Δ к прошлой",
@@ -132,6 +141,27 @@ export function ApartsTable({
       id: "discount",
       header: "Скидка",
       cell: (c) => <DiscountCell row={c.row.original} />,
+    }),
+    col.accessor("deal_score", {
+      header: "Выгода",
+      cell: (c) => {
+        const v = c.getValue();
+        if (!v || v < 5) return <span className="text-muted-foreground">—</span>;
+        return (
+          <span
+            className={cn(
+              "tnum inline-block rounded px-1.5 py-0.5 text-xs font-medium",
+              v >= 20
+                ? "bg-pos text-white"
+                : v >= 10
+                  ? "bg-pos-soft text-pos"
+                  : "text-pos",
+            )}
+          >
+            {Math.round(v)}
+          </span>
+        );
+      },
     }),
     col.display({
       id: "plan",
@@ -182,6 +212,7 @@ export function ApartsTable({
     "price",
     "price_delta_prev",
     "price_delta_max_pct",
+    "deal_score",
   ]);
 
   return (

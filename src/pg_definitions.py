@@ -1,6 +1,13 @@
 from alembic_utils.pg_function import PGFunction
 from alembic_utils.pg_trigger import PGTrigger
 
+# The history triggers are the single source of truth for versioning. They must
+# survive `INSERT ... ON CONFLICT DO UPDATE`, which fires the BEFORE INSERT trigger
+# for every row *before* the conflict is resolved — so a plain "on INSERT, write
+# history v1" writes a spurious row for rows that then become UPDATEs. Guard: on
+# INSERT, if the key already exists, do nothing and let the UPDATE pass handle it;
+# on UPDATE, skip entirely when no meaningful column changed.
+
 insert_buildings_history_func = PGFunction(
     schema="public",
     signature="insert_buildings_history()",
@@ -9,6 +16,11 @@ insert_buildings_history_func = PGFunction(
         LANGUAGE plpgsql
         AS $function$
         BEGIN
+            IF TG_OP = 'INSERT'
+               AND EXISTS (SELECT 1 FROM buildings WHERE building_id = NEW.building_id) THEN
+                RETURN NEW;
+            END IF;
+
             IF TG_OP = 'UPDATE' THEN
                 IF ROW(
                     OLD.address, OLD.code, OLD.district, OLD.latitude, OLD.longitude,
@@ -21,8 +33,9 @@ insert_buildings_history_func = PGFunction(
                     NEW.floors, NEW.flats, NEW.vvod, NEW.anons_texts, NEW.family_hypotec, NEW.county,
                     NEW.img, NEW.gallery
                 ) THEN
-                    RETURN NEW;
+                    RETURN NULL;
                 END IF;
+                NEW.updated_at := now();
             END IF;
 
             NEW."version" := COALESCE(OLD."version", 0) + 1;
@@ -75,6 +88,11 @@ insert_new_apart_history_func = PGFunction(
         LANGUAGE plpgsql
         AS $function$
         BEGIN
+            IF TG_OP = 'INSERT'
+               AND EXISTS (SELECT 1 FROM new_aparts WHERE new_apart_id = NEW.new_apart_id) THEN
+                RETURN NEW;
+            END IF;
+
             IF TG_OP = 'UPDATE' THEN
                 IF ROW(
                     OLD.address, OLD.building, OLD.building_id, OLD.building_code, OLD."number",
@@ -91,8 +109,9 @@ insert_new_apart_history_func = PGFunction(
                     NEW.price_with_discount, NEW.percentage_discount, NEW.auction, NEW.block_name,
                     NEW.plan, NEW.plan_s, NEW.tour_3d
                 ) THEN
-                    RETURN NEW;
+                    RETURN NULL;
                 END IF;
+                NEW.updated_at := now();
             END IF;
 
             NEW."version" := COALESCE(OLD."version", 0) + 1;

@@ -15,6 +15,7 @@ const BOOL_KEYS: (keyof ApartFilters)[] = [
   "price_drop_only",
   "reserved_only",
   "family_only",
+  "best_only",
 ];
 
 export function ApartsPage() {

@@ -5,6 +5,11 @@ CREATE OR REPLACE FUNCTION public.insert_new_aparts_history()
  LANGUAGE plpgsql
 AS $function$
 BEGIN
+    IF TG_OP = 'INSERT'
+       AND EXISTS (SELECT 1 FROM new_aparts WHERE new_apart_id = NEW.new_apart_id) THEN
+        RETURN NEW;
+    END IF;
+
     IF TG_OP = 'UPDATE' THEN
         IF ROW(
             OLD.address, OLD.building, OLD.building_id, OLD.building_code, OLD."number",
@@ -21,8 +26,9 @@ BEGIN
             NEW.price_with_discount, NEW.percentage_discount, NEW.auction, NEW.block_name,
             NEW.plan, NEW.plan_s, NEW.tour_3d
         ) THEN
-            RETURN NEW;
+            RETURN NULL;
         END IF;
+        NEW.updated_at := now();
     END IF;
 
     NEW."version" := COALESCE(OLD."version", 0) + 1;

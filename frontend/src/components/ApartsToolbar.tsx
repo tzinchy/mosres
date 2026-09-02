@@ -1,4 +1,5 @@
-import { RotateCw } from "lucide-react";
+import { FileDown, RotateCw, Star } from "lucide-react";
+import { API_BASE } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,12 +15,21 @@ import { useRefreshData } from "@/hooks/useRefresh";
 import { cn } from "@/lib/utils";
 
 const TOGGLES: { key: keyof ApartFilters; label: string }[] = [
+  { key: "best_only", label: "Выгодные" },
   { key: "favorites_only", label: "Избранное" },
   { key: "price_drop_only", label: "Дешевле стало" },
   { key: "discount_only", label: "Со скидкой" },
   { key: "reserved_only", label: "В резерве" },
   { key: "family_only", label: "Семейная" },
 ];
+
+function buildingQuery(f: ApartFilters): string {
+  const p = new URLSearchParams();
+  if (f.favorites_only) p.set("favorites_only", "true");
+  if (f.building_id) p.set("building_id", String(f.building_id));
+  const s = p.toString();
+  return s ? `?${s}` : "";
+}
 
 export function ApartsToolbar({
   value,
@@ -83,10 +93,30 @@ export function ApartsToolbar({
         </SelectContent>
       </Select>
 
-      <div className="ml-auto flex items-center gap-3">
+      <div className="ml-auto flex items-center gap-2">
         {count !== undefined && (
-          <span className="tnum text-sm text-muted-foreground">{count} кв.</span>
+          <span className="tnum mr-1 text-sm text-muted-foreground">
+            {count} кв.
+          </span>
         )}
+        <Button size="sm" variant="outline" className="h-9" asChild>
+          <a
+            href={`${API_BASE}/file${buildingQuery(value)}`}
+            title="Выгрузить видимые квартиры в Excel"
+          >
+            <FileDown size={14} className="mr-1.5" />
+            Excel
+          </a>
+        </Button>
+        <Button size="sm" variant="outline" className="h-9" asChild>
+          <a
+            href={`${API_BASE}/file?favorites_only=true`}
+            title="Выгрузить избранное в Excel"
+          >
+            <Star size={14} className="mr-1.5" />
+            Избранное
+          </a>
+        </Button>
         <Button
           size="sm"
           variant="outline"

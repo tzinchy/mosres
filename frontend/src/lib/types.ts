@@ -18,6 +18,7 @@ export interface ApartRow {
   property: string | null;
   is_family: boolean;
   price: number | null;
+  price_m: number | null;
   price_prev: number | null;
   price_delta_prev: number | null;
   price_delta_prev_pct: number | null;
@@ -32,6 +33,7 @@ export interface ApartRow {
   tour_3d_url: string | null;
   metro: MetroStop[];
   family_hypotec: number | null;
+  deal_score: number | null;
   mosres_url: string;
   updated_at: string;
 }
@@ -73,11 +75,19 @@ export interface BuildingRow {
   img_url: string | null;
   gallery_urls: string[];
   metro: MetroStop[];
+  favorites_count: number;
 }
 
 export interface DashboardMetrics {
   aparts_total: number;
   favorites_total: number;
+  buildings_total: number;
+  reserved_total: number;
+  discount_total: number;
+  family_total: number;
+  portfolio_value: number | null;
+  avg_price: number | null;
+  avg_price_m: number | null;
   new_today: number;
   changed_today: number;
   price_drops_today: number;
@@ -86,6 +96,33 @@ export interface DashboardMetrics {
   discounts_appeared_today: number;
   reserved_today: number;
   unreserved_today: number;
+}
+
+export interface DashboardPoint {
+  day: string;
+  new_aparts: number;
+  changes: number;
+  drops: number;
+  rises: number;
+  new_discounts: number;
+  reserved: number;
+  avg_change_pct: number | null;
+}
+
+export interface BuildingStat {
+  building_id: number;
+  address: string | null;
+  status_label: string | null;
+  img_url: string | null;
+  aparts: number;
+  avg_price: number | null;
+  min_price: number | null;
+  avg_price_m: number | null;
+  reserved: number;
+  with_discount: number;
+  family: number;
+  new_week: number;
+  favorites_count: number;
 }
 
 export interface RefreshStatus {

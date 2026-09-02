@@ -53,6 +53,50 @@ async def test_meaningful_update_adds_one_history_row_and_bumps_version(db):
     assert [x[0] for x in versions] == [1, 2]
 
 
+async def test_repeated_scrape_of_identical_data_writes_no_new_history(db):
+    """Two upserts of the exact same scraped payload must not grow history."""
+    from src.repository import upsert_with_except_from_temp_table
+
+    cols = ["new_apart_id", "address", "building_id", "price", "price_m", "type"]
+    payload = [
+        {
+            "new_apart_id": 500,
+            "address": "ул. Тест, 9",
+            "building_id": "1",
+            "price": "10000000",
+            "price_m": "200000",
+            "type": "R",
+        }
+    ]
+
+    for _ in range(3):
+        await upsert_with_except_from_temp_table(
+            table="new_aparts",
+            temp_table="new_aparts_temp",
+            on_conflict_column="new_apart_id",
+            columns=cols,
+            data=payload,
+            session=db,
+        )
+
+    assert await _history_count(db, 500) == 1
+    v = await db.execute(
+        text("SELECT version FROM new_aparts WHERE new_apart_id = 500")
+    )
+    assert v.scalar_one() == 1
+
+    payload[0]["price"] = "9500000"
+    await upsert_with_except_from_temp_table(
+        table="new_aparts",
+        temp_table="new_aparts_temp",
+        on_conflict_column="new_apart_id",
+        columns=cols,
+        data=payload,
+        session=db,
+    )
+    assert await _history_count(db, 500) == 2
+
+
 async def test_buildings_noop_update_writes_no_history(db):
     bid = await seed_building(db)
     r0 = await db.execute(
