@@ -11,7 +11,7 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://postgres:password@localhost:5432"
     )
     SCHEDULER_ENABLED: bool = True
-    REFRESH_HOUR: int = 4
+    REFRESH_INTERVAL_MINUTES: int = 30
 
 
 MAIN_FOLDER = pathlib.Path("src")

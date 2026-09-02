@@ -16,6 +16,9 @@ hp AS (
 SELECT
     na.new_apart_id,
     na.address, na.building, na.building_id, na."number", na.rooms, na."floor", na.area,
+    na.reserve,
+    na.property,
+    (COALESCE(na.property, '') ILIKE '%семейн%')                          AS is_family,
     cur.price_num                                                        AS price,
     prev.price_num                                                       AS price_prev,
     (cur.price_num - prev.price_num)                                     AS price_delta_prev,
@@ -31,6 +34,18 @@ SELECT
     NULLIF(regexp_replace(COALESCE(na.percentage_discount, ''), '\D', '', 'g'), '')::numeric
                                                                         AS discount_pct,
     (fav.new_apart_id IS NOT NULL)                                       AS is_favorite,
+    CASE
+        WHEN na.plan_s ~ '^/'  THEN 'https://xn--80aae5aibotfo5h.xn--p1ai' || na.plan_s
+        WHEN COALESCE(na.plan_s, '') <> '' THEN na.plan_s
+        WHEN na.plan ~ '^/'    THEN 'https://xn--80aae5aibotfo5h.xn--p1ai' || na.plan
+        WHEN COALESCE(na.plan, '') <> '' THEN na.plan
+    END                                                                  AS plan_url,
+    CASE
+        WHEN na.tour_3d ~ '^/'  THEN 'https://xn--80aae5aibotfo5h.xn--p1ai' || na.tour_3d
+        WHEN COALESCE(na.tour_3d, '') <> '' THEN na.tour_3d
+    END                                                                  AS tour_3d_url,
+    b.metro                                                              AS metro,
+    b.family_hypotec                                                     AS family_hypotec,
     concat(
         'https://xn--80aae5aibotfo5h.xn--p1ai/obekty/',
         na.building_code, '/?flat_id=', na.new_apart_id
@@ -38,6 +53,8 @@ SELECT
     na.updated_at
 FROM new_aparts na
 JOIN cur ON cur.new_apart_id = na.new_apart_id
+LEFT JOIN buildings b
+    ON na.building_id ~ '^\d+$' AND (na.building_id)::int = b.building_id
 LEFT JOIN LATERAL (
     SELECT hp.price_num, hp.had_discount
     FROM hp
@@ -54,12 +71,18 @@ WHERE (
         CAST(:building_id AS integer) IS NULL
         OR (na.building_id ~ '^\d+$' AND (na.building_id)::int = CAST(:building_id AS integer))
       )
+  AND (
+        CAST(:building_ids AS text) IS NULL
+        OR (na.building_id ~ '^\d+$' AND (na.building_id)::int = ANY(string_to_array(:building_ids, ',')::int[]))
+      )
   AND (NOT CAST(:favorites_only AS boolean) OR fav.new_apart_id IS NOT NULL)
   AND (NOT CAST(:discount_only AS boolean) OR cur.has_discount)
   AND (
         NOT CAST(:price_drop_only AS boolean)
         OR (prev.price_num IS NOT NULL AND cur.price_num < prev.price_num)
       )
+  AND (NOT CAST(:reserved_only AS boolean) OR na.reserve = 1)
+  AND (NOT CAST(:family_only AS boolean) OR COALESCE(na.property, '') ILIKE '%семейн%')
   AND (
         CAST(:q AS text) IS NULL
         OR na.address ILIKE CAST(:q_like AS text)

@@ -18,6 +18,7 @@ _CLEAN_TABLES = (
     "buildings",
     "favorites",
     "building_price_stats",
+    "refresh_runs",
     "districts",
     "municipal_districts",
     "metros",

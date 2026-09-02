@@ -77,13 +77,15 @@ insert_new_apart_history_func = PGFunction(
                     OLD.rooms, OLD."floor", OLD.block, OLD.area, OLD.price, OLD.price_m, OLD."type",
                     OLD.term_of_application, OLD.open_sale, OLD.reserve, OLD.y2_sell, OLD.for_sell,
                     OLD.num_on_floor, OLD.property, OLD.advants, OLD.article,
-                    OLD.price_with_discount, OLD.percentage_discount, OLD.auction, OLD.block_name
+                    OLD.price_with_discount, OLD.percentage_discount, OLD.auction, OLD.block_name,
+                    OLD.plan, OLD.plan_s, OLD.tour_3d
                 ) IS NOT DISTINCT FROM ROW(
                     NEW.address, NEW.building, NEW.building_id, NEW.building_code, NEW."number",
                     NEW.rooms, NEW."floor", NEW.block, NEW.area, NEW.price, NEW.price_m, NEW."type",
                     NEW.term_of_application, NEW.open_sale, NEW.reserve, NEW.y2_sell, NEW.for_sell,
                     NEW.num_on_floor, NEW.property, NEW.advants, NEW.article,
-                    NEW.price_with_discount, NEW.percentage_discount, NEW.auction, NEW.block_name
+                    NEW.price_with_discount, NEW.percentage_discount, NEW.auction, NEW.block_name,
+                    NEW.plan, NEW.plan_s, NEW.tour_3d
                 ) THEN
                     RETURN NEW;
                 END IF;
@@ -101,6 +103,7 @@ insert_new_apart_history_func = PGFunction(
                 property, advants, article,
                 price_with_discount, percentage_discount,
                 auction, block_name,
+                plan, plan_s, tour_3d,
                 created_at, updated_at,
                 "version"
             )
@@ -114,6 +117,7 @@ insert_new_apart_history_func = PGFunction(
                 NEW.property, NEW.advants, NEW.article,
                 NEW.price_with_discount, NEW.percentage_discount,
                 NEW.auction, NEW.block_name,
+                NEW.plan, NEW.plan_s, NEW.tour_3d,
                 NEW.created_at, NEW.updated_at,
                 NEW."version"
             );

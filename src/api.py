@@ -6,7 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.depends import get_mosres_service, MosResService
 from src.scheduler import build_scheduler
-from src.schemas import ApartRow, BuildingPricePoint, FavoriteToggleResult
+from src.schemas import (
+    ApartRow,
+    BuildingPricePoint,
+    DashboardMetrics,
+    FavoriteToggleResult,
+    RefreshStatus,
+)
 
 
 @asynccontextmanager
@@ -61,19 +67,38 @@ async def update_data(mosres_service: MosResService = Depends(get_mosres_service
 @app.get("/aparts", tags=["aparts"], response_model=list[ApartRow])
 async def get_aparts(
     building_id: int | None = None,
+    building_ids: str | None = None,
     favorites_only: bool = False,
     discount_only: bool = False,
     price_drop_only: bool = False,
+    reserved_only: bool = False,
+    family_only: bool = False,
     q: str | None = None,
     mosres_service: MosResService = Depends(get_mosres_service),
 ):
     return await mosres_service.get_aparts_table(
         building_id=building_id,
+        building_ids=building_ids,
         favorites_only=favorites_only,
         discount_only=discount_only,
         price_drop_only=price_drop_only,
+        reserved_only=reserved_only,
+        family_only=family_only,
         q=q,
     )
+
+
+@app.get("/dashboard", tags=["dashboard"], response_model=DashboardMetrics)
+async def get_dashboard(
+    favorites_only: bool = False,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_dashboard(favorites_only=favorites_only)
+
+
+@app.get("/status", tags=["dashboard"], response_model=RefreshStatus)
+async def get_status(mosres_service: MosResService = Depends(get_mosres_service)):
+    return await mosres_service.get_refresh_status()
 
 
 @app.get("/aparts/{new_apart_id}/versions", tags=["aparts"])

@@ -1,6 +1,6 @@
 import datetime
 
-from src.config import EXCEL_FOLDER
+from src.config import EXCEL_FOLDER, settings
 from loguru import logger
 import pandas as pd
 from aiohttp_retry import ExponentialRetry, RetryClient
@@ -8,6 +8,8 @@ from src.database import Session
 from src.schemas import (
     ApartRow,
     FavoriteToggleResult,
+    DashboardMetrics,
+    RefreshStatus,
     BuildingSchema,
     DistrictAdapter,
     MetroAdapter,
@@ -30,6 +32,9 @@ from src.repository import (
     list_favorites,
     refresh_building_price_stats,
     get_building_price_dynamics,
+    get_dashboard_metrics,
+    record_refresh_run,
+    get_last_refresh,
 )
 from src.utils import read_from_sql_folder
 import asyncio
@@ -55,7 +60,7 @@ class MosResService:
         "new_apart_id", "address", "building", "building_id", "building_code", "number", "rooms", "floor",
         "block", "area", "price", "price_m", "type", "term_of_application", "open_sale", "reserve", "y2_sell", "for_sell", "num_on_floor",
         "property", "advants", "article", "price_with_discount", "percentage_discount",
-        "auction", "block_name",
+        "auction", "block_name", "plan", "plan_s", "tour_3d",
     ]
     MUNICIPAL_DISTRICT_COLUMNS = ["municipal_district_id", "name", "polygons"]
 
@@ -229,27 +234,42 @@ class MosResService:
         self,
         *,
         building_id: int | None = None,
+        building_ids: str | None = None,
         favorites_only: bool = False,
         discount_only: bool = False,
         price_drop_only: bool = False,
+        reserved_only: bool = False,
+        family_only: bool = False,
         q: str | None = None,
     ) -> list[ApartRow]:
         async with Session() as session:
             rows = await get_aparts_table(
                 building_id=building_id,
+                building_ids=building_ids,
                 favorites_only=favorites_only,
                 discount_only=discount_only,
                 price_drop_only=price_drop_only,
+                reserved_only=reserved_only,
+                family_only=family_only,
                 q=q,
                 session=session,
             )
         return [ApartRow.model_validate(dict(r)) for r in rows]
 
     async def refresh_all(self) -> dict:
-        await self.update_all_data()
-        async with Session() as session:
-            async with session.begin():
-                await refresh_building_price_stats(session=session)
+        ok = True
+        try:
+            await self.update_all_data()
+            async with Session() as session:
+                async with session.begin():
+                    await refresh_building_price_stats(session=session)
+        except Exception:
+            ok = False
+            raise
+        finally:
+            async with Session() as session:
+                async with session.begin():
+                    await record_refresh_run(ok=ok, session=session)
         return {"status": "success"}
 
     async def get_building_price_dynamics(self, building_id: int):
@@ -257,6 +277,21 @@ class MosResService:
             return await get_building_price_dynamics(
                 building_id=building_id, session=session
             )
+
+    async def get_dashboard(self, favorites_only: bool = False) -> DashboardMetrics:
+        async with Session() as session:
+            row = await get_dashboard_metrics(
+                favorites_only=favorites_only, session=session
+            )
+        return DashboardMetrics.model_validate(dict(row))
+
+    async def get_refresh_status(self) -> RefreshStatus:
+        async with Session() as session:
+            last = await get_last_refresh(session=session)
+        return RefreshStatus(
+            last_refresh=last,
+            interval_minutes=settings.REFRESH_INTERVAL_MINUTES,
+        )
 
     async def add_favorite(self, new_apart_id: int) -> FavoriteToggleResult:
         async with Session() as session:

@@ -96,9 +96,12 @@ async def get_data_for_excel_file(sql: str, session: AsyncSession):
 async def get_aparts_table(
     *,
     building_id: int | None,
+    building_ids: str | None,
     favorites_only: bool,
     discount_only: bool,
     price_drop_only: bool,
+    reserved_only: bool,
+    family_only: bool,
     q: str | None,
     session: AsyncSession,
 ):
@@ -107,9 +110,12 @@ async def get_aparts_table(
         text(sql),
         {
             "building_id": building_id,
+            "building_ids": building_ids or None,
             "favorites_only": favorites_only,
             "discount_only": discount_only,
             "price_drop_only": price_drop_only,
+            "reserved_only": reserved_only,
+            "family_only": family_only,
             "q": q,
             "q_like": f"%{q}%" if q else None,
         },
@@ -141,6 +147,25 @@ async def refresh_building_price_stats(*, session: AsyncSession) -> int:
     sql = await read_from_sql_folder("building_price_stats_refresh")
     result = await session.execute(text(sql))
     return result.rowcount
+
+
+async def get_dashboard_metrics(*, favorites_only: bool, session: AsyncSession):
+    sql = await read_from_sql_folder("dashboard")
+    result = await session.execute(text(sql), {"favorites_only": favorites_only})
+    return result.mappings().one()
+
+
+async def record_refresh_run(*, ok: bool, session: AsyncSession) -> None:
+    await session.execute(
+        text("INSERT INTO refresh_runs (ok) VALUES (:ok)"), {"ok": ok}
+    )
+
+
+async def get_last_refresh(*, session: AsyncSession):
+    result = await session.execute(
+        text("SELECT max(ran_at) FROM refresh_runs WHERE ok")
+    )
+    return result.scalar_one_or_none()
 
 
 async def get_building_price_dynamics(*, building_id: int, session: AsyncSession):

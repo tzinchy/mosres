@@ -12,6 +12,9 @@ class ApartRow(BaseModel):
     rooms: str | None = None
     floor: str | None = None
     area: str | None = None
+    reserve: int | None = None
+    property: str | None = None
+    is_family: bool = False
     price: float | None = None
     price_prev: float | None = None
     price_delta_prev: float | None = None
@@ -22,6 +25,10 @@ class ApartRow(BaseModel):
     discount_is_new: bool = False
     discount_pct: float | None = None
     is_favorite: bool = False
+    plan_url: str | None = None
+    tour_3d_url: str | None = None
+    metro: list[str] | None = None
+    family_hypotec: int | None = None
     mosres_url: str
     updated_at: datetime.datetime
 
@@ -29,6 +36,24 @@ class ApartRow(BaseModel):
 class FavoriteToggleResult(BaseModel):
     new_apart_id: int
     is_favorite: bool
+
+
+class DashboardMetrics(BaseModel):
+    aparts_total: int
+    favorites_total: int
+    new_today: int
+    changed_today: int
+    price_drops_today: int
+    price_rises_today: int
+    avg_price_change_pct_today: float | None = None
+    discounts_appeared_today: int
+    reserved_today: int
+    unreserved_today: int
+
+
+class RefreshStatus(BaseModel):
+    last_refresh: datetime.datetime | None = None
+    interval_minutes: int
 
 
 class BuildingPricePoint(BaseModel):
@@ -107,6 +132,9 @@ class NewApartSchema(BaseModel):
     auction: str | None = None
     advants: list[str] | None = None
     block_name: str | None = None
+    plan: str | None = None
+    plan_s: str | None = None
+    tour_3d: str | None = Field(default=None, validation_alias=AliasChoices("3d", "tour_3d"))
     model_config = ConfigDict(coerce_numbers_to_str=True, extra="ignore")
 
 

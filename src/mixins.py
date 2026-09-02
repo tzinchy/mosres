@@ -62,3 +62,6 @@ class NewApartMixing:
     percentage_discount: saorm.Mapped[str | None] = saorm.mapped_column(nullable=True)
     auction: saorm.Mapped[str | None] = saorm.mapped_column(default=None, nullable=True)
     block_name: saorm.Mapped[str] = saorm.mapped_column(default=None, nullable=True)
+    plan: saorm.Mapped[str | None] = saorm.mapped_column(default=None, nullable=True)
+    plan_s: saorm.Mapped[str | None] = saorm.mapped_column(default=None, nullable=True)
+    tour_3d: saorm.Mapped[str | None] = saorm.mapped_column(default=None, nullable=True)

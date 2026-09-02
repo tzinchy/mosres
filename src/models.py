@@ -87,6 +87,16 @@ class Favorite(Base):
     )
 
 
+class RefreshRun(Base):
+    __tablename__ = "refresh_runs"
+
+    id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True)
+    ran_at: saorm.Mapped[datetime.datetime] = saorm.mapped_column(
+        server_default=sa.func.now(), nullable=False
+    )
+    ok: saorm.Mapped[bool] = saorm.mapped_column(server_default=sa.true(), nullable=False)
+
+
 class BuildingPriceStat(Base):
     __tablename__ = "building_price_stats"
     __table_args__ = (sa.UniqueConstraint("building_id", "snapshot_date"),)

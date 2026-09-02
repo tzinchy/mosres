@@ -27,10 +27,10 @@ async def test_refresh_same_day_upserts(db):
     assert rows[0]["avg_price_m"] == 400000
 
 
-def test_build_scheduler_registers_daily_job():
+def test_build_scheduler_registers_periodic_job():
     from src.scheduler import build_scheduler
 
     scheduler = build_scheduler()
-    job = scheduler.get_job("daily-refresh")
+    job = scheduler.get_job("periodic-refresh")
     assert job is not None
     assert job.max_instances == 1

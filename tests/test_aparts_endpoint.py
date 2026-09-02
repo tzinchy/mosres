@@ -71,6 +71,40 @@ async def test_price_drop_only_filter(client, db):
     assert {x["new_apart_id"] for x in r.json()} == {1}
 
 
+async def test_reserve_family_metro_plan_fields(client, db):
+    await seed_building(db, metro=["Тёплый Стан"], family_hypotec=1)
+    await seed_apart(
+        db,
+        new_apart_id=1,
+        reserve=1,
+        property="Стандартная, семейная",
+        plan_s="/upload/resize_cache/x.png",
+        tour_3d="/upload/3dtours/1/Tour.html",
+    )
+    await db.commit()
+    row = next(x for x in (await client.get("/aparts")).json() if x["new_apart_id"] == 1)
+    assert row["reserve"] == 1
+    assert row["is_family"] is True
+    assert row["metro"] == ["Тёплый Стан"]
+    assert row["family_hypotec"] == 1
+    assert row["plan_url"] == "https://xn--80aae5aibotfo5h.xn--p1ai/upload/resize_cache/x.png"
+    assert row["tour_3d_url"].endswith("/Tour.html")
+
+
+async def test_building_ids_and_reserved_family_filters(client, db):
+    await seed_building(db, building_id=1)
+    await seed_building(db, building_id=2, code="b2")
+    await seed_apart(db, new_apart_id=1, building_id="1", reserve=1, property="семейная")
+    await seed_apart(db, new_apart_id=2, building_id="2", reserve=0, property="Стандартная")
+    await db.commit()
+    r_ids = await client.get("/aparts", params={"building_ids": "1"})
+    assert {x["new_apart_id"] for x in r_ids.json()} == {1}
+    r_res = await client.get("/aparts", params={"reserved_only": "true"})
+    assert {x["new_apart_id"] for x in r_res.json()} == {1}
+    r_fam = await client.get("/aparts", params={"family_only": "true"})
+    assert {x["new_apart_id"] for x in r_fam.json()} == {1}
+
+
 async def test_discount_only_and_q(client, db):
     await seed_building(db)
     await seed_apart(
