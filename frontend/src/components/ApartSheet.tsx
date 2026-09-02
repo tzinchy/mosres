@@ -110,17 +110,23 @@ function diffLabel(a: ApartVersion, b: ApartVersion): Change[] {
       out.push({ text: `${label}: ${before || "—"} → ${after || "—"}` });
   }
 
-  // a.plan / a.plan_s intentionally skipped: the source re-hashes the image URL
-  // on every refresh without the plan actually changing — pure noise.
   const tour = linkChange("3D-тур", a.tour_3d, b.tour_3d);
   if (tour) out.push(tour);
 
   if (norm(a.advants) !== norm(b.advants))
     out.push({ text: "Изменён список преимуществ" });
 
-  return out.length
-    ? out
-    : [{ text: "Служебное обновление — отслеживаемые поля не менялись" }];
+  // The source re-hashes the floor-plan image URL on almost every refresh
+  // without the plan itself changing. Call it out explicitly so a version with
+  // no real change doesn't look like an unexplained "update".
+  if (norm(a.plan) !== norm(b.plan) || norm(a.plan_s) !== norm(b.plan_s))
+    out.push({
+      text: out.length
+        ? "Также: обновилась ссылка на картинку планировки"
+        : "Только техническое: сменилась ссылка на картинку планировки (само изображение то же)",
+    });
+
+  return out.length ? out : [{ text: "Изменений в отслеживаемых полях нет" }];
 }
 
 export function ApartSheet({

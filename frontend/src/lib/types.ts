@@ -64,6 +64,7 @@ export interface ApartVersion {
   article: string | null;
   advants: string[] | null;
   plan: string | null;
+  plan_s: string | null;
   tour_3d: string | null;
   address: string | null;
   building: string | null;
