@@ -1,110 +1,102 @@
+import { ArrowLeft } from "lucide-react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ApartSheet } from "@/components/ApartSheet";
 import { ApartsTable } from "@/components/ApartsTable";
 import { BuildingPriceChart } from "@/components/BuildingPriceChart";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MetroList } from "@/components/MetroList";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAparts } from "@/hooks/useAparts";
 import { useBuilding, useBuildingPriceDynamics } from "@/hooks/useBuilding";
-import { useBuildingVersions } from "@/hooks/useBuildingVersions";
 import { useToggleFavorite } from "@/hooks/useFavorites";
+import type { ApartRow } from "@/lib/types";
 
 export function BuildingPage() {
   const id = Number(useParams().id);
-  const building = useBuilding(id);
+  const { data: b } = useBuilding(id);
   const dynamics = useBuildingPriceDynamics(id);
-  const versions = useBuildingVersions(id);
   const aparts = useAparts({ building_id: id });
   const toggle = useToggleFavorite();
+  const [selected, setSelected] = useState<ApartRow | null>(null);
 
   return (
-    <div className="space-y-6 p-6">
-      <Link to="/" className="text-sm underline">
-        ← ко всем квартирам
+    <div className="space-y-6 p-5 md:p-8">
+      <Link
+        to="/aparts"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft size={14} /> ко всем квартирам
       </Link>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{building.data?.address ?? `Дом ${id}`}</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Статус: {building.data?.status_code ?? "—"} · Ввод:{" "}
-          {building.data?.vvod ?? "—"} · Метро:{" "}
-          {building.data?.metro?.join(", ") ?? "—"}
-        </CardContent>
-      </Card>
+      <header className="flex flex-col gap-4 sm:flex-row">
+        {b?.img_url && (
+          <img
+            src={b.img_url}
+            alt=""
+            className="h-40 w-full rounded-lg border border-border object-cover sm:w-64"
+          />
+        )}
+        <div className="min-w-0 space-y-2">
+          <h1 className="text-xl font-semibold">{b?.address ?? `Дом ${id}`}</h1>
+          <div className="flex flex-wrap gap-1.5">
+            {b?.status_label && (
+              <Badge className="border-transparent bg-secondary text-secondary-foreground">
+                {b.status_label}
+              </Badge>
+            )}
+            {b?.finishing_label && (
+              <Badge className="border-transparent bg-secondary text-secondary-foreground">
+                {b.finishing_label}
+              </Badge>
+            )}
+            {b?.family_hypotec === 1 && (
+              <Badge className="border-transparent bg-accent text-accent-foreground">
+                семейная ипотека
+              </Badge>
+            )}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {b?.floors && <span className="tnum">{b.floors} эт. · </span>}
+            {b?.flats && <span className="tnum">{b.flats} кв. · </span>}
+            {b?.vvod && <span>ввод {b.vvod}</span>}
+          </div>
+          {b && b.metro.length > 0 && <MetroList stops={b.metro} limit={4} />}
+        </div>
+      </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Дом</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="price">
-            <TabsList>
-              <TabsTrigger value="price">Цена за м²</TabsTrigger>
-              <TabsTrigger value="history">История дома</TabsTrigger>
-            </TabsList>
-            <TabsContent value="price" className="pt-4">
-              {dynamics.isLoading && <div>Загрузка…</div>}
-              {dynamics.data && dynamics.data.length === 0 && (
-                <div className="text-sm text-muted-foreground">
-                  Ещё нет снимков цены.
-                </div>
-              )}
-              {dynamics.data && dynamics.data.length > 0 && (
-                <BuildingPriceChart points={dynamics.data} />
-              )}
-            </TabsContent>
-            <TabsContent value="history" className="pt-4">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Версия</TableHead>
-                      <TableHead>Обновлено</TableHead>
-                      <TableHead>Статус</TableHead>
-                      <TableHead>Отделка</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(versions.data ?? []).map((v) => (
-                      <TableRow key={v.version}>
-                        <TableCell>{v.version}</TableCell>
-                        <TableCell>
-                          {new Date(v.updated_at).toLocaleDateString("ru-RU")}
-                        </TableCell>
-                        <TableCell>{v.status_code ?? "—"}</TableCell>
-                        <TableCell>{v.finishing_code ?? "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h2 className="mb-1 text-sm font-medium">Цена за квадратный метр</h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          По снимкам данных за прошедшие дни
+        </p>
+        {dynamics.isLoading && <Skeleton className="h-64 w-full" />}
+        {dynamics.data && dynamics.data.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Ещё нет снимков цены — появятся после нескольких обновлений данных.
+          </p>
+        )}
+        {dynamics.data && dynamics.data.length > 0 && (
+          <BuildingPriceChart points={dynamics.data} />
+        )}
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Квартиры дома</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {aparts.data && (
-            <ApartsTable
-              rows={aparts.data}
-              onToggleFavorite={(aid, next) => toggle.mutate({ id: aid, next })}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium">Квартиры в доме</h2>
+        {aparts.data && (
+          <ApartsTable
+            rows={aparts.data}
+            selectedId={selected?.new_apart_id}
+            onToggleFavorite={(aid, next) => toggle.mutate({ id: aid, next })}
+            onSelect={setSelected}
+          />
+        )}
+      </section>
+
+      <ApartSheet
+        apart={selected}
+        onOpenChange={(open) => !open && setSelected(null)}
+      />
     </div>
   );
 }

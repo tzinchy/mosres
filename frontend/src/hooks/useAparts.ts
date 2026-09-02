@@ -4,15 +4,19 @@ import type { ApartRow } from "@/lib/types";
 
 export interface ApartFilters {
   building_id?: number;
+  building_ids?: string;
   favorites_only?: boolean;
   discount_only?: boolean;
   price_drop_only?: boolean;
+  reserved_only?: boolean;
+  family_only?: boolean;
   q?: string;
 }
 
-export function useAparts(filters: ApartFilters) {
+export function useAparts(filters: ApartFilters, enabled = true) {
   return useQuery({
     queryKey: ["aparts", filters],
     queryFn: () => apiGet<ApartRow[]>("/aparts", filters as Record<string, unknown>),
+    enabled,
   });
 }
