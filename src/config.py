@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     DB: PostgresDsn = PostgresDsn(
         "postgresql+asyncpg://postgres:password@localhost:5432"
     )
+    SCHEDULER_ENABLED: bool = True
+    REFRESH_HOUR: int = 4
 
 
 MAIN_FOLDER = pathlib.Path("src")

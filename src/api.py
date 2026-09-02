@@ -1,12 +1,31 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from src.config import settings
 from src.depends import get_mosres_service, MosResService
+from src.scheduler import build_scheduler
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    scheduler = None
+    if settings.SCHEDULER_ENABLED:
+        scheduler = build_scheduler()
+        scheduler.start()
+    try:
+        yield
+    finally:
+        if scheduler is not None:
+            scheduler.shutdown(wait=False)
+
 
 app = FastAPI(
     title="mosres-api",
     version="0.1.0",
     description="Удобное api для получения информации с https://xn--80aae5aibotfo5h.xn--p1ai/. По умолчанию собирает данные по жилой недвижомсти",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
