@@ -72,9 +72,12 @@ cd frontend && npm install && npm run dev    # фронт на :5173
 
 | Метод | Эндпоинт | Описание |
 |---|---|---|
-| `GET` | `/aparts` | Таблица квартир: `price`, `price_prev/delta`, `price_max/delta`, `has_discount`, `discount_is_new`, `discount_pct`, `reserve`, `is_family`, `type_label`, `plan_url`, `tour_3d_url`, `metro[]`, `family_hypotec`, `is_favorite`, `mosres_url`. Query: `building_id`, `building_ids` (CSV), `favorites_only`, `discount_only`, `price_drop_only`, `reserved_only`, `family_only`, `q` |
+| `GET` | `/aparts` | Таблица квартир: `price`, `price_m`, `price_prev/delta`, `price_max/delta`, `has_discount`, `discount_is_new`, `discount_pct`, `reserve`, `is_family`, `type_label`, `plan_url`, `tour_3d_url`, `metro[{name,color,car,walk}]`, `family_hypotec`, `deal_score`, `is_favorite`, `mosres_url`. Query: `building_id`, `building_ids` (CSV), `favorites_only`, `discount_only`, `price_drop_only`, `reserved_only`, `family_only`, `q` |
 | `GET` | `/aparts/{new_apart_id}/versions` | История изменений конкретной квартиры |
-| `GET` | `/dashboard` | Метрики за сегодня (новые, изменения, падения/рост цены, новые скидки, ушли в резерв, средняя динамика). Query: `favorites_only` |
+| `GET` | `/file` | Выгрузка таблицы квартир в Excel. Query: `favorites_only`, `building_id` |
+| `GET` | `/dashboard` | Метрики: всего/избранное/дома, сумма стоимости, средняя цена и цена м², резерв/скидки/семейная, и за сегодня — новые/изменения/падения/рост/скидки/резерв + средняя динамика. Query: `favorites_only` |
+| `GET` | `/dashboard/timeseries` | По дням за `days` (по умолч. 30): новые, изменения, падения, рост, новые скидки, ушли в резерв, средняя динамика %. Query: `favorites_only`, `days` |
+| `GET` | `/buildings/stats` | По домам: квартир, средняя/мин цена, цена м², резерв, скидки, семейная, новых за неделю, в избранном |
 | `GET` | `/status` | Время последнего обновления данных + интервал планировщика |
 
 ### Избранное
