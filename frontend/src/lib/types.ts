@@ -113,6 +113,34 @@ export interface DashboardMetrics {
   favorites_reserved_today: number;
 }
 
+export interface Notification {
+  new_apart_id: number;
+  version: number;
+  updated_at: string;
+  address: string | null;
+  building: string | null;
+  number: string | null;
+  price: number | null;
+  prev_price: number | null;
+  price_down: boolean;
+  price_up: boolean;
+  discount_new: boolean;
+  discount_gone: boolean;
+  reserved: boolean;
+  unreserved: boolean;
+}
+
+export interface MetroStat {
+  metro_id: number;
+  name: string | null;
+  color: string | null;
+  aparts: number;
+  favorites: number;
+  with_discount: number;
+  reserved: number;
+  avg_price_m: number | null;
+}
+
 export interface DashboardPoint {
   day: string;
   new_aparts: number;

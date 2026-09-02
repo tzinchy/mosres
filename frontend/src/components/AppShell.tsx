@@ -1,8 +1,15 @@
-import { Building2, LayoutDashboard, Map as MapIcon, Table2 } from "lucide-react";
+import {
+  Bell,
+  Building2,
+  LayoutDashboard,
+  Map as MapIcon,
+  Table2,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useStatus } from "@/hooks/useDashboard";
+import { useNotifications, useStatus } from "@/hooks/useDashboard";
+import { useNotifSeen } from "@/hooks/useNotifSeen";
 import { relTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +19,36 @@ const nav = [
   { to: "/buildings", label: "Дома", icon: Building2, end: true },
   { to: "/map", label: "Карта", icon: MapIcon, end: false },
 ];
+
+function BellItem({ onNavigate }: { onNavigate?: () => void }) {
+  const { data } = useNotifications();
+  const { lastSeen } = useNotifSeen();
+  const unread = (data ?? []).filter((n) => n.updated_at > lastSeen).length;
+  return (
+    <NavLink
+      to="/notifications"
+      onClick={onNavigate}
+      className={({ isActive }) =>
+        cn(
+          "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+          isActive
+            ? "bg-primary/10 font-medium text-primary"
+            : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+        )
+      }
+    >
+      <span className="relative">
+        <Bell size={16} strokeWidth={2} />
+        {unread > 0 && (
+          <span className="tnum absolute -top-1.5 -right-2 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </span>
+      Уведомления
+    </NavLink>
+  );
+}
 
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   return (
@@ -35,6 +72,7 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           {label}
         </NavLink>
       ))}
+      <BellItem onNavigate={onNavigate} />
     </>
   );
 }

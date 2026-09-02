@@ -208,10 +208,11 @@ export function ApartsTable({
           <span className="text-muted-foreground">—</span>
         ),
     }),
-    col.display({
+    col.accessor((r) => r.discount_pct ?? 0, {
       id: "discount",
       header: "Скидка",
       size: 128,
+      sortDescFirst: true,
       cell: (c) => <DiscountCell row={c.row.original} />,
     }),
     col.display({

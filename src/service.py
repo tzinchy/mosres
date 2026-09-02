@@ -15,6 +15,7 @@ from src.schemas import (
     DashboardPoint,
     MetroStat,
     Notification,
+    PriceHistoryPoint,
     RefreshStatus,
     BuildingSchema,
     DistrictAdapter,
@@ -45,6 +46,7 @@ from src.repository import (
     get_buildings_stats,
     get_notifications,
     get_metro_stats,
+    get_price_history,
     record_refresh_run,
     get_last_refresh,
 )
@@ -364,6 +366,11 @@ class MosResService:
         async with Session() as session:
             rows = await get_metro_stats(session=session)
         return [MetroStat.model_validate(dict(r)) for r in rows]
+
+    async def get_price_history(self) -> list[PriceHistoryPoint]:
+        async with Session() as session:
+            rows = await get_price_history(session=session)
+        return [PriceHistoryPoint.model_validate(dict(r)) for r in rows]
 
     async def get_refresh_status(self) -> RefreshStatus:
         async with Session() as session:

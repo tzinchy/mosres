@@ -5,6 +5,8 @@ import type {
   BuildingStat,
   DashboardMetrics,
   DashboardPoint,
+  MetroStat,
+  Notification,
   RefreshStatus,
 } from "@/lib/types";
 
@@ -29,6 +31,19 @@ export const useBuildingsStats = () =>
   useQuery({
     queryKey: ["buildings-stats"],
     queryFn: () => apiGet<BuildingStat[]>("/buildings/stats"),
+  });
+
+export const useMetroStats = () =>
+  useQuery({
+    queryKey: ["metro-stats"],
+    queryFn: () => apiGet<MetroStat[]>("/dashboard/metro"),
+  });
+
+export const useNotifications = (days = 14) =>
+  useQuery({
+    queryKey: ["notifications", days],
+    queryFn: () => apiGet<Notification[]>("/notifications", { days }),
+    refetchInterval: 120_000,
   });
 
 export const useStatus = () =>

@@ -48,6 +48,23 @@ async def test_metro_stats(client, db):
     assert row["avg_price_m"] == 220000
 
 
+async def test_price_history_by_district(client, db):
+    await db.execute(
+        text("INSERT INTO districts (district_id, name, full_name, polygons) VALUES (7, 'ЮЗАО', 'Юго-Западный', '')")
+    )
+    await seed_building(db, building_id=1, county=7)
+    await db.execute(
+        text(
+            "INSERT INTO building_price_stats (building_id, snapshot_date, avg_price_m, apart_count) "
+            "VALUES (1, '2026-08-01', 200000, 5), (1, '2026-08-15', 210000, 5)"
+        )
+    )
+    await db.commit()
+    r = await client.get("/dashboard/price-history")
+    pts = [p for p in r.json() if p["district"] == "ЮЗАО"]
+    assert [p["avg_price_m"] for p in pts] == [200000, 210000]
+
+
 async def test_price_and_discount_filters(client, db):
     await seed_building(db)
     await seed_apart(db, new_apart_id=1, price="8000000")

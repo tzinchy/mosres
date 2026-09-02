@@ -2,18 +2,22 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@import "@fontsource/inter/300.css";
 @import "@fontsource/inter/400.css";
 @import "@fontsource/inter/500.css";
 @import "@fontsource/inter/600.css";
 @import "@fontsource/ibm-plex-mono/latin-400.css";
 @import "@fontsource/ibm-plex-mono/latin-500.css";
 @import "@fontsource/ibm-plex-mono/cyrillic-400.css";
+@import "@fontsource/cormorant-garamond/latin-400.css";
+@import "@fontsource/cormorant-garamond/latin-500.css";
+@import "@fontsource/cormorant-garamond/cyrillic-400.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --font-serif: "Cormorant Garamond", ui-serif, Georgia, "Times New Roman", serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
 
   --color-background: var(--background);
@@ -41,70 +45,73 @@
   --color-neg-soft: var(--neg-soft);
   --color-reserve: var(--reserve);
   --color-reserve-soft: var(--reserve-soft);
+  --color-panel: var(--panel);
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
 }
 
-/* Anthropic reference — warm parchment, editorial, single clay accent */
+/* Ease Health reference — botanical greenhouse on cream paper */
 :root {
-  --background: #f0eee6;
-  --foreground: #141413;
-  --card: #faf9f5;
-  --card-foreground: #141413;
-  --popover: #faf9f5;
-  --popover-foreground: #141413;
-  --primary: #d97757;
-  --primary-foreground: #ffffff;
-  --secondary: #e3dacc;
-  --secondary-foreground: #141413;
-  --muted: #e8e5db;
-  --muted-foreground: #6f6e66;
-  --accent: #f5e3c7;
-  --accent-foreground: #5c4a2e;
-  --destructive: #c6613f;
-  --border: #d5d3ca;
-  --input: #cccbc8;
-  --ring: #d97757;
+  --background: #fffefc;
+  --foreground: #222222;
+  --card: #fbfdf9;
+  --card-foreground: #222222;
+  --popover: #ffffff;
+  --popover-foreground: #222222;
+  --primary: #0f3e17;
+  --primary-foreground: #fffefc;
+  --secondary: #e1f4df;
+  --secondary-foreground: #0f3e17;
+  --muted: #eef3ec;
+  --muted-foreground: #5c6b59;
+  --accent: #cfe7d3;
+  --accent-foreground: #0c2f10;
+  --destructive: #9a4a26;
+  --border: #e3e5df;
+  --input: #d6ddd3;
+  --ring: #0f3e17;
 
-  --pos: #4f7a3f;
-  --pos-soft: #e6ecd9;
-  --neg: #b0562f;
-  --neg-soft: #f3e2d3;
-  --reserve: #7a5ea8;
-  --reserve-soft: #ece4f2;
+  --panel: #e9f4e7;
+  --pos: #2f7d3a;
+  --pos-soft: #dcefdc;
+  --neg: #a1502a;
+  --neg-soft: #f0e3d7;
+  --reserve: #5b7a86;
+  --reserve-soft: #dfe9ec;
 
-  --radius: 12px;
+  --radius: 14px;
 }
 
 .dark {
-  --background: #1c1b18;
-  --foreground: #f0eee6;
-  --card: #232220;
-  --card-foreground: #f0eee6;
-  --popover: #26251f;
-  --popover-foreground: #f0eee6;
-  --primary: #d97757;
-  --primary-foreground: #17140f;
-  --secondary: #322f28;
-  --secondary-foreground: #efece2;
-  --muted: #2a2822;
-  --muted-foreground: #a5a297;
-  --accent: #3a3226;
-  --accent-foreground: #e7cfa5;
-  --destructive: #e0754e;
-  --border: #38352d;
-  --input: #47433a;
-  --ring: #d97757;
+  --background: #12160f;
+  --foreground: #e7ece4;
+  --card: #1a1f16;
+  --card-foreground: #e7ece4;
+  --popover: #1d2319;
+  --popover-foreground: #e7ece4;
+  --primary: #8fd39a;
+  --primary-foreground: #0c1c0f;
+  --secondary: #263021;
+  --secondary-foreground: #dbe6d4;
+  --muted: #202519;
+  --muted-foreground: #9aa694;
+  --accent: #2b3a27;
+  --accent-foreground: #b7e0bb;
+  --destructive: #cf7a4e;
+  --border: #2c3327;
+  --input: #3a4433;
+  --ring: #8fd39a;
 
-  --pos: #8bbf6e;
-  --pos-soft: #2b3a2280;
-  --neg: #e0996a;
-  --neg-soft: #3d2c1e80;
-  --reserve: #b79cd8;
-  --reserve-soft: #2e263a80;
+  --panel: #1e2718;
+  --pos: #8bd08e;
+  --pos-soft: #26361f80;
+  --neg: #d9986a;
+  --neg-soft: #3a2c1e80;
+  --reserve: #9ab8c2;
+  --reserve-soft: #23323680;
 }
 
 @layer base {
@@ -113,13 +120,14 @@
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    letter-spacing: -0.006em;
   }
   h1,
   h2,
   .font-editorial {
     font-family: var(--font-serif);
+    font-weight: 400;
     letter-spacing: -0.01em;
+    color: var(--primary);
   }
   html {
     color-scheme: light dark;

@@ -18,6 +18,7 @@ from src.schemas import (
     FavoriteToggleResult,
     MetroStat,
     Notification,
+    PriceHistoryPoint,
     RefreshStatus,
 )
 
@@ -178,6 +179,17 @@ async def get_notifications(
 @app.get("/dashboard/metro", tags=["dashboard"], response_model=list[MetroStat])
 async def get_metro_stats(mosres_service: MosResService = Depends(get_mosres_service)):
     return await mosres_service.get_metro_stats()
+
+
+@app.get(
+    "/dashboard/price-history",
+    tags=["dashboard"],
+    response_model=list[PriceHistoryPoint],
+)
+async def get_price_history(
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_price_history()
 
 
 @app.get("/status", tags=["dashboard"], response_model=RefreshStatus)

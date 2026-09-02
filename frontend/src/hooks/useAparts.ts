@@ -13,6 +13,9 @@ export interface ApartFilters {
   family_only?: boolean;
   comment_only?: boolean;
   best_only?: boolean;
+  min_price?: number;
+  max_price?: number;
+  min_discount?: number;
   q?: string;
 }
 

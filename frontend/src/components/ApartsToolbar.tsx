@@ -25,6 +25,32 @@ const TOGGLES: { key: keyof ApartFilters; label: string }[] = [
   { key: "comment_only", label: "С комментарием" },
 ];
 
+function NumInput({
+  placeholder,
+  value,
+  onChange,
+  className,
+}: {
+  placeholder: string;
+  value?: number;
+  onChange: (n: number | undefined) => void;
+  className?: string;
+}) {
+  return (
+    <Input
+      type="number"
+      inputMode="numeric"
+      placeholder={placeholder}
+      defaultValue={value ?? ""}
+      onChange={(e) => {
+        const n = Number(e.target.value);
+        onChange(e.target.value === "" || Number.isNaN(n) ? undefined : n);
+      }}
+      className={cn("tnum h-9 w-32", className)}
+    />
+  );
+}
+
 function fileQuery(f: ApartFilters, favorites = false): string {
   const p = new URLSearchParams();
   if (favorites || f.favorites_only) p.set("favorites_only", "true");
@@ -118,6 +144,26 @@ export function ApartsToolbar({
             Обновить
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <NumInput
+          placeholder="Цена от, ₽"
+          value={value.min_price}
+          onChange={(n) => set({ min_price: n })}
+        />
+        <span className="text-muted-foreground">—</span>
+        <NumInput
+          placeholder="до, ₽"
+          value={value.max_price}
+          onChange={(n) => set({ max_price: n })}
+        />
+        <NumInput
+          placeholder="Скидка от, %"
+          value={value.min_discount}
+          onChange={(n) => set({ min_discount: n })}
+          className="w-28"
+        />
       </div>
 
       <div className="flex flex-wrap gap-1.5">

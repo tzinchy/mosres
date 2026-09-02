@@ -111,6 +111,14 @@ class Notification(BaseModel):
     unreserved: bool
 
 
+class PriceHistoryPoint(BaseModel):
+    district: str
+    day: datetime.date
+    avg_price_m: float | None = None
+    min_price_m: float | None = None
+    aparts: int
+
+
 class MetroStat(BaseModel):
     metro_id: int
     name: str | None = None

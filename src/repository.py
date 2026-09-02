@@ -222,6 +222,12 @@ async def get_metro_stats(*, session: AsyncSession):
     return result.mappings().all()
 
 
+async def get_price_history(*, session: AsyncSession):
+    sql = await read_from_sql_folder("price_history")
+    result = await session.execute(text(sql))
+    return result.mappings().all()
+
+
 async def record_refresh_run(*, ok: bool, session: AsyncSession) -> None:
     await session.execute(
         text("INSERT INTO refresh_runs (ok) VALUES (:ok)"), {"ok": ok}
