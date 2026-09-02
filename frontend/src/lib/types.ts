@@ -130,6 +130,14 @@ export interface Notification {
   unreserved: boolean;
 }
 
+export interface PriceHistoryPoint {
+  district: string;
+  day: string;
+  avg_price_m: number | null;
+  min_price_m: number | null;
+  aparts: number;
+}
+
 export interface MetroStat {
   metro_id: number;
   name: string | null;

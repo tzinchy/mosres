@@ -21,7 +21,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl bg-panel p-4">
       <div title={help} className="mb-3 cursor-help text-sm font-medium">
         {title}
       </div>

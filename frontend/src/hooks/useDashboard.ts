@@ -7,6 +7,7 @@ import type {
   DashboardPoint,
   MetroStat,
   Notification,
+  PriceHistoryPoint,
   RefreshStatus,
 } from "@/lib/types";
 
@@ -37,6 +38,12 @@ export const useMetroStats = () =>
   useQuery({
     queryKey: ["metro-stats"],
     queryFn: () => apiGet<MetroStat[]>("/dashboard/metro"),
+  });
+
+export const usePriceHistory = () =>
+  useQuery({
+    queryKey: ["price-history"],
+    queryFn: () => apiGet<PriceHistoryPoint[]>("/dashboard/price-history"),
   });
 
 export const useNotifications = (days = 14) =>

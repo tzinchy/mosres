@@ -27,7 +27,7 @@ export function DashboardChart({ points }: { points: DashboardPoint[] }) {
   }));
 
   return (
-    <div className="h-72 w-full">
+    <div className="h-72 w-full rounded-xl bg-panel p-4">
       <ResponsiveContainer>
         <LineChart data={data} margin={{ left: 4, right: 8, top: 4, bottom: 4 }}>
           <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />

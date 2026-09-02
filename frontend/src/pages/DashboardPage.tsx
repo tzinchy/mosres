@@ -3,11 +3,15 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { DashboardBreakdowns } from "@/components/DashboardBreakdowns";
 import { DashboardChart } from "@/components/DashboardChart";
+import { MetroChart } from "@/components/MetroChart";
+import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAparts } from "@/hooks/useAparts";
 import {
   useDashboard,
   useDashboardTimeseries,
+  useMetroStats,
+  usePriceHistory,
   useStatus,
 } from "@/hooks/useDashboard";
 import { money, pct, relTime } from "@/lib/format";
@@ -31,6 +35,8 @@ export function DashboardPage() {
   const { data: m, isLoading } = useDashboard(favOnly);
   const ts = useDashboardTimeseries(favOnly, days);
   const { data: status } = useStatus();
+  const metro = useMetroStats();
+  const priceHistory = usePriceHistory();
   const all = useAparts({ favorites_only: favOnly || undefined });
   const drops = useAparts({
     price_drop_only: true,
@@ -166,6 +172,28 @@ export function DashboardPage() {
               <DashboardChart points={ts.data} />
             )}
           </section>
+
+          {priceHistory.data && priceHistory.data.length > 0 && (
+            <section>
+              <SectionTitle help="Средняя цена за м² по округам по датам снимков данных. Наполняется по мере обновлений.">
+                Цена за м² по округам
+              </SectionTitle>
+              <div className="rounded-xl bg-panel p-4">
+                <PriceHistoryChart points={priceHistory.data} />
+              </div>
+            </section>
+          )}
+
+          {metro.data && metro.data.length > 0 && (
+            <section>
+              <SectionTitle help="Топ станций метро по числу квартир со скидкой в шаговой/транспортной доступности.">
+                По метро
+              </SectionTitle>
+              <div className="rounded-xl bg-panel p-4">
+                <MetroChart rows={metro.data} />
+              </div>
+            </section>
+          )}
 
           {topMovers.length > 0 && (
             <section>
