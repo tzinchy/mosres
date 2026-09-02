@@ -1,16 +1,25 @@
 services:
-  postgres:
-    image: postgres:16.4-alpine
-    container_name: database
+  api:
+    build:
+      context: .
+      dockerfile: dockerfile
     ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - "5437:5437"
+    # DB connection lives outside compose. Set DB (and optionally SCHEDULER_ENABLED,
+    # REFRESH_HOUR) in .env. For a database running on the host machine, use
+    # host.docker.internal as the host, e.g.
+    #   DB=postgresql+asyncpg://postgres:password@host.docker.internal:5432/postgres
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
-volumes:
-  postgres_data:
-
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5437}
+    ports:
+      - "5173:80"
+    depends_on:
+      - api

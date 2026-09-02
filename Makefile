@@ -1,20 +1,42 @@
-.PHONY: get
-.PHONY: revision
-.PHONY: upgrade
-.PHONY: run
-.PHONY: test
+.PHONY: all up down logs ps rebuild test rev upgrade run get
 
-get:
-	uv run -m src.service.py
+# Bring up api + web via docker compose. The database is external — set DB in .env
+# (use host.docker.internal as the host for a DB running on this machine).
+# Apply migrations once with `make upgrade` before the first `make all`.
+all: up
 
-rev: 
-	alembic revision --autogenerate
+up:
+	docker compose up -d --build
+	@echo ""
+	@echo "  api   http://localhost:5437   docs: /docs"
+	@echo "  web   http://localhost:5173"
+	@echo "  logs: make logs   |   stop: make down"
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f --tail=50
+
+ps:
+	docker compose ps
+
+rebuild:
+	docker compose build --no-cache
+
+# --- local (non-container) helpers ----------------------------------------
+
+test:
+	uv run pytest
+
+rev:
+	uv run alembic revision --autogenerate
 
 upgrade:
-	alembic upgrade head
+	uv run alembic upgrade head
 
 run:
 	uv run uvicorn src.api:app --reload
 
-test:
-	uv run pytest 
+get:
+	uv run -m src.service

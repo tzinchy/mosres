@@ -21,54 +21,38 @@
 
 ---
 
-## Быстрый старт
+## Быстрый старт (Docker Compose)
 
-### 1. Клонировать репозиторий
-
-```bash
-git clone https://github.com/tzinchy/mosres.git
-cd mosres
-```
-
-### 2. Установить зависимости
-
-```bash
-uv sync
-```
-
-### 3. Настроить переменные окружения
-
-Создать `.env` на основе примера:
+База данных **внешняя** — compose поднимает только `api` и `web`.
 
 ```bash
 cp .env.example .env
+# в .env указать DB. Для базы на этой же машине хост — host.docker.internal:
+#   DB=postgresql+asyncpg://postgres:password@host.docker.internal:5432/postgres
+
+uv run alembic upgrade head    # применить миграции к своей БД (один раз)
+make all                       # docker compose up -d --build
 ```
 
-Минимальный `.env`:
+| Сервис | URL | Порт |
+|---|---|---|
+| API | http://localhost:5437 (`/docs`) | `5437` |
+| Frontend | http://localhost:5173 | `5173` (nginx :80 внутри) |
 
-```env
-DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/postgres
-```
+Команды: `make all` / `make down` / `make logs` / `make ps` / `make rebuild`.
 
-### 4. Поднять базу данных
+Фронт собирается с `VITE_API_URL` (build arg, по умолчанию `http://localhost:5437`);
+переопределить — `VITE_API_URL=... make all`.
+
+## Запуск без контейнеров
 
 ```bash
-docker compose up -d
-```
-
-### 5. Применить миграции
-
-```bash
+uv sync
+cp .env.example .env
 uv run alembic upgrade head
+uv run uvicorn src.api:app --reload          # API на :8000
+cd frontend && npm install && npm run dev    # фронт на :5173
 ```
-
-### 6. Запустить сервис
-
-```bash
-uv run uvicorn src.main:app --reload
-```
-
-Документация доступна по адресу: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 

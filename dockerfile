@@ -9,11 +9,15 @@ ENV UV_PYTHON_DOWNLOADS=never \
     UV_COMPILE_BYTECODE=1 \
     PYTHONOPTIMIZE=1
 
-COPY pyproject.toml .python-version uv.lock .
+COPY pyproject.toml .python-version uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY .env .
-EXPOSE 5457
+COPY alembic.ini ./
+COPY alembic/ alembic/
 COPY src/ src/
-VOLUME [ "/src/excel" ]
-ENTRYPOINT ["uv", "run", "uvicorn", "src.api:app", "--reload", "--port", "5457", "--host", "0.0.0.0"]
+VOLUME [ "/app/src/excel" ]
+
+EXPOSE 5437
+# Migrations are NOT run automatically — apply them against your database with
+#   make upgrade      (or: uv run alembic upgrade head)
+CMD ["uv", "run", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "5437"]
