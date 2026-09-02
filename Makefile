@@ -8,8 +8,8 @@ all: up
 up:
 	docker compose up -d --build
 	@echo ""
-	@echo "  api   http://localhost:5437   docs: /docs"
-	@echo "  web   http://localhost:5173"
+	@echo "  api   http://localhost:5433   docs: /docs"
+	@echo "  web   http://localhost:5144"
 	@echo "  logs: make logs   |   stop: make down"
 
 down:
