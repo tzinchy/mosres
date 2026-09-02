@@ -62,10 +62,10 @@ export function DashboardBreakdowns({ rows }: { rows: ApartRow[] }) {
     .map(([bucket, count]) => ({ label: moneyShort(bucket), count }));
 
   const composition = [
-    { name: "В резерве", count: rows.filter((r) => r.reserve === 1).length, fill: "var(--reserve)" },
+    { name: "В резерве", count: rows.filter((r) => r.reserve === 1).length, fill: "var(--chart-4)" },
     { name: "Со скидкой", count: rows.filter((r) => r.has_discount).length, fill: "var(--pos)" },
-    { name: "Семейная", count: rows.filter((r) => r.is_family).length, fill: "var(--accent-foreground)" },
-    { name: "В избранном", count: rows.filter((r) => r.is_favorite).length, fill: "var(--primary)" },
+    { name: "Семейная", count: rows.filter((r) => r.is_family).length, fill: "var(--chart-3)" },
+    { name: "В избранном", count: rows.filter((r) => r.is_favorite).length, fill: "var(--chart-1)" },
   ];
 
   return (
@@ -76,7 +76,7 @@ export function DashboardBreakdowns({ rows }: { rows: ApartRow[] }) {
           <XAxis dataKey="name" {...axis} />
           <YAxis allowDecimals={false} width={30} {...axis} axisLine={false} />
           <Tooltip cursor={{ fill: "var(--secondary)" }} contentStyle={tooltipStyle} />
-          <Bar dataKey="count" fill="var(--primary)" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="count" fill="var(--chart-1)" radius={[3, 3, 0, 0]} />
         </BarChart>
       </Panel>
 
@@ -89,7 +89,7 @@ export function DashboardBreakdowns({ rows }: { rows: ApartRow[] }) {
           <XAxis dataKey="label" {...axis} interval={0} angle={-30} textAnchor="end" height={44} />
           <YAxis allowDecimals={false} width={30} {...axis} axisLine={false} />
           <Tooltip cursor={{ fill: "var(--secondary)" }} contentStyle={tooltipStyle} />
-          <Bar dataKey="count" fill="var(--primary)" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="count" fill="var(--chart-1)" radius={[3, 3, 0, 0]} />
         </BarChart>
       </Panel>
 

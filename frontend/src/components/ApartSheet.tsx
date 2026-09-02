@@ -27,6 +27,45 @@ interface Change {
   tone?: "pos" | "neg";
 }
 
+// plain scalar fields compared verbatim old → new; price/discount/reserve
+// have their own richer rules above and are intentionally left out here
+const FIELD_LABELS: Record<string, string> = {
+  rooms: "Комнат",
+  floor: "Этаж",
+  area: "Площадь, м²",
+  number: "Номер квартиры",
+  block: "Блок",
+  block_name: "Корпус",
+  type: "Тип",
+  property: "Тип собственности",
+  num_on_floor: "Квартир на этаже",
+  term_of_application: "Срок подачи заявления",
+  article: "Артикул",
+  address: "Адрес",
+  building: "Дом",
+  open_sale: "Открытая продажа",
+};
+
+const norm = (v: unknown) =>
+  v === null || v === undefined
+    ? ""
+    : Array.isArray(v)
+      ? v.join(", ")
+      : String(v);
+
+function linkChange(
+  label: string,
+  x: string | null,
+  y: string | null,
+): Change | null {
+  const before = norm(x);
+  const after = norm(y);
+  if (before === after) return null;
+  if (!before) return { text: `${label}: добавлен`, tone: "pos" };
+  if (!after) return { text: `${label}: убран`, tone: "neg" };
+  return { text: `${label}: изменён` };
+}
+
 function diffLabel(a: ApartVersion, b: ApartVersion): Change[] {
   const out: Change[] = [];
   const pa = num(a.price);
@@ -59,7 +98,29 @@ function diffLabel(a: ApartVersion, b: ApartVersion): Change[] {
       tone: b.reserve === 1 ? "neg" : "pos",
     });
 
-  return out.length ? out : [{ text: "Обновлены прочие поля" }];
+  const pctA = num(a.percentage_discount);
+  const pctB = num(b.percentage_discount);
+  if (pctA !== pctB && (pctA || pctB))
+    out.push({ text: `Скидка, %: ${pctA ?? 0} → ${pctB ?? 0}` });
+
+  for (const [key, label] of Object.entries(FIELD_LABELS)) {
+    const before = norm((a as unknown as Record<string, unknown>)[key]);
+    const after = norm((b as unknown as Record<string, unknown>)[key]);
+    if (before !== after)
+      out.push({ text: `${label}: ${before || "—"} → ${after || "—"}` });
+  }
+
+  // a.plan / a.plan_s intentionally skipped: the source re-hashes the image URL
+  // on every refresh without the plan actually changing — pure noise.
+  const tour = linkChange("3D-тур", a.tour_3d, b.tour_3d);
+  if (tour) out.push(tour);
+
+  if (norm(a.advants) !== norm(b.advants))
+    out.push({ text: "Изменён список преимуществ" });
+
+  return out.length
+    ? out
+    : [{ text: "Служебное обновление — отслеживаемые поля не менялись" }];
 }
 
 export function ApartSheet({
@@ -134,8 +195,8 @@ export function ApartSheet({
                     <AreaChart data={series} margin={{ left: 4, right: 4, top: 4 }}>
                       <defs>
                         <linearGradient id="ap" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.25} />
-                          <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                          <stop offset="0%" stopColor="var(--chart)" stopOpacity={0.32} />
+                          <stop offset="100%" stopColor="var(--chart)" stopOpacity={0.06} />
                         </linearGradient>
                       </defs>
                       <YAxis hide domain={["dataMin", "dataMax"]} />
@@ -152,9 +213,10 @@ export function ApartSheet({
                       <Area
                         type="monotone"
                         dataKey="price"
-                        stroke="var(--primary)"
+                        stroke="var(--chart)"
                         strokeWidth={2}
                         fill="url(#ap)"
+                        baseValue="dataMin"
                       />
                     </AreaChart>
                   </ResponsiveContainer>

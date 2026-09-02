@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
-import { initTheme } from "@/components/ThemeToggle";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ApartsPage } from "@/pages/ApartsPage";
@@ -11,7 +10,6 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { MapPage } from "@/pages/MapPage";
 import { NotificationsPage } from "@/pages/NotificationsPage";
 
-initTheme();
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } },
 });

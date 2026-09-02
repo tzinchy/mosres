@@ -6,71 +6,48 @@ import {
   getSortedRowModel,
   useReactTable,
   type SortingState,
-  type VisibilityState,
 } from "@tanstack/react-table";
+import { useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
   MessageSquareText,
-  Settings2,
   Star,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { DiscountCell, PriceDelta, ReserveTag } from "@/components/cells";
+import { ColumnsMenu } from "@/components/ColumnsMenu";
 import { MetroList } from "@/components/MetroList";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { useApartCols, type ApartCols } from "@/hooks/useApartCols";
 import { money } from "@/lib/format";
 import type { ApartRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const col = createColumnHelper<ApartRow>();
-const VIS_KEY = "mosres-aparts-cols";
-const NUMERIC = new Set(["params", "price", "delta_prev", "delta_max"]);
-const COL_LABELS: Record<string, string> = {
-  params: "Параметры",
-  price: "Цена",
-  delta_prev: "Δ к прошлой",
-  delta_max: "Δ к максимуму",
-  discount: "Скидка",
-  plan: "Планировка",
-  updated: "Обновлено",
-};
+const NUMERIC = new Set(["price", "delta_prev", "delta_max"]);
 
 export function ApartsTable({
   rows,
   onToggleFavorite,
   onSelect,
   selectedId,
+  cols,
 }: {
   rows: ApartRow[];
   onToggleFavorite: (id: number, next: boolean) => void;
   onSelect: (row: ApartRow) => void;
   selectedId?: number | null;
+  /** shared column visibility; when passed, the parent renders its own <ColumnsMenu> */
+  cols?: ApartCols;
 }) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "delta_prev", desc: false },
   ]);
-  const [visibility, setVisibility] = useState<VisibilityState>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(VIS_KEY) ?? "{}");
-    } catch {
-      return {};
-    }
-  });
-  useEffect(() => {
-    localStorage.setItem(VIS_KEY, JSON.stringify(visibility));
-  }, [visibility]);
+  const fallback = useApartCols();
+  const { visibility, setVisibility } = cols ?? fallback;
 
   const columns = [
     col.accessor("is_favorite", {
@@ -146,7 +123,8 @@ export function ApartsTable({
     col.accessor((r) => Number(r.area) || 0, {
       id: "params",
       header: "Параметры",
-      size: 128,
+      size: 184,
+      minSize: 150,
       cell: (c) => {
         const r = c.row.original;
         return (
@@ -276,36 +254,16 @@ export function ApartsTable({
 
   return (
     <div>
-      <div className="mb-2 flex justify-end">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className={buttonVariants({
-              variant: "ghost",
-              size: "sm",
-              className: "h-8 text-muted-foreground",
-            })}
-          >
-            <Settings2 size={14} className="mr-1.5" />
-            Колонки
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Показывать колонки</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {table
-              .getAllLeafColumns()
-              .filter((c) => COL_LABELS[c.id])
-              .map((c) => (
-                <DropdownMenuCheckboxItem
-                  key={c.id}
-                  checked={c.getIsVisible()}
-                  onCheckedChange={(v) => c.toggleVisibility(!!v)}
-                >
-                  {COL_LABELS[c.id]}
-                </DropdownMenuCheckboxItem>
-              ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      {!cols && (
+        <div className="mb-2 flex justify-end">
+          <ColumnsMenu
+            value={visibility}
+            onChange={setVisibility}
+            align="end"
+            className="h-8"
+          />
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table

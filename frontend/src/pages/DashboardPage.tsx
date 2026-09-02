@@ -113,21 +113,27 @@ export function DashboardPage() {
                     : undefined
               }
             />
+            <Mid
+              label="Сейчас со скидкой"
+              value={m.discount_total.toLocaleString("ru-RU")}
+            />
+            <Mid
+              label="Сейчас в резерве"
+              value={m.reserved_total.toLocaleString("ru-RU")}
+            />
           </div>
 
           <section>
             <SectionTitle help="События за сегодня. Нажмите на плитку — откроется отфильтрованный список.">
               Сегодня
             </SectionTitle>
-            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-4 lg:grid-cols-8">
+            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-6">
               <Metric label="Новых" value={m.new_today} to="/aparts" />
               <Metric label="Изменений" value={m.changed_today} to="/aparts" />
               <Metric label="Подешевели" value={m.price_drops_today} tone="pos" to="/aparts?price_drop_only=1" />
               <Metric label="Подорожали" value={m.price_rises_today} tone="neg" to="/aparts" />
               <Metric label="Новых скидок" value={m.discounts_appeared_today} tone="pos" to="/aparts?discount_only=1" />
               <Metric label="Ушло в резерв" value={m.reserved_today} tone="reserve" to="/aparts?reserved_only=1" />
-              <Metric label="Всего в резерве" value={m.reserved_total} tone="reserve" to="/aparts?reserved_only=1" />
-              <Metric label="Со скидкой" value={m.discount_total} tone="pos" to="/aparts?discount_only=1" />
             </div>
           </section>
 

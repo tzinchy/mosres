@@ -50,9 +50,9 @@ export function MetroChart({ rows }: { rows: MetroStat[] }) {
               fontSize: 12,
             }}
           />
-          <Bar dataKey="Всего" fill="var(--muted-foreground)" radius={[0, 3, 3, 0]} />
+          <Bar dataKey="Всего" fill="var(--chart-4)" radius={[0, 3, 3, 0]} />
           <Bar dataKey="Со скидкой" fill="var(--pos)" radius={[0, 3, 3, 0]} />
-          <Bar dataKey="В избранном" fill="var(--primary)" radius={[0, 3, 3, 0]} />
+          <Bar dataKey="В избранном" fill="var(--chart-1)" radius={[0, 3, 3, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

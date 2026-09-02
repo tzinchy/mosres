@@ -1,8 +1,8 @@
 import { useState } from "react";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -50,7 +50,13 @@ export function BuildingPriceChart({ points }: { points: BuildingPricePoint[] })
       </div>
       <div className="h-64 w-full">
         <ResponsiveContainer>
-          <LineChart data={data} margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
+          <AreaChart data={data} margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
+            <defs>
+              <linearGradient id="bpc" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--chart)" stopOpacity={0.28} />
+                <stop offset="100%" stopColor="var(--chart)" stopOpacity={0.04} />
+              </linearGradient>
+            </defs>
             <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
             <XAxis
               dataKey="date"
@@ -74,15 +80,17 @@ export function BuildingPriceChart({ points }: { points: BuildingPricePoint[] })
                 fontSize: 12,
               }}
             />
-            <Line
+            <Area
               type="monotone"
               dataKey="value"
-              stroke="var(--primary)"
+              stroke="var(--chart)"
               strokeWidth={2}
+              fill="url(#bpc)"
+              baseValue="dataMin"
               dot={{ r: 2 }}
               connectNulls
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>

@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { useNotifications, useStatus } from "@/hooks/useDashboard";
 import { useNotifSeen } from "@/hooks/useNotifSeen";
 import { relTime } from "@/lib/format";
@@ -104,7 +103,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="flex flex-col gap-3 border-t border-border pt-3">
           <LastUpdated />
-          <ThemeToggle />
         </div>
       </aside>
 
@@ -114,9 +112,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           mos<span className="text-primary">res</span>
         </span>
         <NavItems />
-        <div className="ml-auto">
-          <ThemeToggle />
-        </div>
       </header>
 
       <main className="min-w-0">{children}</main>

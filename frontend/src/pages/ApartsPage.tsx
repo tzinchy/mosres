@@ -4,6 +4,7 @@ import { ApartSheet } from "@/components/ApartSheet";
 import { ApartsTable } from "@/components/ApartsTable";
 import { ApartsToolbar } from "@/components/ApartsToolbar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useApartCols } from "@/hooks/useApartCols";
 import { useAparts, type ApartFilters } from "@/hooks/useAparts";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useToggleFavorite } from "@/hooks/useFavorites";
@@ -29,6 +30,7 @@ export function ApartsPage() {
     return f;
   });
   const [selected, setSelected] = useState<ApartRow | null>(null);
+  const cols = useApartCols();
   const q = useDebouncedValue(filters.q, 300);
   const effective = useMemo<ApartFilters>(() => ({ ...filters, q }), [filters, q]);
 
@@ -46,7 +48,12 @@ export function ApartsPage() {
   return (
     <div className="space-y-4 p-5 md:p-8">
       <h1 className="text-lg font-semibold">Квартиры</h1>
-      <ApartsToolbar value={filters} onChange={setFilters} count={rows?.length} />
+      <ApartsToolbar
+        value={filters}
+        onChange={setFilters}
+        count={rows?.length}
+        cols={cols}
+      />
 
       {isLoading && <Skeleton className="h-96 w-full rounded-lg" />}
       {error && (
@@ -57,6 +64,7 @@ export function ApartsPage() {
       {rows && (
         <ApartsTable
           rows={rows}
+          cols={cols}
           selectedId={selected?.new_apart_id}
           onToggleFavorite={(id, next) => toggle.mutate({ id, next })}
           onSelect={setSelected}

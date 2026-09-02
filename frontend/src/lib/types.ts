@@ -43,16 +43,30 @@ export interface ApartRow {
 export interface ApartVersion {
   new_apart_id: number;
   version: number;
+  updated_at: string;
+  created_at?: string;
   price: string | null;
   price_m: string | null;
   price_with_discount: string | null;
   percentage_discount: string | null;
   reserve: number | null;
+  open_sale: number | null;
   area: string | null;
   rooms: string | null;
   floor: string | null;
+  number: string | null;
+  block: string | null;
+  block_name: string | null;
+  type: string | null;
+  property: string | null;
+  num_on_floor: string | null;
   term_of_application: string | null;
-  updated_at: string;
+  article: string | null;
+  advants: string[] | null;
+  plan: string | null;
+  tour_3d: string | null;
+  address: string | null;
+  building: string | null;
 }
 
 export interface Comment {

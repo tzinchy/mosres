@@ -13,13 +13,13 @@ import { moneyShort } from "@/lib/format";
 import type { PriceHistoryPoint } from "@/lib/types";
 
 const COLORS = [
-  "#0f3e17",
-  "#2f7d3a",
-  "#5b7a86",
+  "#4f7686",
+  "#b0763d",
+  "#7d6ca6",
+  "#4f8a6b",
   "#a1502a",
-  "#7a9b5c",
-  "#3c6e71",
-  "#8a6d3b",
+  "#5c6b8a",
+  "#8a8f98",
 ];
 
 export function PriceHistoryChart({ points }: { points: PriceHistoryPoint[] }) {

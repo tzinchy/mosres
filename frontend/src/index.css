@@ -47,6 +47,13 @@
   --color-reserve-soft: var(--reserve-soft);
   --color-panel: var(--panel);
 
+  --color-chart: var(--chart);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -74,7 +81,7 @@
   --input: #d6ddd3;
   --ring: #0f3e17;
 
-  --panel: #e9f4e7;
+  --panel: #f4f4f1;
   --pos: #2f7d3a;
   --pos-soft: #dcefdc;
   --neg: #a1502a;
@@ -82,36 +89,15 @@
   --reserve: #5b7a86;
   --reserve-soft: #dfe9ec;
 
+  /* charts — neutral, brand-independent so they read on any surface */
+  --chart: #4f7686;
+  --chart-1: #4f7686;
+  --chart-2: #b0763d;
+  --chart-3: #7d6ca6;
+  --chart-4: #9aa0a6;
+  --chart-5: #4f8a6b;
+
   --radius: 14px;
-}
-
-.dark {
-  --background: #12160f;
-  --foreground: #e7ece4;
-  --card: #1a1f16;
-  --card-foreground: #e7ece4;
-  --popover: #1d2319;
-  --popover-foreground: #e7ece4;
-  --primary: #8fd39a;
-  --primary-foreground: #0c1c0f;
-  --secondary: #263021;
-  --secondary-foreground: #dbe6d4;
-  --muted: #202519;
-  --muted-foreground: #9aa694;
-  --accent: #2b3a27;
-  --accent-foreground: #b7e0bb;
-  --destructive: #cf7a4e;
-  --border: #2c3327;
-  --input: #3a4433;
-  --ring: #8fd39a;
-
-  --panel: #1e2718;
-  --pos: #8bd08e;
-  --pos-soft: #26361f80;
-  --neg: #d9986a;
-  --neg-soft: #3a2c1e80;
-  --reserve: #9ab8c2;
-  --reserve-soft: #23323680;
 }
 
 @layer base {
@@ -130,7 +116,7 @@
     color: var(--primary);
   }
   html {
-    color-scheme: light dark;
+    color-scheme: light;
   }
   .tnum {
     font-family: var(--font-mono);

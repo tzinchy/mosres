@@ -1,7 +1,10 @@
-import { Download, RotateCw, Star } from "lucide-react";
+import { Download, RotateCw, SlidersHorizontal, Star } from "lucide-react";
+import { useState } from "react";
 import { API_BASE } from "@/lib/api";
+import { ColumnsMenu } from "@/components/ColumnsMenu";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -9,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ApartCols } from "@/hooks/useApartCols";
 import type { ApartFilters } from "@/hooks/useAparts";
 import { useBuildings } from "@/hooks/useBuildings";
 import { useRefreshData } from "@/hooks/useRefresh";
@@ -23,6 +27,15 @@ const TOGGLES: { key: keyof ApartFilters; label: string }[] = [
   { key: "reserved_only", label: "В резерве" },
   { key: "family_only", label: "Семейная" },
   { key: "comment_only", label: "С комментарием" },
+];
+
+// filter keys that count toward the "active filters" badge (q lives in its own input)
+const COUNTED: (keyof ApartFilters)[] = [
+  ...TOGGLES.map((t) => t.key),
+  "building_id",
+  "min_price",
+  "max_price",
+  "min_discount",
 ];
 
 function NumInput({
@@ -46,7 +59,7 @@ function NumInput({
         const n = Number(e.target.value);
         onChange(e.target.value === "" || Number.isNaN(n) ? undefined : n);
       }}
-      className={cn("tnum h-9 w-32", className)}
+      className={cn("tnum h-9 w-full", className)}
     />
   );
 }
@@ -63,13 +76,16 @@ export function ApartsToolbar({
   value,
   onChange,
   count,
+  cols,
 }: {
   value: ApartFilters;
   onChange: (f: ApartFilters) => void;
   count?: number;
+  cols?: ApartCols;
 }) {
   const buildings = useBuildings();
   const refresh = useRefreshData();
+  const [resetKey, setResetKey] = useState(0);
 
   const set = (patch: Partial<ApartFilters>) => {
     const next = { ...value, ...patch };
@@ -78,113 +94,161 @@ export function ApartsToolbar({
     onChange(next);
   };
 
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          placeholder="Адрес, дом или номер"
-          defaultValue={value.q ?? ""}
-          onChange={(e) => set({ q: e.target.value || undefined })}
-          className="h-9 w-56"
-        />
-        <Select
-          value={value.building_id ? String(value.building_id) : "all"}
-          onValueChange={(v) =>
-            set({ building_id: v === "all" ? undefined : Number(v) })
-          }
-        >
-          <SelectTrigger className="h-9 w-52">
-            <SelectValue placeholder="Все дома" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все дома</SelectItem>
-            {(buildings.data ?? []).map((b) => (
-              <SelectItem key={b.building_id} value={String(b.building_id)}>
-                {b.address ?? `Дом ${b.building_id}`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+  const activeCount = COUNTED.filter((k) => value[k] !== undefined).length;
 
-        <div className="ml-auto flex items-center gap-2">
-          {count !== undefined && (
-            <span className="tnum mr-1 text-sm text-muted-foreground">
-              {count} кв.
+  const clearAll = () => {
+    onChange({ q: value.q });
+    setResetKey((k) => k + 1);
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Input
+        placeholder="Адрес, дом или номер"
+        defaultValue={value.q ?? ""}
+        onChange={(e) => set({ q: e.target.value || undefined })}
+        className="h-9 w-56"
+      />
+
+      <Popover>
+        <PopoverTrigger
+          className={buttonVariants({
+            variant: activeCount ? "default" : "outline",
+            size: "sm",
+            className: "h-9",
+          })}
+        >
+          <SlidersHorizontal size={14} className="mr-1.5" />
+          Фильтры
+          {activeCount > 0 && (
+            <span className="tnum ml-1.5 rounded-full bg-background/25 px-1.5 text-xs">
+              {activeCount}
             </span>
           )}
-          <a
-            href={`${API_BASE}/file${fileQuery(value)}`}
-            download
-            title="Выгрузить показанные квартиры в Excel"
-            className={buttonVariants({ variant: "outline", size: "sm", className: "h-9" })}
-          >
-            <Download size={14} className="mr-1.5" />
-            Excel
-          </a>
-          <a
-            href={`${API_BASE}/file${fileQuery(value, true)}`}
-            download
-            title="Выгрузить избранное в Excel"
-            className={buttonVariants({ variant: "outline", size: "sm", className: "h-9" })}
-          >
-            <Star size={14} className="mr-1.5" />
-            Избранное
-          </a>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-9"
-            onClick={() => refresh.mutate()}
-            disabled={refresh.isPending}
-          >
-            <RotateCw
-              size={14}
-              className={cn("mr-1.5", refresh.isPending && "animate-spin")}
-            />
-            Обновить
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <NumInput
-          placeholder="Цена от, ₽"
-          value={value.min_price}
-          onChange={(n) => set({ min_price: n })}
-        />
-        <span className="text-muted-foreground">—</span>
-        <NumInput
-          placeholder="до, ₽"
-          value={value.max_price}
-          onChange={(n) => set({ max_price: n })}
-        />
-        <NumInput
-          placeholder="Скидка от, %"
-          value={value.min_discount}
-          onChange={(n) => set({ min_discount: n })}
-          className="w-28"
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {TOGGLES.map(({ key, label }) => {
-          const on = !!value[key];
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => set({ [key]: on ? undefined : true })}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs transition-colors",
-                on
-                  ? "border-primary bg-primary/15 font-medium text-primary"
-                  : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground",
-              )}
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-[22rem] space-y-3">
+          <div key={resetKey} className="space-y-3">
+            <Select
+              value={value.building_id ? String(value.building_id) : "all"}
+              onValueChange={(v) =>
+                set({ building_id: v === "all" ? undefined : Number(v) })
+              }
             >
-              {label}
-            </button>
-          );
-        })}
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder="Все дома">
+                  {(v) =>
+                    v && v !== "all"
+                      ? (buildings.data?.find(
+                          (b) => String(b.building_id) === v,
+                        )?.address ?? `Дом ${v}`)
+                      : "Все дома"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Все дома</SelectItem>
+                {(buildings.data ?? []).map((b) => (
+                  <SelectItem key={b.building_id} value={String(b.building_id)}>
+                    {b.address ?? `Дом ${b.building_id}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="flex items-center gap-2">
+              <NumInput
+                placeholder="Цена от, ₽"
+                value={value.min_price}
+                onChange={(n) => set({ min_price: n })}
+              />
+              <span className="text-muted-foreground">—</span>
+              <NumInput
+                placeholder="до, ₽"
+                value={value.max_price}
+                onChange={(n) => set({ max_price: n })}
+              />
+            </div>
+            <NumInput
+              placeholder="Скидка от, %"
+              value={value.min_discount}
+              onChange={(n) => set({ min_discount: n })}
+            />
+
+            <div className="flex flex-wrap gap-1.5">
+              {TOGGLES.map(({ key, label }) => {
+                const on = !!value[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => set({ [key]: on ? undefined : true })}
+                    className={cn(
+                      "rounded-full border px-3 py-1.5 text-xs transition-colors",
+                      on
+                        ? "border-primary bg-primary/15 font-medium text-primary"
+                        : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeCount > 0 && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Сбросить все фильтры
+              </button>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {cols && (
+        <ColumnsMenu value={cols.visibility} onChange={cols.setVisibility} />
+      )}
+
+      <div className="ml-auto flex items-center gap-2">
+        {count !== undefined && (
+          <span className="tnum mr-1 text-sm text-muted-foreground">
+            {count} кв.
+          </span>
+        )}
+        <a
+          href={`${API_BASE}/file${fileQuery(value)}`}
+          download
+          title="Выгрузить показанные квартиры в Excel"
+          className={buttonVariants({ variant: "outline", size: "sm", className: "h-9" })}
+        >
+          <Download size={14} className="mr-1.5" />
+          Excel
+        </a>
+        <a
+          href={`${API_BASE}/file${fileQuery(value, true)}`}
+          download
+          title="Выгрузить избранное в Excel"
+          className={buttonVariants({ variant: "outline", size: "sm", className: "h-9" })}
+        >
+          <Star size={14} className="mr-1.5" />
+          Избранное
+        </a>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-9"
+          onClick={() => refresh.mutate()}
+          disabled={refresh.isPending}
+        >
+          <RotateCw
+            size={14}
+            className={cn("mr-1.5", refresh.isPending && "animate-spin")}
+          />
+          Обновить
+        </Button>
       </div>
     </div>
   );
