@@ -20,9 +20,8 @@ from src.repository import (
     get_data_for_excel_file,
     get_buildings_apartments,
     get_new_aparts_history,
-    get_new_aparts_table,
     get_buildings_history,
-    get_buildings_table
+    get_buildings_table,
 )
 from src.utils import read_from_sql_folder
 import asyncio
@@ -202,22 +201,22 @@ class MosResService:
             ).to_excel(file_path)
         return file_path, file_name
     
-    async def get_buildings_apartments(building_id : int):
+    async def get_buildings_apartments(self, building_id: int):
         async with Session() as session:
             return await get_buildings_apartments(building_id=building_id, session=session)
 
-    async def get_buildings_history(building_id : int): 
+    async def get_buildings_history(self, building_id: int):
         async with Session() as session:
             return await get_buildings_history(building_id=building_id, session=session)
-    
-    async def get_buildings_table():
+
+    async def get_buildings_table(self):
         async with Session() as session:
             return await get_buildings_table(session=session)
-        
-    async def get_new_aparts_history(new_apart_id : int | None = None):
+
+    async def get_new_aparts_history(self, new_apart_id: int):
         async with Session() as session:
             return await get_new_aparts_history(new_apart_id=new_apart_id, session=session)
-    
-    async def get_new_aparts_table(new_apartd_ids : list[int] = None):
-        async with Session() as session:
-            return await get_new_aparts_history(new_apartd_ids=new_apartd_ids, session=session)
+
+    async def get_aparts_table(self, **_filters):
+        # TODO(Task 6): real aggregating query
+        return []

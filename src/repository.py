@@ -52,33 +52,37 @@ async def get_new_aparts_table(
 ):
     stmt = select(NewApart)
     if new_apart_ids:
-        stmt.where(NewApart.new_apart_id.in_(new_apart_ids))
+        stmt = stmt.where(NewApart.new_apart_id.in_(new_apart_ids))
     result = await session.execute(stmt)
     return result.mappings().all()
 
 
-async def get_new_aparts_history(new_apart_id, session: AsyncSession):
+async def get_new_aparts_history(*, new_apart_id: int, session: AsyncSession):
     result = await session.execute(
-        select(NewApartHistory).where(NewApartHistory.new_apart_id == new_apart_id)
+        select(NewApartHistory.__table__)
+        .where(NewApartHistory.new_apart_id == new_apart_id)
+        .order_by(NewApartHistory.version)
     )
     return result.mappings().all()
 
 
-async def get_buildings_table(session: AsyncSession):
-    result = await session.execute(select(Building))
+async def get_buildings_table(*, session: AsyncSession):
+    result = await session.execute(select(Building.__table__))
     return result.mappings().all()
 
 
-async def get_buildings_history(building_id, session: AsyncSession):
+async def get_buildings_history(*, building_id: int, session: AsyncSession):
     result = await session.execute(
-        select(BuildingHistory).where(BuildingHistory.building_id == building_id)
+        select(BuildingHistory.__table__)
+        .where(BuildingHistory.building_id == building_id)
+        .order_by(BuildingHistory.version)
     )
     return result.mappings().all()
 
 
 async def get_buildings_apartments(*, building_id: int, session: AsyncSession):
     result = await session.execute(
-        select(NewApart).where(NewApart.building_id == building_id)
+        select(NewApart.__table__).where(NewApart.building_id == str(building_id))
     )
     return result.mappings().all()
 

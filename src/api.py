@@ -13,7 +13,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -30,24 +30,41 @@ async def get_excel_file_for_current_date(mosres_service : MosResService = Depen
 
 @app.get("/update_data")
 async def update_data(mosres_service: MosResService = Depends(get_mosres_service)):
-    await mosres_service.update_all_data()
+    return await mosres_service.update_all_data()
 
 
-@app.get("/new_aparts", tags=["new-apart"])
-async def get_new_apats(new_aparts_ids : list[int] | None = None, mosres_service: MosResService = Depends(get_mosres_service)):
-    await mosres_service.get_new_aparts_table(new_aparts_ids=new_aparts_ids)
+@app.get("/aparts", tags=["aparts"])
+async def get_aparts(
+    building_id: int | None = None,
+    favorites_only: bool = False,
+    discount_only: bool = False,
+    price_drop_only: bool = False,
+    q: str | None = None,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_aparts_table(
+        building_id=building_id,
+        favorites_only=favorites_only,
+        discount_only=discount_only,
+        price_drop_only=price_drop_only,
+        q=q,
+    )
 
 
-@app.get("/new_aparts/{new_apart_id}/versions", tags=["new-apart"])
-async def get_new_apart_versions(new_apart_id: int, mosres_service: MosResService = Depends(get_mosres_service)):
+@app.get("/aparts/{new_apart_id}/versions", tags=["aparts"])
+async def get_apart_versions(
+    new_apart_id: int, mosres_service: MosResService = Depends(get_mosres_service)
+):
     return await mosres_service.get_new_aparts_history(new_apart_id)
 
 
-@app.get("/buildings")
+@app.get("/buildings", tags=["buildings"])
 async def get_buildings(mosres_service: MosResService = Depends(get_mosres_service)):
     return await mosres_service.get_buildings_table()
 
 
 @app.get("/buildings/{building_id}/versions", tags=["buildings"])
-async def get_buildings_versions(building_id: int, mosres_service: MosResService = Depends(get_mosres_service)):
+async def get_building_versions(
+    building_id: int, mosres_service: MosResService = Depends(get_mosres_service)
+):
     return await mosres_service.get_buildings_history(building_id)
