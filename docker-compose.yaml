@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: dockerfile
     ports:
-      - "5437:5437"
+      - "5433:5433"
     # DB connection lives outside compose. Set DB (and optionally SCHEDULER_ENABLED,
     # REFRESH_HOUR) in .env. For a database running on the host machine, use
     # host.docker.internal as the host, e.g.
@@ -18,8 +18,8 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:5437}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5433}
     ports:
-      - "5173:5173"
+      - "5144:5144"
     depends_on:
       - api
