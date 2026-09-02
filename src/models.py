@@ -87,6 +87,16 @@ class Favorite(Base):
     )
 
 
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True)
+    new_apart_id: saorm.Mapped[int] = saorm.mapped_column(
+        sa.ForeignKey("new_aparts.new_apart_id", ondelete="CASCADE"), nullable=False
+    )
+    body: saorm.Mapped[str] = saorm.mapped_column(sa.Text, nullable=False)
+
+
 class RefreshRun(Base):
     __tablename__ = "refresh_runs"
 

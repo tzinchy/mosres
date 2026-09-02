@@ -104,6 +104,7 @@ async def get_aparts_table(
     reserved_only: bool,
     available_only: bool,
     family_only: bool,
+    comment_only: bool,
     q: str | None,
     session: AsyncSession,
 ):
@@ -119,11 +120,40 @@ async def get_aparts_table(
             "reserved_only": reserved_only,
             "available_only": available_only,
             "family_only": family_only,
+            "comment_only": comment_only,
             "q": q,
             "q_like": f"%{q}%" if q else None,
         },
     )
     return result.mappings().all()
+
+
+async def list_comments(*, new_apart_id: int, session: AsyncSession):
+    result = await session.execute(
+        text(
+            "SELECT id, new_apart_id, body, created_at FROM comments "
+            "WHERE new_apart_id = :i ORDER BY created_at"
+        ),
+        {"i": new_apart_id},
+    )
+    return result.mappings().all()
+
+
+async def add_comment(*, new_apart_id: int, body: str, session: AsyncSession):
+    result = await session.execute(
+        text(
+            "INSERT INTO comments (new_apart_id, body) VALUES (:i, :b) "
+            "RETURNING id, new_apart_id, body, created_at"
+        ),
+        {"i": new_apart_id, "b": body},
+    )
+    return result.mappings().one()
+
+
+async def delete_comment(*, comment_id: int, session: AsyncSession) -> None:
+    await session.execute(
+        text("DELETE FROM comments WHERE id = :i"), {"i": comment_id}
+    )
 
 
 async def add_favorite(*, new_apart_id: int, session: AsyncSession) -> None:

@@ -54,6 +54,7 @@ SELECT
         ELSE round((cur.price_num - cur.disc_price) / cur.price_num * 100, 1)
     END                                                                 AS discount_pct,
     (fav.new_apart_id IS NOT NULL)                                       AS is_favorite,
+    (cmt.new_apart_id IS NOT NULL)                                       AS has_comment,
     CASE
         WHEN na.plan_s ~ '^/'  THEN 'https://xn--80aae5aibotfo5h.xn--p1ai' || na.plan_s
         WHEN COALESCE(na.plan_s, '') <> '' THEN na.plan_s
@@ -114,6 +115,9 @@ LEFT JOIN LATERAL (
     FROM hp WHERE hp.new_apart_id = na.new_apart_id
 ) mx ON true
 LEFT JOIN favorites fav ON fav.new_apart_id = na.new_apart_id
+LEFT JOIN LATERAL (
+    SELECT c.new_apart_id FROM comments c WHERE c.new_apart_id = na.new_apart_id LIMIT 1
+) cmt ON true
 WHERE (
         CAST(:building_id AS integer) IS NULL
         OR (na.building_id ~ '^\d+$' AND (na.building_id)::int = CAST(:building_id AS integer))
@@ -134,6 +138,7 @@ WHERE (
   AND (NOT CAST(:reserved_only AS boolean) OR na.reserve = 1)
   AND (NOT CAST(:available_only AS boolean) OR COALESCE(na.reserve, 0) = 0)
   AND (NOT CAST(:family_only AS boolean) OR COALESCE(na.property, '') ILIKE '%семейн%')
+  AND (NOT CAST(:comment_only AS boolean) OR cmt.new_apart_id IS NOT NULL)
   AND (
         CAST(:q AS text) IS NULL
         OR na.address ILIKE CAST(:q_like AS text)

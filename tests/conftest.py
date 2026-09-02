@@ -17,6 +17,7 @@ _CLEAN_TABLES = (
     "buildings_history",
     "buildings",
     "favorites",
+    "comments",
     "building_price_stats",
     "refresh_runs",
     "districts",

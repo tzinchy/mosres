@@ -34,6 +34,7 @@ class ApartRow(BaseModel):
     discount_is_new: bool = False
     discount_pct: float | None = None
     is_favorite: bool = False
+    has_comment: bool = False
     type_label: str | None = None
     plan_url: str | None = None
     tour_3d_url: str | None = None
@@ -47,6 +48,17 @@ class ApartRow(BaseModel):
 class FavoriteToggleResult(BaseModel):
     new_apart_id: int
     is_favorite: bool
+
+
+class CommentIn(BaseModel):
+    body: str = Field(min_length=1, max_length=4000)
+
+
+class Comment(BaseModel):
+    id: int
+    new_apart_id: int
+    body: str
+    created_at: datetime.datetime
 
 
 class DashboardMetrics(BaseModel):

@@ -11,6 +11,8 @@ from src.schemas import (
     BuildingPricePoint,
     BuildingRow,
     BuildingStat,
+    Comment,
+    CommentIn,
     DashboardMetrics,
     DashboardPoint,
     FavoriteToggleResult,
@@ -83,6 +85,7 @@ async def get_aparts(
     reserved_only: bool = False,
     available_only: bool = False,
     family_only: bool = False,
+    comment_only: bool = False,
     q: str | None = None,
     mosres_service: MosResService = Depends(get_mosres_service),
 ):
@@ -95,8 +98,36 @@ async def get_aparts(
         reserved_only=reserved_only,
         available_only=available_only,
         family_only=family_only,
+        comment_only=comment_only,
         q=q,
     )
+
+
+@app.get(
+    "/aparts/{new_apart_id}/comments", tags=["comments"], response_model=list[Comment]
+)
+async def get_apart_comments(
+    new_apart_id: int, mosres_service: MosResService = Depends(get_mosres_service)
+):
+    return await mosres_service.list_comments(new_apart_id)
+
+
+@app.post(
+    "/aparts/{new_apart_id}/comments", tags=["comments"], response_model=Comment
+)
+async def post_apart_comment(
+    new_apart_id: int,
+    payload: CommentIn,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.add_comment(new_apart_id, payload.body)
+
+
+@app.delete("/comments/{comment_id}", tags=["comments"], status_code=204)
+async def delete_apart_comment(
+    comment_id: int, mosres_service: MosResService = Depends(get_mosres_service)
+):
+    await mosres_service.delete_comment(comment_id)
 
 
 @app.get("/dashboard", tags=["dashboard"], response_model=DashboardMetrics)

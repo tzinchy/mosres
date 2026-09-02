@@ -9,6 +9,7 @@ from src.schemas import (
     ApartRow,
     BuildingRow,
     BuildingStat,
+    Comment,
     FavoriteToggleResult,
     DashboardMetrics,
     DashboardPoint,
@@ -32,6 +33,9 @@ from src.repository import (
     add_favorite,
     remove_favorite,
     list_favorites,
+    list_comments,
+    add_comment,
+    delete_comment,
     refresh_building_price_stats,
     get_building_price_dynamics,
     get_dashboard_metrics,
@@ -277,6 +281,7 @@ class MosResService:
         reserved_only: bool = False,
         available_only: bool = False,
         family_only: bool = False,
+        comment_only: bool = False,
         q: str | None = None,
     ) -> list[ApartRow]:
         async with Session() as session:
@@ -289,6 +294,7 @@ class MosResService:
                 reserved_only=reserved_only,
                 available_only=available_only,
                 family_only=family_only,
+                comment_only=comment_only,
                 q=q,
                 session=session,
             )
@@ -361,3 +367,21 @@ class MosResService:
     async def list_favorites(self) -> list[int]:
         async with Session() as session:
             return await list_favorites(session=session)
+
+    async def list_comments(self, new_apart_id: int) -> list[Comment]:
+        async with Session() as session:
+            rows = await list_comments(new_apart_id=new_apart_id, session=session)
+        return [Comment.model_validate(dict(r)) for r in rows]
+
+    async def add_comment(self, new_apart_id: int, body: str) -> Comment:
+        async with Session() as session:
+            async with session.begin():
+                row = await add_comment(
+                    new_apart_id=new_apart_id, body=body.strip(), session=session
+                )
+        return Comment.model_validate(dict(row))
+
+    async def delete_comment(self, comment_id: int) -> None:
+        async with Session() as session:
+            async with session.begin():
+                await delete_comment(comment_id=comment_id, session=session)
