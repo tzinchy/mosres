@@ -19,21 +19,44 @@ import { cn } from "@/lib/utils";
 const num = (s: string | null) =>
   s ? Number(s.replace(/\D/g, "")) || null : null;
 
-function diffLabel(a: ApartVersion, b: ApartVersion): string[] {
-  const out: string[] = [];
+interface Change {
+  text: string;
+  tone?: "pos" | "neg";
+}
+
+function diffLabel(a: ApartVersion, b: ApartVersion): Change[] {
+  const out: Change[] = [];
   const pa = num(a.price);
   const pb = num(b.price);
   if (pa !== null && pb !== null && pa !== pb) {
     const d = pb - pa;
-    out.push(`Цена ${d < 0 ? "↓" : "↑"} ${money(Math.abs(d))} ₽ (${pct((d / pa) * 100)})`);
+    out.push({
+      text: `Цена: ${money(pa)} → ${money(pb)} ₽ (${d < 0 ? "" : "+"}${money(d)} ₽, ${pct((d / pa) * 100)})`,
+      tone: d < 0 ? "pos" : "neg",
+    });
   }
+  const ma = num(a.price_m);
+  const mb = num(b.price_m);
+  if (ma !== null && mb !== null && ma !== mb)
+    out.push({ text: `Цена м²: ${money(ma)} → ${money(mb)} ₽` });
+
   const da = num(a.price_with_discount);
   const db = num(b.price_with_discount);
-  if (!da && db) out.push("Появилась скидка");
-  if (da && !db) out.push("Скидка снята");
+  const hadA = da !== null && da > 0 && pa !== null && da < pa;
+  const hadB = db !== null && db > 0 && pb !== null && db < pb;
+  if (!hadA && hadB)
+    out.push({ text: `Появилась скидка до ${money(db)} ₽`, tone: "pos" });
+  if (hadA && !hadB) out.push({ text: "Скидка снята", tone: "neg" });
+  else if (hadA && hadB && da !== db)
+    out.push({ text: `Скидка изменилась: ${money(da)} → ${money(db)} ₽` });
+
   if ((a.reserve ?? 0) !== (b.reserve ?? 0))
-    out.push(b.reserve === 1 ? "Ушла в резерв" : "Вышла из резерва");
-  return out.length ? out : ["Прочие изменения"];
+    out.push({
+      text: b.reserve === 1 ? "Ушла в резерв" : "Вышла из резерва",
+      tone: b.reserve === 1 ? "neg" : "pos",
+    });
+
+  return out.length ? out : [{ text: "Обновлены прочие поля" }];
 }
 
 export function ApartSheet({
@@ -81,11 +104,13 @@ export function ApartSheet({
 
             <div className="space-y-6 px-5 py-5">
               {apart.plan_url && (
-                <img
-                  src={apart.plan_url}
-                  alt="Планировка"
-                  className="mx-auto max-h-64 rounded-lg border border-border bg-secondary object-contain"
-                />
+                <a href={apart.plan_url} target="_blank" rel="noreferrer" className="block">
+                  <img
+                    src={apart.plan_url}
+                    alt="Планировка"
+                    className="mx-auto max-h-80 w-full rounded-lg border border-border bg-secondary object-contain p-2"
+                  />
+                </a>
               )}
 
               <div className="grid grid-cols-3 gap-3">
@@ -182,9 +207,18 @@ export function ApartSheet({
                           <div className="tnum text-xs text-muted-foreground">
                             {shortDate(v.updated_at)} · v{v.version}
                           </div>
-                          <ul className="mt-0.5 space-y-0.5 text-sm">
+                          <ul className="mt-1 space-y-1 text-sm">
                             {diffLabel(prev, v).map((d, k) => (
-                              <li key={k}>{d}</li>
+                              <li
+                                key={k}
+                                className={cn(
+                                  "tnum rounded-md border border-border bg-secondary/40 px-2 py-1 text-[13px]",
+                                  d.tone === "pos" && "text-pos",
+                                  d.tone === "neg" && "text-neg",
+                                )}
+                              >
+                                {d.text}
+                              </li>
                             ))}
                           </ul>
                         </li>

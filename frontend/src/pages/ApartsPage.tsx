@@ -33,10 +33,18 @@ export function ApartsPage() {
   const { data, isLoading, error } = useAparts(effective);
   const toggle = useToggleFavorite();
 
+  const rows = useMemo(() => {
+    if (!data) return data;
+    if (!filters.best_only) return data;
+    return [...data]
+      .filter((r) => (r.deal_score ?? 0) >= 5)
+      .sort((a, b) => (b.deal_score ?? 0) - (a.deal_score ?? 0));
+  }, [data, filters.best_only]);
+
   return (
     <div className="space-y-4 p-5 md:p-8">
       <h1 className="text-lg font-semibold">Квартиры</h1>
-      <ApartsToolbar value={filters} onChange={setFilters} count={data?.length} />
+      <ApartsToolbar value={filters} onChange={setFilters} count={rows?.length} />
 
       {isLoading && <Skeleton className="h-96 w-full rounded-lg" />}
       {error && (
@@ -44,9 +52,9 @@ export function ApartsPage() {
           Не удалось загрузить квартиры. Проверьте, что API доступен.
         </p>
       )}
-      {data && (
+      {rows && (
         <ApartsTable
-          rows={data}
+          rows={rows}
           selectedId={selected?.new_apart_id}
           onToggleFavorite={(id, next) => toggle.mutate({ id, next })}
           onSelect={setSelected}

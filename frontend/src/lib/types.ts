@@ -46,6 +46,10 @@ export interface ApartVersion {
   price_with_discount: string | null;
   percentage_discount: string | null;
   reserve: number | null;
+  area: string | null;
+  rooms: string | null;
+  floor: string | null;
+  term_of_application: string | null;
   updated_at: string;
 }
 

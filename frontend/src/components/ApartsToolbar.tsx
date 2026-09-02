@@ -1,6 +1,6 @@
 import { FileDown, RotateCw, Star } from "lucide-react";
 import { API_BASE } from "@/lib/api";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -99,24 +99,22 @@ export function ApartsToolbar({
             {count} кв.
           </span>
         )}
-        <Button size="sm" variant="outline" className="h-9" asChild>
-          <a
-            href={`${API_BASE}/file${buildingQuery(value)}`}
-            title="Выгрузить видимые квартиры в Excel"
-          >
-            <FileDown size={14} className="mr-1.5" />
-            Excel
-          </a>
-        </Button>
-        <Button size="sm" variant="outline" className="h-9" asChild>
-          <a
-            href={`${API_BASE}/file?favorites_only=true`}
-            title="Выгрузить избранное в Excel"
-          >
-            <Star size={14} className="mr-1.5" />
-            Избранное
-          </a>
-        </Button>
+        <a
+          href={`${API_BASE}/file${buildingQuery(value)}`}
+          title="Выгрузить видимые квартиры в Excel"
+          className={buttonVariants({ variant: "outline", size: "sm", className: "h-9" })}
+        >
+          <FileDown size={14} className="mr-1.5" />
+          Excel
+        </a>
+        <a
+          href={`${API_BASE}/file?favorites_only=true`}
+          title="Выгрузить избранное в Excel"
+          className={buttonVariants({ variant: "outline", size: "sm", className: "h-9" })}
+        >
+          <Star size={14} className="mr-1.5" />
+          Избранное
+        </a>
         <Button
           size="sm"
           variant="outline"
