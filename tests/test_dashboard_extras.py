@@ -39,11 +39,30 @@ async def test_zero_discount_is_not_a_discount(client, db):
         db, new_apart_id=1, price="9000000",
         price_with_discount="0", percentage_discount="0",
     )
+    # discounted price equal to price is also NOT a discount
+    await seed_apart(
+        db, new_apart_id=2, price="9000000", price_with_discount="9000000",
+    )
+    await db.commit()
+    rows = {x["new_apart_id"]: x for x in (await client.get("/aparts")).json()}
+    for i in (1, 2):
+        assert rows[i]["has_discount"] is False
+        assert rows[i]["discount_pct"] is None
+        assert rows[i]["price_discounted"] is None
+    assert rows[1]["price_m"] is not None
+
+
+async def test_decimal_percentage_discount_is_not_inflated(client, db):
+    await seed_building(db)
+    await seed_apart(
+        db, new_apart_id=1, price="12000000",
+        price_with_discount="10990000", percentage_discount="8,42",
+    )
     await db.commit()
     row = next(x for x in (await client.get("/aparts")).json() if x["new_apart_id"] == 1)
-    assert row["has_discount"] is False
-    assert row["discount_pct"] is None
-    assert row["price_m"] is not None
+    assert row["has_discount"] is True
+    assert row["discount_pct"] == 8.4
+    assert row["price_discounted"] == 10990000
 
 
 async def test_excel_export_favorites_only(client, db):

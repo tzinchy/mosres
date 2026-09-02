@@ -7,12 +7,6 @@ WITH cur AS (
         NULLIF(regexp_replace(COALESCE(price_with_discount, ''), '\D', '', 'g'), '')::numeric AS disc_price
     FROM new_aparts
 ),
-bavg AS (
-    SELECT building_id, avg(pm) AS avg_pm
-    FROM cur
-    WHERE pm IS NOT NULL
-    GROUP BY building_id
-),
 hp AS (
     SELECT
         new_apart_id,
@@ -33,6 +27,8 @@ SELECT
     (COALESCE(na.property, '') ILIKE '%семейн%')                          AS is_family,
     cur.price_num                                                        AS price,
     cur.pm                                                               AS price_m,
+    CASE WHEN cur.disc_price > 0 AND cur.disc_price < cur.price_num
+         THEN cur.disc_price END                                         AS price_discounted,
     prev.price_num                                                       AS price_prev,
     (cur.price_num - prev.price_num)                                     AS price_delta_prev,
     CASE WHEN prev.price_num > 0
@@ -48,10 +44,15 @@ SELECT
         AND NOT COALESCE(prev.had_discount, false),
         false
     )                                                                  AS discount_is_new,
-    NULLIF(
-        NULLIF(regexp_replace(COALESCE(na.percentage_discount, ''), '\D', '', 'g'), '')::numeric,
-        0
-    )                                                                  AS discount_pct,
+    CASE
+        WHEN NOT (cur.disc_price > 0 AND cur.disc_price < cur.price_num) THEN NULL
+        WHEN NULLIF(regexp_replace(replace(COALESCE(na.percentage_discount, ''), ',', '.'), '[^0-9.]', '', 'g'), '')::numeric > 0
+            THEN round(
+                NULLIF(regexp_replace(replace(na.percentage_discount, ',', '.'), '[^0-9.]', '', 'g'), '')::numeric,
+                1
+            )
+        ELSE round((cur.price_num - cur.disc_price) / cur.price_num * 100, 1)
+    END                                                                 AS discount_pct,
     (fav.new_apart_id IS NOT NULL)                                       AS is_favorite,
     CASE
         WHEN na.plan_s ~ '^/'  THEN 'https://xn--80aae5aibotfo5h.xn--p1ai' || na.plan_s
@@ -71,11 +72,12 @@ SELECT
     END                                                                  AS type_label,
     COALESCE(mm.stops, '[]'::jsonb)                                       AS metro,
     b.family_hypotec                                                     AS family_hypotec,
+    -- «выгода» = на сколько % ниже своего исторического максимума + размер текущей скидки, %
     round(
         COALESCE(GREATEST(0, -CASE WHEN mx.price_max > 0
             THEN (cur.price_num - mx.price_max) / mx.price_max * 100 END), 0)
-        + COALESCE(NULLIF(regexp_replace(COALESCE(na.percentage_discount, ''), '\D', '', 'g'), '')::numeric, 0)
-        + COALESCE(GREATEST(0, (ba.avg_pm - cur.pm) / NULLIF(ba.avg_pm, 0) * 100), 0),
+        + CASE WHEN cur.disc_price > 0 AND cur.disc_price < cur.price_num
+               THEN (cur.price_num - cur.disc_price) / cur.price_num * 100 ELSE 0 END,
         1
     )                                                                    AS deal_score,
     concat(
@@ -85,7 +87,6 @@ SELECT
     na.updated_at
 FROM new_aparts na
 JOIN cur ON cur.new_apart_id = na.new_apart_id
-LEFT JOIN bavg ba ON ba.building_id = na.building_id
 LEFT JOIN buildings b
     ON na.building_id ~ '^\d+$' AND (na.building_id)::int = b.building_id
 LEFT JOIN LATERAL (

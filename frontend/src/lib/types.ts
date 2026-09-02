@@ -19,6 +19,7 @@ export interface ApartRow {
   is_family: boolean;
   price: number | null;
   price_m: number | null;
+  price_discounted: number | null;
   price_prev: number | null;
   price_delta_prev: number | null;
   price_delta_prev_pct: number | null;

@@ -24,6 +24,7 @@ class ApartRow(BaseModel):
     is_family: bool = False
     price: float | None = None
     price_m: float | None = None
+    price_discounted: float | None = None
     price_prev: float | None = None
     price_delta_prev: float | None = None
     price_delta_prev_pct: float | None = None

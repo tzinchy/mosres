@@ -71,12 +71,12 @@
   --input: oklch(0.9 0.006 245);
   --ring: oklch(0.5 0.16 260);
 
-  --pos: oklch(0.52 0.13 150);
-  --pos-soft: oklch(0.95 0.04 150);
-  --neg: oklch(0.53 0.13 55);
-  --neg-soft: oklch(0.95 0.04 65);
-  --reserve: oklch(0.52 0.15 295);
-  --reserve-soft: oklch(0.95 0.03 295);
+  --pos: oklch(0.58 0.19 150);
+  --pos-soft: oklch(0.93 0.09 152);
+  --neg: oklch(0.6 0.2 32);
+  --neg-soft: oklch(0.93 0.08 40);
+  --reserve: oklch(0.55 0.22 295);
+  --reserve-soft: oklch(0.93 0.07 295);
 
   --radius: 5px;
 }
@@ -101,12 +101,12 @@
   --input: oklch(0.34 0.016 250);
   --ring: oklch(0.68 0.14 258);
 
-  --pos: oklch(0.7 0.15 150);
-  --pos-soft: oklch(0.3 0.06 150);
-  --neg: oklch(0.74 0.14 60);
-  --neg-soft: oklch(0.32 0.06 60);
-  --reserve: oklch(0.72 0.14 295);
-  --reserve-soft: oklch(0.3 0.05 295);
+  --pos: oklch(0.76 0.19 150);
+  --pos-soft: oklch(0.32 0.09 150);
+  --neg: oklch(0.72 0.19 35);
+  --neg-soft: oklch(0.34 0.1 35);
+  --reserve: oklch(0.76 0.17 295);
+  --reserve-soft: oklch(0.33 0.08 295);
 }
 
 @layer base {

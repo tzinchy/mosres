@@ -13,10 +13,18 @@ import {
 import { money, moneyShort, pct, relTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+const PERIODS = [
+  { days: 7, label: "7 дней" },
+  { days: 30, label: "30 дней" },
+  { days: 90, label: "3 месяца" },
+  { days: 180, label: "полгода" },
+];
+
 export function DashboardPage() {
   const [favOnly, setFavOnly] = useState(false);
+  const [days, setDays] = useState(30);
   const { data: m, isLoading } = useDashboard(favOnly);
-  const ts = useDashboardTimeseries(favOnly, 30);
+  const ts = useDashboardTimeseries(favOnly, days);
   const stats = useBuildingsStats();
   const { data: status } = useStatus();
   const drops = useAparts({ price_drop_only: true, favorites_only: favOnly || undefined });
@@ -48,8 +56,8 @@ export function DashboardPage() {
             />
             <Mid label="Домов" value={String(m.buildings_total)} />
             <Mid
-              label="Суммарная стоимость"
-              value={m.portfolio_value ? `${moneyShort(m.portfolio_value)} ₽` : "—"}
+              label="Средняя цена"
+              value={m.avg_price ? `${moneyShort(m.avg_price)} ₽` : "—"}
             />
             <Mid
               label="Средняя цена м²"
@@ -87,7 +95,26 @@ export function DashboardPage() {
           </section>
 
           <section>
-            <SectionTitle>Динамика за 30 дней</SectionTitle>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-medium">Динамика изменений</h2>
+              <div className="flex gap-1 text-xs">
+                {PERIODS.map((p) => (
+                  <button
+                    key={p.days}
+                    type="button"
+                    onClick={() => setDays(p.days)}
+                    className={cn(
+                      "rounded-full px-2.5 py-1 transition-colors",
+                      days === p.days
+                        ? "bg-primary/15 font-medium text-primary"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             {ts.isLoading && <Skeleton className="h-72 w-full" />}
             {ts.data && ts.data.every((p) => p.changes + p.new_aparts === 0) && (
               <p className="text-sm text-muted-foreground">
