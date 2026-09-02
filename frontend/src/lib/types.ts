@@ -7,15 +7,15 @@ export interface ApartRow {
   rooms: string | null;
   floor: string | null;
   area: string | null;
-  price: string | null;
-  price_prev: string | null;
-  price_delta_prev: string | null;
-  price_delta_prev_pct: string | null;
-  price_max: string | null;
-  price_delta_max_pct: string | null;
+  price: number | null;
+  price_prev: number | null;
+  price_delta_prev: number | null;
+  price_delta_prev_pct: number | null;
+  price_max: number | null;
+  price_delta_max_pct: number | null;
   has_discount: boolean;
   discount_is_new: boolean;
-  discount_pct: string | null;
+  discount_pct: number | null;
   is_favorite: boolean;
   mosres_url: string;
   updated_at: string;
@@ -23,9 +23,9 @@ export interface ApartRow {
 
 export interface BuildingPricePoint {
   snapshot_date: string;
-  avg_price_m: string | null;
-  min_price_m: string | null;
-  median_price_m: string | null;
+  avg_price_m: number | null;
+  min_price_m: number | null;
+  median_price_m: number | null;
   apart_count: number;
 }
 

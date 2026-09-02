@@ -1,5 +1,4 @@
 import datetime
-from decimal import Decimal
 
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
@@ -13,15 +12,15 @@ class ApartRow(BaseModel):
     rooms: str | None = None
     floor: str | None = None
     area: str | None = None
-    price: Decimal | None = None
-    price_prev: Decimal | None = None
-    price_delta_prev: Decimal | None = None
-    price_delta_prev_pct: Decimal | None = None
-    price_max: Decimal | None = None
-    price_delta_max_pct: Decimal | None = None
+    price: float | None = None
+    price_prev: float | None = None
+    price_delta_prev: float | None = None
+    price_delta_prev_pct: float | None = None
+    price_max: float | None = None
+    price_delta_max_pct: float | None = None
     has_discount: bool = False
     discount_is_new: bool = False
-    discount_pct: Decimal | None = None
+    discount_pct: float | None = None
     is_favorite: bool = False
     mosres_url: str
     updated_at: datetime.datetime
@@ -34,9 +33,9 @@ class FavoriteToggleResult(BaseModel):
 
 class BuildingPricePoint(BaseModel):
     snapshot_date: datetime.date
-    avg_price_m: Decimal | None = None
-    min_price_m: Decimal | None = None
-    median_price_m: Decimal | None = None
+    avg_price_m: float | None = None
+    min_price_m: float | None = None
+    median_price_m: float | None = None
     apart_count: int
 
 
