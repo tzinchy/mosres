@@ -30,9 +30,12 @@ cp .env.example .env
 # в .env указать DB. Для базы на этой же машине хост — host.docker.internal:
 #   DB=postgresql+asyncpg://postgres:password@host.docker.internal:5432/postgres
 
-uv run alembic upgrade head    # применить миграции к своей БД (один раз)
-make all                       # docker compose up -d --build
+make upgrade                   # применить миграции к своей БД
+make all                       # docker compose up -d --build (пересобирает api и web)
 ```
+
+`make all` каждый раз пересобирает образы — после `git pull` этого достаточно, чтобы
+подтянулись изменения фронта и бэка. Схему обновляет `make upgrade` отдельно.
 
 | Сервис | URL | Порт |
 |---|---|---|
@@ -69,8 +72,10 @@ cd frontend && npm install && npm run dev    # фронт на :5173
 
 | Метод | Эндпоинт | Описание |
 |---|---|---|
-| `GET` | `/aparts` | Таблица квартир с вычисляемыми полями: `price`, `price_prev`, `price_delta_prev(_pct)`, `price_max`, `price_delta_max_pct`, `has_discount`, `discount_is_new`, `discount_pct`, `is_favorite`, `mosres_url`. Query-параметры: `building_id`, `favorites_only`, `discount_only`, `price_drop_only`, `q` |
+| `GET` | `/aparts` | Таблица квартир: `price`, `price_prev/delta`, `price_max/delta`, `has_discount`, `discount_is_new`, `discount_pct`, `reserve`, `is_family`, `type_label`, `plan_url`, `tour_3d_url`, `metro[]`, `family_hypotec`, `is_favorite`, `mosres_url`. Query: `building_id`, `building_ids` (CSV), `favorites_only`, `discount_only`, `price_drop_only`, `reserved_only`, `family_only`, `q` |
 | `GET` | `/aparts/{new_apart_id}/versions` | История изменений конкретной квартиры |
+| `GET` | `/dashboard` | Метрики за сегодня (новые, изменения, падения/рост цены, новые скидки, ушли в резерв, средняя динамика). Query: `favorites_only` |
+| `GET` | `/status` | Время последнего обновления данных + интервал планировщика |
 
 ### Избранное
 
@@ -94,13 +99,14 @@ Single-user, без авторизации. Хранится в таблице `
 
 ## Планировщик
 
-APScheduler (`AsyncIOScheduler`) запускает `refresh_all()` раз в сутки в `REFRESH_HOUR` (по умолчанию 4 часа).
+APScheduler (`AsyncIOScheduler`) запускает `refresh_all()` каждые `REFRESH_INTERVAL_MINUTES`
+(по умолчанию 30). Каждый прогон пишет строку в `refresh_runs`; `/status` отдаёт время последнего.
 Старт/остановка — в `lifespan` FastAPI.
 
 | Переменная | По умолчанию | Описание |
 |---|---|---|
 | `SCHEDULER_ENABLED` | `true` | Включить планировщик при старте приложения |
-| `REFRESH_HOUR` | `4` | Час суток для ежедневного обновления |
+| `REFRESH_INTERVAL_MINUTES` | `30` | Интервал обновления данных |
 
 ---
 
