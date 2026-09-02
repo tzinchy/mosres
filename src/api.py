@@ -50,7 +50,7 @@ async def get_excel_file_for_current_date(mosres_service : MosResService = Depen
 
 @app.get("/update_data")
 async def update_data(mosres_service: MosResService = Depends(get_mosres_service)):
-    return await mosres_service.update_all_data()
+    return await mosres_service.refresh_all()
 
 
 @app.get("/aparts", tags=["aparts"], response_model=list[ApartRow])
@@ -104,6 +104,17 @@ async def remove_favorite_route(
 @app.get("/buildings", tags=["buildings"])
 async def get_buildings(mosres_service: MosResService = Depends(get_mosres_service)):
     return await mosres_service.get_buildings_table()
+
+
+@app.get(
+    "/buildings/{building_id}/price-dynamics",
+    tags=["buildings"],
+    response_model=list[BuildingPricePoint],
+)
+async def get_building_price_dynamics(
+    building_id: int, mosres_service: MosResService = Depends(get_mosres_service)
+):
+    return await mosres_service.get_building_price_dynamics(building_id)
 
 
 @app.get("/buildings/{building_id}/versions", tags=["buildings"])

@@ -2,6 +2,7 @@
 .PHONY: revision
 .PHONY: upgrade
 .PHONY: run
+.PHONY: test
 
 get:
 	uv run -m src.service.py
@@ -13,4 +14,7 @@ upgrade:
 	alembic upgrade head
 
 run:
-	uv run uvicorn src.api:app --reload 
+	uv run uvicorn src.api:app --reload
+
+test:
+	uv run pytest 

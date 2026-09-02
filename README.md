@@ -78,22 +78,62 @@ uv run uvicorn src.main:app --reload
 
 | Метод | Эндпоинт | Описание |
 |---|---|---|
-| `GET` | `/update_data` | Забрать свежие данные с москварталы.рф и сохранить в БД |
+| `GET` | `/update_data` | Забрать свежие данные с москварталы.рф, сохранить в БД и пересчитать `building_price_stats` (`refresh_all`) |
 | `GET` | `/file` | Скачать Excel-файл со всеми данными на текущую дату |
 
 ### Квартиры
 
 | Метод | Эндпоинт | Описание |
 |---|---|---|
-| `GET` | `/new_aparts` | Список квартир. Опциональный query-параметр: `new_aparts_ids` |
-| `GET` | `/new_aparts/{new_apart_id}/versions` | История изменений конкретной квартиры |
+| `GET` | `/aparts` | Таблица квартир с вычисляемыми полями: `price`, `price_prev`, `price_delta_prev(_pct)`, `price_max`, `price_delta_max_pct`, `has_discount`, `discount_is_new`, `discount_pct`, `is_favorite`, `mosres_url`. Query-параметры: `building_id`, `favorites_only`, `discount_only`, `price_drop_only`, `q` |
+| `GET` | `/aparts/{new_apart_id}/versions` | История изменений конкретной квартиры |
+
+### Избранное
+
+Single-user, без авторизации. Хранится в таблице `favorites`.
+
+| Метод | Эндпоинт | Описание |
+|---|---|---|
+| `GET` | `/favorites` | Список `new_apart_id` в избранном |
+| `POST` | `/favorites/{new_apart_id}` | Добавить (идемпотентно) |
+| `DELETE` | `/favorites/{new_apart_id}` | Убрать |
 
 ### Корпуса
 
 | Метод | Эндпоинт | Описание |
 |---|---|---|
 | `GET` | `/buildings` | Список всех корпусов |
+| `GET` | `/buildings/{building_id}/price-dynamics` | Динамика цены за м² по датам (`building_price_stats`) |
 | `GET` | `/buildings/{building_id}/versions` | История изменений конкретного корпуса |
+
+---
+
+## Планировщик
+
+APScheduler (`AsyncIOScheduler`) запускает `refresh_all()` раз в сутки в `REFRESH_HOUR` (по умолчанию 4 часа).
+Старт/остановка — в `lifespan` FastAPI.
+
+| Переменная | По умолчанию | Описание |
+|---|---|---|
+| `SCHEDULER_ENABLED` | `true` | Включить планировщик при старте приложения |
+| `REFRESH_HOUR` | `4` | Час суток для ежедневного обновления |
+
+---
+
+## Тесты
+
+```bash
+make test          # uv run pytest
+```
+
+Backend-тесты гоняются против реального Postgres 16 в **testcontainers** (нужен запущенный Docker).
+`tests/conftest.py` поднимает контейнер, применяет `alembic upgrade head`, чистит таблицы между тестами.
+
+---
+
+## Фронтенд
+
+Отдельный сервис в `frontend/` (Vite + React + TypeScript + shadcn/ui). См. `frontend/README.md`.
 
 ---
 
