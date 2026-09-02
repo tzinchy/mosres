@@ -16,6 +16,8 @@ from src.schemas import (
     DashboardMetrics,
     DashboardPoint,
     FavoriteToggleResult,
+    MetroStat,
+    Notification,
     RefreshStatus,
 )
 
@@ -86,6 +88,9 @@ async def get_aparts(
     available_only: bool = False,
     family_only: bool = False,
     comment_only: bool = False,
+    min_price: float | None = None,
+    max_price: float | None = None,
+    min_discount: float | None = None,
     q: str | None = None,
     mosres_service: MosResService = Depends(get_mosres_service),
 ):
@@ -99,6 +104,9 @@ async def get_aparts(
         available_only=available_only,
         family_only=family_only,
         comment_only=comment_only,
+        min_price=min_price,
+        max_price=max_price,
+        min_discount=min_discount,
         q=q,
     )
 
@@ -158,6 +166,18 @@ async def get_buildings_stats(
     mosres_service: MosResService = Depends(get_mosres_service),
 ):
     return await mosres_service.get_buildings_stats()
+
+
+@app.get("/notifications", tags=["dashboard"], response_model=list[Notification])
+async def get_notifications(
+    days: int = 14, mosres_service: MosResService = Depends(get_mosres_service)
+):
+    return await mosres_service.get_notifications(days=days)
+
+
+@app.get("/dashboard/metro", tags=["dashboard"], response_model=list[MetroStat])
+async def get_metro_stats(mosres_service: MosResService = Depends(get_mosres_service)):
+    return await mosres_service.get_metro_stats()
 
 
 @app.get("/status", tags=["dashboard"], response_model=RefreshStatus)

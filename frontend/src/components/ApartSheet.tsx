@@ -180,26 +180,10 @@ export function ApartSheet({
                     rel="noreferrer"
                     className="ml-4 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
                   >
-                    <Box size={14} /> 3D-тур в новой вкладке
+                    <Box size={14} /> 3D-тур
                   </a>
                 )}
               </div>
-
-              {apart.tour_3d_url && (
-                <div>
-                  <div className="mb-2 text-sm font-medium">3D-тур</div>
-                  <iframe
-                    src={apart.tour_3d_url}
-                    title="3D-тур"
-                    loading="lazy"
-                    className="aspect-[4/3] w-full rounded-lg border border-border bg-secondary"
-                    sandbox="allow-scripts allow-same-origin allow-popups"
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Если тур не загрузился — откройте его в новой вкладке ссылкой выше.
-                  </p>
-                </div>
-              )}
 
               <CommentsSection apartId={apart.new_apart_id} />
 

@@ -94,6 +94,34 @@ class DashboardPoint(BaseModel):
     avg_change_pct: float | None = None
 
 
+class Notification(BaseModel):
+    new_apart_id: int
+    version: int
+    updated_at: datetime.datetime
+    address: str | None = None
+    building: str | None = None
+    number: str | None = None
+    price: float | None = None
+    prev_price: float | None = None
+    price_down: bool
+    price_up: bool
+    discount_new: bool
+    discount_gone: bool
+    reserved: bool
+    unreserved: bool
+
+
+class MetroStat(BaseModel):
+    metro_id: int
+    name: str | None = None
+    color: str | None = None
+    aparts: int
+    favorites: int
+    with_discount: int
+    reserved: int
+    avg_price_m: float | None = None
+
+
 class BuildingStat(BaseModel):
     building_id: int
     address: str | None = None

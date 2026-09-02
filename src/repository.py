@@ -105,6 +105,9 @@ async def get_aparts_table(
     available_only: bool,
     family_only: bool,
     comment_only: bool,
+    min_price: float | None,
+    max_price: float | None,
+    min_discount: float | None,
     q: str | None,
     session: AsyncSession,
 ):
@@ -121,6 +124,9 @@ async def get_aparts_table(
             "available_only": available_only,
             "family_only": family_only,
             "comment_only": comment_only,
+            "min_price": min_price,
+            "max_price": max_price,
+            "min_discount": min_discount,
             "q": q,
             "q_like": f"%{q}%" if q else None,
         },
@@ -200,6 +206,18 @@ async def get_dashboard_timeseries(
 
 async def get_buildings_stats(*, session: AsyncSession):
     sql = await read_from_sql_folder("buildings_stats")
+    result = await session.execute(text(sql))
+    return result.mappings().all()
+
+
+async def get_notifications(*, days: int, session: AsyncSession):
+    sql = await read_from_sql_folder("notifications")
+    result = await session.execute(text(sql), {"days": days})
+    return result.mappings().all()
+
+
+async def get_metro_stats(*, session: AsyncSession):
+    sql = await read_from_sql_folder("metro_stats")
     result = await session.execute(text(sql))
     return result.mappings().all()
 

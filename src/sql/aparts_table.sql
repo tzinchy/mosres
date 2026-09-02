@@ -139,6 +139,16 @@ WHERE (
   AND (NOT CAST(:available_only AS boolean) OR COALESCE(na.reserve, 0) = 0)
   AND (NOT CAST(:family_only AS boolean) OR COALESCE(na.property, '') ILIKE '%семейн%')
   AND (NOT CAST(:comment_only AS boolean) OR cmt.new_apart_id IS NOT NULL)
+  AND (CAST(:min_price AS numeric) IS NULL OR cur.price_num >= CAST(:min_price AS numeric))
+  AND (CAST(:max_price AS numeric) IS NULL OR cur.price_num <= CAST(:max_price AS numeric))
+  AND (
+        CAST(:min_discount AS numeric) IS NULL
+        OR (
+            cur.disc_price > 0 AND cur.disc_price < cur.price_num
+            AND (cur.price_num - cur.disc_price) / cur.price_num * 100
+                >= CAST(:min_discount AS numeric)
+        )
+      )
   AND (
         CAST(:q AS text) IS NULL
         OR na.address ILIKE CAST(:q_like AS text)

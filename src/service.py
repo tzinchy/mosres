@@ -13,6 +13,8 @@ from src.schemas import (
     FavoriteToggleResult,
     DashboardMetrics,
     DashboardPoint,
+    MetroStat,
+    Notification,
     RefreshStatus,
     BuildingSchema,
     DistrictAdapter,
@@ -41,6 +43,8 @@ from src.repository import (
     get_dashboard_metrics,
     get_dashboard_timeseries,
     get_buildings_stats,
+    get_notifications,
+    get_metro_stats,
     record_refresh_run,
     get_last_refresh,
 )
@@ -282,6 +286,9 @@ class MosResService:
         available_only: bool = False,
         family_only: bool = False,
         comment_only: bool = False,
+        min_price: float | None = None,
+        max_price: float | None = None,
+        min_discount: float | None = None,
         q: str | None = None,
     ) -> list[ApartRow]:
         async with Session() as session:
@@ -295,6 +302,9 @@ class MosResService:
                 available_only=available_only,
                 family_only=family_only,
                 comment_only=comment_only,
+                min_price=min_price,
+                max_price=max_price,
+                min_discount=min_discount,
                 q=q,
                 session=session,
             )
@@ -343,6 +353,17 @@ class MosResService:
         async with Session() as session:
             rows = await get_buildings_stats(session=session)
         return [BuildingStat.model_validate(dict(r)) for r in rows]
+
+    async def get_notifications(self, days: int = 14) -> list[Notification]:
+        days = max(1, min(days, 90))
+        async with Session() as session:
+            rows = await get_notifications(days=days, session=session)
+        return [Notification.model_validate(dict(r)) for r in rows]
+
+    async def get_metro_stats(self) -> list[MetroStat]:
+        async with Session() as session:
+            rows = await get_metro_stats(session=session)
+        return [MetroStat.model_validate(dict(r)) for r in rows]
 
     async def get_refresh_status(self) -> RefreshStatus:
         async with Session() as session:
