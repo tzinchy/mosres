@@ -4,6 +4,7 @@ from typing import Any
 import aiofiles
 from src.config import MAIN_FOLDER
 
+
 def response_format(satext: bool):
     """
     Для оборачивания ответа от query builder'ов в формат sa (опционально)
@@ -72,16 +73,16 @@ def create_insert_query_for_table_with_except_from_temp(
         updated_at = NOW()
     """
 
+
 @response_format(satext=True)
-def create_truncate_query(table : str) -> str:
+def create_truncate_query(table: str) -> str:
     return f"truncate {table}"
 
-async def read_from_sql_folder(filename : str):
+
+async def read_from_sql_folder(filename: str):
     """Необходимо передавать только название файла
-       Все файлы в папке по умолчанию .sql
+    Все файлы в папке по умолчанию .sql
     """
-    async with aiofiles.open(
-        MAIN_FOLDER.joinpath("sql", f"{filename}.sql")
-    ) as f:
+    async with aiofiles.open(MAIN_FOLDER.joinpath("sql", f"{filename}.sql")) as f:
         query = await f.read()
-        return text(query)
+        return query

@@ -71,9 +71,7 @@ async def get_buildings_table(session: AsyncSession):
 
 async def get_buildings_history(building_id, session: AsyncSession):
     result = await session.execute(
-        select(BuildingHistory).where(
-            BuildingHistory.building_id == building_id
-        )
+        select(BuildingHistory).where(BuildingHistory.building_id == building_id)
     )
     return result.mappings().all()
 
@@ -84,6 +82,7 @@ async def get_buildings_apartments(*, building_id: int, session: AsyncSession):
     )
     return result.mappings().all()
 
-async def get_data_for_excel_file(sql : str, session : AsyncSession):
+
+async def get_data_for_excel_file(sql: str, session: AsyncSession):
     result = await session.execute(text(sql))
     return result.mappings().all()

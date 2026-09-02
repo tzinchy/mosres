@@ -195,10 +195,10 @@ class MosResService:
         file_name = f"{datetime.date.today().strftime('%Y-%m-%d')}.xlsx"
         file_path = EXCEL_FOLDER.joinpath(file_name)
         await self.update_all_data()
-        query = read_from_sql_folder("table_with_versions")
+        query = await read_from_sql_folder("table_with_versions")
         async with Session() as session:
             pd.DataFrame(
-                await get_data_for_excel_file(query=query, session=session)
+                await get_data_for_excel_file(sql=query, session=session)
             ).to_excel(file_path)
         return file_path, file_name
     

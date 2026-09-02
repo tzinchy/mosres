@@ -1,4 +1,4 @@
-from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 
 class BuildingSchema(BaseModel):
@@ -21,11 +21,17 @@ class BuildingSchema(BaseModel):
     flats: str | None = None
     vvod: str | None = None
     anons_texts: list[str] | None = None
-    family_hypotec: int
+    family_hypotec: int 
     county: int  # это короче чет типо и district и municipal_district по всей видимости так еще и метро наверное через ту же таблицу
     model_config = ConfigDict(
         extra="ignore", coerce_numbers_to_str=True, populate_by_name=True
     )
+    @field_validator('family_hypotec', mode='before')
+    @classmethod
+    def check_age(cls, value):
+        if isinstance(value, int):
+            return value
+        return 0
 
 
 class NewApartSchema(BaseModel):
