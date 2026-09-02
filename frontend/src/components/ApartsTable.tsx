@@ -12,6 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  MessageSquareText,
   Settings2,
   Star,
 } from "lucide-react";
@@ -110,6 +111,13 @@ export function ApartsTable({
           <div className="min-w-0 py-0.5">
             <div className="flex items-center gap-2">
               <span className="truncate font-medium">{c.getValue() ?? "—"}</span>
+              {r.has_comment && (
+                <MessageSquareText
+                  size={13}
+                  className="shrink-0 text-muted-foreground"
+                  aria-label="есть комментарий"
+                />
+              )}
               {r.is_family && (
                 <Badge className="shrink-0 border-transparent bg-accent text-accent-foreground">
                   семейная

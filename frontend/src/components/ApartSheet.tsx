@@ -1,4 +1,5 @@
-import { Box, ExternalLink } from "lucide-react";
+import { Box, ExternalLink, Trash2 } from "lucide-react";
+import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -9,9 +10,11 @@ import {
 import { DiscountCell, ReserveTag } from "@/components/cells";
 import { MetroList } from "@/components/MetroList";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApartVersions } from "@/hooks/useDashboard";
+import { useAddComment, useComments, useDeleteComment } from "@/hooks/useComments";
 import { money, pct, shortDate } from "@/lib/format";
 import type { ApartRow, ApartVersion } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -177,10 +180,28 @@ export function ApartSheet({
                     rel="noreferrer"
                     className="ml-4 inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
                   >
-                    <Box size={14} /> 3D-тур
+                    <Box size={14} /> 3D-тур в новой вкладке
                   </a>
                 )}
               </div>
+
+              {apart.tour_3d_url && (
+                <div>
+                  <div className="mb-2 text-sm font-medium">3D-тур</div>
+                  <iframe
+                    src={apart.tour_3d_url}
+                    title="3D-тур"
+                    loading="lazy"
+                    className="aspect-[4/3] w-full rounded-lg border border-border bg-secondary"
+                    sandbox="allow-scripts allow-same-origin allow-popups"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Если тур не загрузился — откройте его в новой вкладке ссылкой выше.
+                  </p>
+                </div>
+              )}
+
+              <CommentsSection apartId={apart.new_apart_id} />
 
               <div>
                 <div className="mb-2 text-sm font-medium">История изменений</div>
@@ -231,6 +252,70 @@ export function ApartSheet({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function CommentsSection({ apartId }: { apartId: number }) {
+  const { data: comments } = useComments(apartId);
+  const add = useAddComment(apartId);
+  const del = useDeleteComment(apartId);
+  const [text, setText] = useState("");
+
+  const submit = () => {
+    const body = text.trim();
+    if (!body) return;
+    add.mutate(body, { onSuccess: () => setText("") });
+  };
+
+  return (
+    <div>
+      <div className="mb-2 text-sm font-medium">Комментарии</div>
+      <div className="space-y-2">
+        {(comments ?? []).map((c) => (
+          <div
+            key={c.id}
+            className="group flex items-start justify-between gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-sm"
+          >
+            <div className="min-w-0">
+              <div className="whitespace-pre-wrap break-words">{c.body}</div>
+              <div className="tnum mt-1 text-xs text-muted-foreground">
+                {shortDate(c.created_at)}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => del.mutate(c.id)}
+              className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-neg group-hover:opacity-100"
+              aria-label="Удалить комментарий"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+        {comments && comments.length === 0 && (
+          <p className="text-sm text-muted-foreground">Пока нет комментариев.</p>
+        )}
+      </div>
+      <div className="mt-3 space-y-2">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit();
+          }}
+          rows={2}
+          placeholder="Заметка по квартире…"
+          className="w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
+        />
+        <Button
+          size="sm"
+          onClick={submit}
+          disabled={add.isPending || !text.trim()}
+        >
+          Добавить
+        </Button>
+      </div>
+    </div>
   );
 }
 

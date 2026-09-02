@@ -22,6 +22,7 @@ const TOGGLES: { key: keyof ApartFilters; label: string }[] = [
   { key: "available_only", label: "Не в резерве" },
   { key: "reserved_only", label: "В резерве" },
   { key: "family_only", label: "Семейная" },
+  { key: "comment_only", label: "С комментарием" },
 ];
 
 function fileQuery(f: ApartFilters, favorites = false): string {

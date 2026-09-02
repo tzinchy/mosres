@@ -29,6 +29,7 @@ export interface ApartRow {
   discount_is_new: boolean;
   discount_pct: number | null;
   is_favorite: boolean;
+  has_comment: boolean;
   type_label: string | null;
   plan_url: string | null;
   tour_3d_url: string | null;
@@ -52,6 +53,13 @@ export interface ApartVersion {
   floor: string | null;
   term_of_application: string | null;
   updated_at: string;
+}
+
+export interface Comment {
+  id: number;
+  new_apart_id: number;
+  body: string;
+  created_at: string;
 }
 
 export interface BuildingPricePoint {

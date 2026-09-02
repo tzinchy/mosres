@@ -19,5 +19,11 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const apiGet = <T>(path: string, params?: Record<string, unknown>) =>
   req<T>(`${path}${qs(params)}`);
-export const apiPost = <T>(path: string) => req<T>(path, { method: "POST" });
+export const apiPost = <T>(path: string, body?: unknown) =>
+  req<T>(path, {
+    method: "POST",
+    ...(body !== undefined
+      ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
+      : {}),
+  });
 export const apiDelete = <T>(path: string) => req<T>(path, { method: "DELETE" });

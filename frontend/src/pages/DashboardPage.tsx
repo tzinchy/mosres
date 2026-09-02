@@ -1,6 +1,7 @@
 import { AlertTriangle, Info } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { DashboardBreakdowns } from "@/components/DashboardBreakdowns";
 import { DashboardChart } from "@/components/DashboardChart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAparts } from "@/hooks/useAparts";
@@ -9,7 +10,7 @@ import {
   useDashboardTimeseries,
   useStatus,
 } from "@/hooks/useDashboard";
-import { money, moneyShort, pct, relTime } from "@/lib/format";
+import { money, pct, relTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const PERIODS = [
@@ -30,6 +31,7 @@ export function DashboardPage() {
   const { data: m, isLoading } = useDashboard(favOnly);
   const ts = useDashboardTimeseries(favOnly, days);
   const { data: status } = useStatus();
+  const all = useAparts({ favorites_only: favOnly || undefined });
   const drops = useAparts({
     price_drop_only: true,
     favorites_only: favOnly || undefined,
@@ -87,10 +89,6 @@ export function DashboardPage() {
             />
             <Mid label="Домов" value={String(m.buildings_total)} />
             <Mid
-              label="Средняя цена"
-              value={m.avg_price ? `${moneyShort(m.avg_price)} ₽` : "—"}
-            />
-            <Mid
               label="Средняя цена м²"
               value={m.avg_price_m ? `${money(m.avg_price_m)} ₽` : "—"}
             />
@@ -126,6 +124,15 @@ export function DashboardPage() {
               <Metric label="Со скидкой" value={m.discount_total} tone="pos" to="/aparts?discount_only=1" />
             </div>
           </section>
+
+          {all.data && all.data.length > 0 && (
+            <section>
+              <SectionTitle help="Срез текущего списка квартир по ключевым признакам.">
+                Состав предложения
+              </SectionTitle>
+              <DashboardBreakdowns rows={all.data} />
+            </section>
+          )}
 
           <section>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
