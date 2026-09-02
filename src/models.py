@@ -1,3 +1,7 @@
+import datetime
+from decimal import Decimal
+
+import sqlalchemy as sa
 import sqlalchemy.orm as saorm
 import sqlalchemy.dialects.postgresql as sapg
 from src.database import Base
@@ -73,3 +77,26 @@ class BuildingTemp(Base, BuildingMixing):
 class NewApartTemp(Base, NewApartMixing):
     __tablename__ = "new_aparts_temp"
     new_apart_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+
+    new_apart_id: saorm.Mapped[int] = saorm.mapped_column(
+        sa.ForeignKey("new_aparts.new_apart_id", ondelete="CASCADE"), primary_key=True
+    )
+
+
+class BuildingPriceStat(Base):
+    __tablename__ = "building_price_stats"
+    __table_args__ = (sa.UniqueConstraint("building_id", "snapshot_date"),)
+
+    id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True)
+    building_id: saorm.Mapped[int] = saorm.mapped_column(nullable=False)
+    snapshot_date: saorm.Mapped[datetime.date] = saorm.mapped_column(
+        server_default=sa.func.now(), nullable=False
+    )
+    avg_price_m: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    min_price_m: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    median_price_m: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    apart_count: saorm.Mapped[int] = saorm.mapped_column(nullable=False)
