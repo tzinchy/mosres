@@ -85,7 +85,8 @@ async def test_reserve_family_metro_plan_fields(client, db):
     row = next(x for x in (await client.get("/aparts")).json() if x["new_apart_id"] == 1)
     assert row["reserve"] == 1
     assert row["is_family"] is True
-    assert row["metro"] == ["Тёплый Стан"]
+    assert row["type_label"] == "Квартира"
+    assert [s["name"] for s in row["metro"]] == ["Тёплый Стан"]
     assert row["family_hypotec"] == 1
     assert row["plan_url"] == "https://xn--80aae5aibotfo5h.xn--p1ai/upload/resize_cache/x.png"
     assert row["tour_3d_url"].endswith("/Tour.html")

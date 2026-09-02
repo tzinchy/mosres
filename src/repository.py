@@ -6,7 +6,7 @@ from src.utils import (
     create_truncate_query,
     read_from_sql_folder,
 )
-from src.models import NewApartHistory, Building, BuildingHistory, NewApart
+from src.models import NewApartHistory, BuildingHistory, NewApart
 from sqlalchemy import select, text
 
 
@@ -68,7 +68,8 @@ async def get_new_aparts_history(*, new_apart_id: int, session: AsyncSession):
 
 
 async def get_buildings_table(*, session: AsyncSession):
-    result = await session.execute(select(Building.__table__))
+    sql = await read_from_sql_folder("buildings_table")
+    result = await session.execute(text(sql))
     return result.mappings().all()
 
 

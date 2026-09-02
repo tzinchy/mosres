@@ -9,6 +9,7 @@ from src.scheduler import build_scheduler
 from src.schemas import (
     ApartRow,
     BuildingPricePoint,
+    BuildingRow,
     DashboardMetrics,
     FavoriteToggleResult,
     RefreshStatus,
@@ -131,7 +132,7 @@ async def remove_favorite_route(
     return await mosres_service.remove_favorite(new_apart_id)
 
 
-@app.get("/buildings", tags=["buildings"])
+@app.get("/buildings", tags=["buildings"], response_model=list[BuildingRow])
 async def get_buildings(mosres_service: MosResService = Depends(get_mosres_service)):
     return await mosres_service.get_buildings_table()
 

@@ -32,6 +32,10 @@ class BuildingMixing:
     county: saorm.Mapped[
         int
     ]  # это типа и district и municipal_district, и метро через ту же таблицу
+    img: saorm.Mapped[str | None] = saorm.mapped_column(default=None, nullable=True)
+    gallery: saorm.Mapped[list[str] | None] = saorm.mapped_column(
+        sapg.ARRAY(sa.String), default=None, nullable=True
+    )
 
 
 class NewApartMixing:

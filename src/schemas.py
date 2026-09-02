@@ -3,6 +3,13 @@ import datetime
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
 
+class MetroStop(BaseModel):
+    name: str | None = None
+    color: str | None = None
+    car: str | None = None
+    walk: str | None = None
+
+
 class ApartRow(BaseModel):
     new_apart_id: int
     address: str | None = None
@@ -25,9 +32,10 @@ class ApartRow(BaseModel):
     discount_is_new: bool = False
     discount_pct: float | None = None
     is_favorite: bool = False
+    type_label: str | None = None
     plan_url: str | None = None
     tour_3d_url: str | None = None
-    metro: list[str] | None = None
+    metro: list[MetroStop] = []
     family_hypotec: int | None = None
     mosres_url: str
     updated_at: datetime.datetime
@@ -54,6 +62,26 @@ class DashboardMetrics(BaseModel):
 class RefreshStatus(BaseModel):
     last_refresh: datetime.datetime | None = None
     interval_minutes: int
+
+
+class BuildingRow(BaseModel):
+    building_id: int
+    address: str | None = None
+    code: str | None = None
+    status_code: str | None = None
+    status_label: str | None = None
+    finishing_code: str | None = None
+    finishing_label: str | None = None
+    floors: str | None = None
+    flats: str | None = None
+    vvod: str | None = None
+    family_hypotec: int | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    anons_texts: list[str] | None = None
+    img_url: str | None = None
+    gallery_urls: list[str] = []
+    metro: list[MetroStop] = []
 
 
 class BuildingPricePoint(BaseModel):
@@ -84,8 +112,10 @@ class BuildingSchema(BaseModel):
     flats: str | None = None
     vvod: str | None = None
     anons_texts: list[str] | None = None
-    family_hypotec: int 
+    family_hypotec: int
     county: int  # это короче чет типо и district и municipal_district по всей видимости так еще и метро наверное через ту же таблицу
+    img: str | None = None
+    gallery: list[str] | None = None
     model_config = ConfigDict(
         extra="ignore", coerce_numbers_to_str=True, populate_by_name=True
     )

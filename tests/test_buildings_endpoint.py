@@ -20,6 +20,33 @@ async def test_price_dynamics_two_points_ordered(client, db):
     assert [p["snapshot_date"] for p in pts] == sorted(p["snapshot_date"] for p in pts)
 
 
+async def test_buildings_resolve_metro_and_labels(client, db):
+    await db.execute(
+        text("INSERT INTO metros (metro_id, name, color) VALUES (777, 'Тёплый Стан', '#f00')")
+    )
+    await seed_building(
+        db,
+        status_code="FINISHED",
+        finishing_code="STD",
+        metro=["777", "888"],
+        metro_car=["10 мин.", "20 мин."],
+        img="/upload/x.jpg",
+    )
+    await db.commit()
+    r = await client.get("/buildings")
+    b = next(x for x in r.json() if x["building_id"] == 1)
+    assert b["status_label"] == "Введён в эксплуатацию"
+    assert b["finishing_label"] == "Отделка по стандарту реновации"
+    assert b["img_url"] == "https://xn--80aae5aibotfo5h.xn--p1ai/upload/x.jpg"
+    assert b["metro"][0] == {
+        "name": "Тёплый Стан",
+        "color": "#f00",
+        "car": "10 мин.",
+        "walk": None,
+    }
+    assert b["metro"][1]["name"] == "888"  # unknown id falls back to the id
+
+
 async def test_building_versions(client, db):
     bid = await seed_building(db)
     await db.execute(

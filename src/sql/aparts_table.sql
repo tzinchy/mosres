@@ -44,7 +44,13 @@ SELECT
         WHEN na.tour_3d ~ '^/'  THEN 'https://xn--80aae5aibotfo5h.xn--p1ai' || na.tour_3d
         WHEN COALESCE(na.tour_3d, '') <> '' THEN na.tour_3d
     END                                                                  AS tour_3d_url,
-    b.metro                                                              AS metro,
+    CASE na."type"
+        WHEN 'R'  THEN 'Квартира'
+        WHEN 'NR' THEN 'Нежилое'
+        WHEN 'P'  THEN 'Паркинг'
+        ELSE na."type"
+    END                                                                  AS type_label,
+    COALESCE(mm.stops, '[]'::jsonb)                                       AS metro,
     b.family_hypotec                                                     AS family_hypotec,
     concat(
         'https://xn--80aae5aibotfo5h.xn--p1ai/obekty/',
@@ -55,6 +61,19 @@ FROM new_aparts na
 JOIN cur ON cur.new_apart_id = na.new_apart_id
 LEFT JOIN buildings b
     ON na.building_id ~ '^\d+$' AND (na.building_id)::int = b.building_id
+LEFT JOIN LATERAL (
+    SELECT jsonb_agg(
+        jsonb_build_object(
+            'name', COALESCE(m.name, mid.id),
+            'color', m.color,
+            'car', b.metro_car[mid.ord],
+            'walk', b.metro_walk[mid.ord]
+        )
+        ORDER BY mid.ord
+    ) AS stops
+    FROM unnest(b.metro) WITH ORDINALITY AS mid(id, ord)
+    LEFT JOIN metros m ON m.metro_id = (CASE WHEN mid.id ~ '^\d+$' THEN mid.id::int END)
+) mm ON true
 LEFT JOIN LATERAL (
     SELECT hp.price_num, hp.had_discount
     FROM hp

@@ -9,11 +9,13 @@ BEGIN
         IF ROW(
             OLD.address, OLD.code, OLD.district, OLD.latitude, OLD.longitude,
             OLD.status_code, OLD.finishing_code, OLD.metro, OLD.metro_car, OLD.metro_walk,
-            OLD.floors, OLD.flats, OLD.vvod, OLD.anons_texts, OLD.family_hypotec, OLD.county
+            OLD.floors, OLD.flats, OLD.vvod, OLD.anons_texts, OLD.family_hypotec, OLD.county,
+            OLD.img, OLD.gallery
         ) IS NOT DISTINCT FROM ROW(
             NEW.address, NEW.code, NEW.district, NEW.latitude, NEW.longitude,
             NEW.status_code, NEW.finishing_code, NEW.metro, NEW.metro_car, NEW.metro_walk,
-            NEW.floors, NEW.flats, NEW.vvod, NEW.anons_texts, NEW.family_hypotec, NEW.county
+            NEW.floors, NEW.flats, NEW.vvod, NEW.anons_texts, NEW.family_hypotec, NEW.county,
+            NEW.img, NEW.gallery
         ) THEN
             RETURN NEW;
         END IF;
@@ -28,7 +30,8 @@ BEGIN
         status_code,    finishing_code, metro,
         metro_car,      metro_walk,     floors,
         flats,          vvod,           anons_texts,
-        family_hypotec, county,         notes
+        family_hypotec, county,         notes,
+        img,            gallery
     ) VALUES (
         NEW.building_id,    NEW."version",      NEW.created_at,
         NEW.updated_at,     NEW.address,        NEW.code,
@@ -36,7 +39,8 @@ BEGIN
         NEW.status_code,    NEW.finishing_code, NEW.metro,
         NEW.metro_car,      NEW.metro_walk,     NEW.floors,
         NEW.flats,          NEW.vvod,           NEW.anons_texts,
-        NEW.family_hypotec, NEW.county,         NEW.notes
+        NEW.family_hypotec, NEW.county,         NEW.notes,
+        NEW.img,            NEW.gallery
     );
     RETURN NEW;
 END;

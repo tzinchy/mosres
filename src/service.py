@@ -7,6 +7,7 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 from src.database import Session
 from src.schemas import (
     ApartRow,
+    BuildingRow,
     FavoriteToggleResult,
     DashboardMetrics,
     RefreshStatus,
@@ -54,7 +55,7 @@ class MosResService:
     BUILDING_COLUMNS = [
         "building_id", "address", "code", "district", "latitude", "longitude", "status_code",
         "finishing_code", "metro", "metro_car", "metro_walk", "floors", "flats", "vvod",
-        "anons_texts", "family_hypotec", "county",
+        "anons_texts", "family_hypotec", "county", "img", "gallery",
     ]
     NEW_APARTS_COLUMNS = [
         "new_apart_id", "address", "building", "building_id", "building_code", "number", "rooms", "floor",
@@ -222,9 +223,10 @@ class MosResService:
         async with Session() as session:
             return await get_buildings_history(building_id=building_id, session=session)
 
-    async def get_buildings_table(self):
+    async def get_buildings_table(self) -> list[BuildingRow]:
         async with Session() as session:
-            return await get_buildings_table(session=session)
+            rows = await get_buildings_table(session=session)
+        return [BuildingRow.model_validate(dict(r)) for r in rows]
 
     async def get_new_aparts_history(self, new_apart_id: int):
         async with Session() as session:
