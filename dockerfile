@@ -17,7 +17,11 @@ COPY alembic/ alembic/
 COPY src/ src/
 VOLUME [ "/app/src/excel" ]
 
-EXPOSE 5437
+EXPOSE 5433
 # Migrations are NOT run automatically — apply them against your database with
 #   make upgrade      (or: uv run alembic upgrade head)
+#
+# One process on purpose (uvicorn default): the app is fully async and runs an
+# in-process APScheduler (periodic refresh). Do NOT add --workers — each worker
+# starts its own scheduler and its own pool_size DB connections.
 CMD ["uv", "run", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "5433"]

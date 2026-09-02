@@ -8,8 +8,8 @@ all: up
 up:
 	docker compose up -d --build
 	@echo ""
-	@echo "  api   http://localhost:5433   docs: /docs"
-	@echo "  web   http://localhost:5144"
+	@echo "  web   http://localhost:$${WEB_PORT:-8080}"
+	@echo "  api   http://127.0.0.1:5433/docs   (loopback only; web proxies /api/)"
 	@echo "  logs: make logs   |   stop: make down"
 
 down:

@@ -3,23 +3,29 @@ services:
     build:
       context: .
       dockerfile: dockerfile
+    # Not published publicly — `web` reaches it in-network as http://api:5433.
+    # Bound to loopback on the host for /docs and debugging.
     ports:
-      - "5433:5433"
+      - "127.0.0.1:5433:5433"
     # DB connection lives outside compose. Set DB (and optionally SCHEDULER_ENABLED,
-    # REFRESH_HOUR) in .env. For a database running on the host machine, use
-    # host.docker.internal as the host, e.g.
+    # REFRESH_INTERVAL_MINUTES) in .env. For a database running on the host machine,
+    # use host.docker.internal as the host, e.g.
     #   DB=postgresql+asyncpg://postgres:password@host.docker.internal:5432/postgres
     env_file:
       - .env
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    restart: unless-stopped
 
   web:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:5433}
+        # relative by default; nginx in the web image proxies /api/ -> api:5433
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    # host port is WEB_PORT from .env (default 8080); container always listens on 80
     ports:
-      - "5144:5144"
+      - "${WEB_PORT:-8080}:80"
     depends_on:
       - api
+    restart: unless-stopped
