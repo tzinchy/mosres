@@ -65,6 +65,21 @@ export function BuildingPage() {
         </div>
       </header>
 
+      {b && b.gallery_urls.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {b.gallery_urls.map((src) => (
+            <a key={src} href={src} target="_blank" rel="noreferrer">
+              <img
+                src={src}
+                alt=""
+                loading="lazy"
+                className="h-28 w-44 shrink-0 rounded-md border border-border object-cover"
+              />
+            </a>
+          ))}
+        </div>
+      )}
+
       <section className="rounded-lg border border-border bg-card p-5">
         <h2 className="mb-1 text-sm font-medium">Цена за квадратный метр</h2>
         <p className="mb-4 text-xs text-muted-foreground">
