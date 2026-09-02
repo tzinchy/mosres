@@ -27,6 +27,19 @@ class ApartRow(BaseModel):
     updated_at: datetime.datetime
 
 
+class FavoriteToggleResult(BaseModel):
+    new_apart_id: int
+    is_favorite: bool
+
+
+class BuildingPricePoint(BaseModel):
+    snapshot_date: datetime.date
+    avg_price_m: Decimal | None = None
+    min_price_m: Decimal | None = None
+    median_price_m: Decimal | None = None
+    apart_count: int
+
+
 class BuildingSchema(BaseModel):
     building_id: int = Field(
         None, validation_alias=AliasChoices("id", "building_id", "object_id")

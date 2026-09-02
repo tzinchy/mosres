@@ -117,6 +117,26 @@ async def get_aparts_table(
     return result.mappings().all()
 
 
+async def add_favorite(*, new_apart_id: int, session: AsyncSession) -> None:
+    await session.execute(
+        text("INSERT INTO favorites (new_apart_id) VALUES (:i) ON CONFLICT DO NOTHING"),
+        {"i": new_apart_id},
+    )
+
+
+async def remove_favorite(*, new_apart_id: int, session: AsyncSession) -> None:
+    await session.execute(
+        text("DELETE FROM favorites WHERE new_apart_id = :i"), {"i": new_apart_id}
+    )
+
+
+async def list_favorites(*, session: AsyncSession) -> list[int]:
+    result = await session.execute(
+        text("SELECT new_apart_id FROM favorites ORDER BY new_apart_id")
+    )
+    return [row[0] for row in result.all()]
+
+
 async def refresh_building_price_stats(*, session: AsyncSession) -> int:
     sql = await read_from_sql_folder("building_price_stats_refresh")
     result = await session.execute(text(sql))

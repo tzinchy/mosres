@@ -7,6 +7,7 @@ from aiohttp_retry import ExponentialRetry, RetryClient
 from src.database import Session
 from src.schemas import (
     ApartRow,
+    FavoriteToggleResult,
     BuildingSchema,
     DistrictAdapter,
     MetroAdapter,
@@ -24,6 +25,9 @@ from src.repository import (
     get_buildings_history,
     get_buildings_table,
     get_aparts_table,
+    add_favorite,
+    remove_favorite,
+    list_favorites,
     refresh_building_price_stats,
     get_building_price_dynamics,
 )
@@ -253,3 +257,19 @@ class MosResService:
             return await get_building_price_dynamics(
                 building_id=building_id, session=session
             )
+
+    async def add_favorite(self, new_apart_id: int) -> FavoriteToggleResult:
+        async with Session() as session:
+            async with session.begin():
+                await add_favorite(new_apart_id=new_apart_id, session=session)
+        return FavoriteToggleResult(new_apart_id=new_apart_id, is_favorite=True)
+
+    async def remove_favorite(self, new_apart_id: int) -> FavoriteToggleResult:
+        async with Session() as session:
+            async with session.begin():
+                await remove_favorite(new_apart_id=new_apart_id, session=session)
+        return FavoriteToggleResult(new_apart_id=new_apart_id, is_favorite=False)
+
+    async def list_favorites(self) -> list[int]:
+        async with Session() as session:
+            return await list_favorites(session=session)

@@ -1,4 +1,7 @@
 import os
+
+os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
+
 from collections.abc import AsyncIterator, Iterator
 
 import pytest

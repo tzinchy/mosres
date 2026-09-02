@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
 from src.depends import get_mosres_service, MosResService
 from src.scheduler import build_scheduler
-from src.schemas import ApartRow
+from src.schemas import ApartRow, BuildingPricePoint, FavoriteToggleResult
 
 
 @asynccontextmanager
@@ -76,6 +76,29 @@ async def get_apart_versions(
     new_apart_id: int, mosres_service: MosResService = Depends(get_mosres_service)
 ):
     return await mosres_service.get_new_aparts_history(new_apart_id)
+
+
+@app.get("/favorites", tags=["favorites"], response_model=list[int])
+async def get_favorites(mosres_service: MosResService = Depends(get_mosres_service)):
+    return await mosres_service.list_favorites()
+
+
+@app.post(
+    "/favorites/{new_apart_id}", tags=["favorites"], response_model=FavoriteToggleResult
+)
+async def add_favorite_route(
+    new_apart_id: int, mosres_service: MosResService = Depends(get_mosres_service)
+):
+    return await mosres_service.add_favorite(new_apart_id)
+
+
+@app.delete(
+    "/favorites/{new_apart_id}", tags=["favorites"], response_model=FavoriteToggleResult
+)
+async def remove_favorite_route(
+    new_apart_id: int, mosres_service: MosResService = Depends(get_mosres_service)
+):
+    return await mosres_service.remove_favorite(new_apart_id)
 
 
 @app.get("/buildings", tags=["buildings"])
