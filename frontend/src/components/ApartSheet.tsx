@@ -15,6 +15,7 @@ import {
 } from "@/components/cells";
 import { MetroList } from "@/components/MetroList";
 import { MortgageWidget } from "@/components/MortgageWidget";
+import { auctionRange } from "@/lib/auction";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -210,7 +211,11 @@ export function ApartSheet({
               )}
 
               <div className="grid grid-cols-3 gap-3">
-                <Fact label="Текущая" value={`${money(apart.price)} ₽`} strong />
+                <Fact
+                  label={apart.is_auction ? "Стартовая" : "Текущая"}
+                  value={`${money(apart.price)} ₽`}
+                  strong
+                />
                 <Fact
                   label="Прошлая"
                   value={apart.price_prev ? `${money(apart.price_prev)} ₽` : "—"}
@@ -220,6 +225,20 @@ export function ApartSheet({
                   value={apart.price_max ? `${money(apart.price_max)} ₽` : "—"}
                 />
               </div>
+
+              {apart.is_auction && apart.price && (
+                <div
+                  className="rounded-lg border border-reserve/40 bg-reserve-soft px-3 py-2 text-sm text-reserve"
+                  title="Грубая оценка, не фактические результаты торгов. Городские аукционы обычно закрываются на 10–30% выше стартовой цены."
+                >
+                  Аукцион: итоговая цена обычно{" "}
+                  <span className="font-medium">+10…30%</span> →{" "}
+                  <span className="tnum font-medium">
+                    ≈ {money(auctionRange(apart.price)[0])} –{" "}
+                    {money(auctionRange(apart.price)[1])} ₽
+                  </span>
+                </div>
+              )}
 
               {series.length > 1 && (
                 <div className="h-28 w-full">

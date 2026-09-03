@@ -27,7 +27,8 @@ import { MetroList } from "@/components/MetroList";
 import { Badge } from "@/components/ui/badge";
 import { useRates } from "@/hooks/useDashboard";
 import { useApartCols, type ApartCols } from "@/hooks/useApartCols";
-import { money } from "@/lib/format";
+import { auctionRange } from "@/lib/auction";
+import { money, moneyShort } from "@/lib/format";
 import { loadMortgageCfg, monthlyFor } from "@/lib/mortgage";
 import type { ApartRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -174,6 +175,15 @@ export function ApartsTable({
             {r.price_m != null && (
               <div className="text-xs text-muted-foreground">
                 {money(r.price_m)} / м²
+              </div>
+            )}
+            {r.is_auction && r.price && (
+              <div
+                className="text-xs text-reserve"
+                title="Грубая оценка: городские аукционы обычно закрываются на 10–30% выше старта. Не фактические результаты торгов."
+              >
+                аукц. ≈ {moneyShort(auctionRange(r.price)[0])}–
+                {moneyShort(auctionRange(r.price)[1])}
               </div>
             )}
           </div>
