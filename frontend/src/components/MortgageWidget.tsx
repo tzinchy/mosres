@@ -1,54 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import {
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { NumberField } from "@/components/ui/number-field";
+import { useMortgageCfg } from "@/hooks/useMortgageCfg";
 import { useRates } from "@/hooks/useDashboard";
 import { money, moneyShort } from "@/lib/format";
-import {
-  MORTGAGE_KEY,
-  annuity,
-  cfgRate,
-  loadMortgageCfg,
-  type MortgageCfg,
-  type Program,
-} from "@/lib/mortgage";
+import { annuity, cfgRate, type Program } from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
-
-function Num({
-  value,
-  onChange,
-  max,
-  suffix,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-  max: number;
-  suffix: string;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <input
-        type="text"
-        inputMode="decimal"
-        value={value === 0 ? "" : String(value)}
-        onChange={(e) => {
-          const raw = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
-          const n = raw === "" ? 0 : Number(raw);
-          onChange(Number.isFinite(n) ? Math.min(max, Math.max(0, n)) : 0);
-        }}
-        className="tnum h-7 w-14 rounded border border-input bg-background px-1.5 text-sm text-foreground outline-none focus:border-ring"
-      />
-      {suffix}
-    </span>
-  );
-}
 
 export function MortgageWidget({ price }: { price: number | null }) {
   const { data: rates } = useRates();
-  const [c, setC] = useState<MortgageCfg>(loadMortgageCfg);
-  const set = (patch: Partial<MortgageCfg>) => {
-    const next = { ...c, ...patch };
-    setC(next);
-    localStorage.setItem(MORTGAGE_KEY, JSON.stringify(next));
-  };
+  const [c, set] = useMortgageCfg();
   useEffect(() => {
     if (rates && c.marketRate === 0) set({ marketRate: rates.market_rate });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -62,6 +32,16 @@ export function MortgageWidget({ price }: { price: number | null }) {
   const months = c.tableTerm * 12;
   const monthly = Math.round(annuity(loan, rate, months));
   const overpay = Math.round(monthly * months - loan);
+
+  const series = Array.from({ length: 30 }, (_, i) => {
+    const y = i + 1;
+    const m = annuity(loan, rate, y * 12);
+    return {
+      y,
+      monthly: Math.round(m),
+      overpay: Math.round(m * y * 12 - loan),
+    };
+  });
 
   return (
     <div>
@@ -93,31 +73,36 @@ export function MortgageWidget({ price }: { price: number | null }) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             взнос
-            <Num
+            <NumberField
               value={c.downPct}
               max={95}
-              suffix="%"
               onChange={(n) => set({ downPct: n })}
+              className="h-7 w-14"
             />
+            %
           </span>
           <span className="inline-flex items-center gap-1">
             срок
-            <Num
+            <NumberField
               value={c.tableTerm}
+              min={1}
               max={30}
-              suffix="лет"
-              onChange={(n) => set({ tableTerm: Math.max(1, n) })}
+              inputMode="numeric"
+              onChange={(n) => set({ tableTerm: n })}
+              className="h-7 w-14"
             />
+            лет
           </span>
           {c.program === "custom" && (
             <span className="inline-flex items-center gap-1">
               ставка
-              <Num
+              <NumberField
                 value={c.customRate}
                 max={100}
-                suffix="%"
                 onChange={(n) => set({ customRate: n })}
+                className="h-7 w-14"
               />
+              %
             </span>
           )}
           {c.program !== "custom" && <span>ставка {rate}%</span>}
@@ -129,11 +114,74 @@ export function MortgageWidget({ price }: { price: number | null }) {
           взнос {moneyShort(down)} · кредит {moneyShort(loan)} · переплата{" "}
           {moneyShort(overpay)} ₽
         </div>
+
+        <div className="h-36">
+          <ResponsiveContainer>
+            <LineChart
+              data={series}
+              margin={{ top: 4, right: 2, bottom: 0, left: 2 }}
+            >
+              <XAxis
+                dataKey="y"
+                ticks={[5, 10, 15, 20, 25, 30]}
+                tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis yAxisId="m" hide />
+              <YAxis yAxisId="o" hide />
+              <ReferenceLine
+                yAxisId="m"
+                x={c.tableTerm}
+                stroke="var(--border)"
+              />
+              <Tooltip
+                formatter={(v, n) => [`${money(Number(v))} ₽`, n]}
+                labelFormatter={(l) => `срок ${l} лет`}
+                contentStyle={{
+                  background: "var(--popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  fontSize: 11,
+                }}
+              />
+              <Line
+                yAxisId="m"
+                type="monotone"
+                dataKey="monthly"
+                name="платёж/мес"
+                stroke="var(--chart-1)"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                yAxisId="o"
+                type="monotone"
+                dataKey="overpay"
+                name="переплата"
+                stroke="var(--chart-2)"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-0.5 w-3 bg-[var(--chart-1)]" />
+            платёж
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-0.5 w-3 bg-[var(--chart-2)]" />
+            переплата
+          </span>
+        </div>
+
         <Link
           to="/mortgage"
           className="inline-block text-xs text-primary hover:underline"
         >
-          Полный расчёт по срокам →
+          Полный расчёт и графики по срокам →
         </Link>
       </div>
     </div>

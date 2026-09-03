@@ -19,8 +19,14 @@ export interface ApartFilters {
   min_price?: number;
   max_price?: number;
   min_discount?: number;
+  /** client-side: estimated monthly mortgage payment, ₽ (see useMortgageCfg) */
+  mtg_min?: number;
+  mtg_max?: number;
   q?: string;
 }
+
+/** filter keys applied in the browser, never sent to /aparts */
+export const CLIENT_ONLY_KEYS = ["mtg_min", "mtg_max"] as const;
 
 export function useAparts(filters: ApartFilters, enabled = true) {
   return useQuery({

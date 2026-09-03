@@ -27,9 +27,10 @@ import { MetroList } from "@/components/MetroList";
 import { Badge } from "@/components/ui/badge";
 import { useRates } from "@/hooks/useDashboard";
 import { useApartCols, type ApartCols } from "@/hooks/useApartCols";
+import { useMortgageCfg } from "@/hooks/useMortgageCfg";
 import { auctionRange } from "@/lib/auction";
 import { money, moneyShort } from "@/lib/format";
-import { loadMortgageCfg, monthlyFor } from "@/lib/mortgage";
+import { cfgRate, monthlyFor } from "@/lib/mortgage";
 import type { ApartRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +58,14 @@ export function ApartsTable({
   const { visibility, setVisibility } = cols ?? fallback;
   const { data: rateInfo } = useRates();
   const marketRate = rateInfo?.market_rate ?? 20;
-  const mtgCfg = loadMortgageCfg();
+  const [mtgCfg] = useMortgageCfg();
+  const mtgRate = cfgRate(mtgCfg, marketRate);
+  const mtgProgram =
+    mtgCfg.program === "family"
+      ? "семейная"
+      : mtgCfg.program === "market"
+        ? "рыночная"
+        : "своя";
 
   const columns = [
     col.accessor("is_favorite", {
@@ -221,7 +229,14 @@ export function ApartsTable({
     }),
     col.accessor((r) => monthlyFor(r.price ?? 0, mtgCfg, marketRate), {
       id: "mortgage",
-      header: "Ипотека/мес",
+      header: () => (
+        <span
+          title={`Оценка по калькулятору: взнос ${mtgCfg.downPct}%, ${mtgProgram} ставка ${mtgRate}%, срок ${mtgCfg.tableTerm} лет. Параметры — на странице «Ипотека».`}
+          className="underline decoration-dotted underline-offset-2"
+        >
+          Ипотека/мес
+        </span>
+      ),
       size: 130,
       cell: (c) =>
         c.row.original.price ? (

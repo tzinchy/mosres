@@ -4,6 +4,7 @@ import { API_BASE } from "@/lib/api";
 import { ColumnsMenu } from "@/components/ColumnsMenu";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberField } from "@/components/ui/number-field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
@@ -15,6 +16,7 @@ import {
 import type { ApartCols } from "@/hooks/useApartCols";
 import type { ApartFilters } from "@/hooks/useAparts";
 import { useBuildings } from "@/hooks/useBuildings";
+import { useMortgageCfg } from "@/hooks/useMortgageCfg";
 import { useRefreshData } from "@/hooks/useRefresh";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +47,8 @@ const COUNTED: (keyof ApartFilters)[] = [
   "min_price",
   "max_price",
   "min_discount",
+  "mtg_min",
+  "mtg_max",
 ];
 
 function NumInput({
@@ -59,16 +63,12 @@ function NumInput({
   className?: string;
 }) {
   return (
-    <Input
-      type="number"
-      inputMode="numeric"
+    <NumberField
       placeholder={placeholder}
-      defaultValue={value ?? ""}
-      onChange={(e) => {
-        const n = Number(e.target.value);
-        onChange(e.target.value === "" || Number.isNaN(n) ? undefined : n);
-      }}
-      className={cn("tnum h-9 w-full", className)}
+      inputMode="numeric"
+      value={value ?? 0}
+      onChange={(n) => onChange(n === 0 ? undefined : n)}
+      className={cn("h-9 w-full", className)}
     />
   );
 }
@@ -94,6 +94,7 @@ export function ApartsToolbar({
 }) {
   const buildings = useBuildings();
   const refresh = useRefreshData();
+  const [mtg, setMtg] = useMortgageCfg();
   const [resetKey, setResetKey] = useState(0);
 
   const set = (patch: Partial<ApartFilters>) => {
@@ -214,6 +215,45 @@ export function ApartsToolbar({
               value={value.deadline_max}
               onChange={(n) => set({ deadline_max: n })}
             />
+
+            <div className="space-y-1.5 rounded-md border border-border p-2">
+              <div className="flex items-center gap-2">
+                <NumInput
+                  placeholder="Платёж от, ₽/мес"
+                  value={value.mtg_min}
+                  onChange={(n) => set({ mtg_min: n })}
+                />
+                <span className="text-muted-foreground">—</span>
+                <NumInput
+                  placeholder="до"
+                  value={value.mtg_max}
+                  onChange={(n) => set({ mtg_max: n })}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="whitespace-nowrap text-xs text-muted-foreground">
+                  Срок ипотеки
+                </span>
+                <NumberField
+                  value={mtg.tableTerm}
+                  min={1}
+                  max={30}
+                  inputMode="numeric"
+                  onChange={(n) => setMtg({ tableTerm: n })}
+                  className="h-8 w-16"
+                />
+                <span className="text-xs text-muted-foreground">лет</span>
+              </div>
+              <p className="text-[11px] leading-tight text-muted-foreground">
+                Платёж считается по калькулятору: взнос {mtg.downPct}%,{" "}
+                {mtg.program === "family"
+                  ? "семейная"
+                  : mtg.program === "market"
+                    ? "рыночная"
+                    : "своя"}{" "}
+                ставка. Срок влияет и на колонку «Ипотека/мес».
+              </p>
+            </div>
 
             <div className="flex flex-wrap gap-1.5">
               {TOGGLES.map(({ key, label }) => {

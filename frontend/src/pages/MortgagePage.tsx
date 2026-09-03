@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ReferenceLine,
@@ -9,20 +12,56 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { NumberField } from "@/components/ui/number-field";
+import { useMortgageCfg } from "@/hooks/useMortgageCfg";
 import { useRates } from "@/hooks/useDashboard";
 import { money, moneyShort, shortDate } from "@/lib/format";
-import {
-  MORTGAGE_KEY,
-  annuity,
-  cfgRate,
-  loadMortgageCfg,
-  type MortgageCfg,
-} from "@/lib/mortgage";
+import { annuity, cfgRate } from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
 
 const TERMS = Array.from({ length: 30 }, (_, i) => i + 1);
+// «оптимальный» — самый короткий срок, который влезает в комфортный платёж;
+// небольшое превышение допускаем, иначе +1 год ради 2–3 тыс./мес стоит
+// сотни тысяч лишней переплаты.
+const COMFORT_SLACK = 0.03;
 
-/** number field: no spinners, no stuck leading zero, clamps to [min, max] */
+const TIP = {
+  background: "var(--popover)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  fontSize: 12,
+} as const;
+
+function yearWord(y: number) {
+  return y === 1 ? "год" : y % 10 >= 2 && y % 10 <= 4 && (y < 10 || y > 20) ? "года" : "лет";
+}
+
+/** амортизация: сколько за каждый год уходит на проценты и на тело кредита */
+function yearlySplit(loan: number, annualPct: number, years: number) {
+  const r = annualPct / 100 / 12;
+  const n = years * 12;
+  const m = annuity(loan, annualPct, n);
+  let bal = loan;
+  const out: { year: number; interest: number; principal: number }[] = [];
+  for (let y = 1; y <= years; y++) {
+    let interest = 0;
+    let principal = 0;
+    for (let k = 0; k < 12; k++) {
+      const i = Math.max(0, bal * r);
+      const p = m - i;
+      interest += i;
+      principal += p;
+      bal -= p;
+    }
+    out.push({
+      year: y,
+      interest: Math.round(interest),
+      principal: Math.round(principal),
+    });
+  }
+  return out;
+}
+
 function Field({
   label,
   value,
@@ -30,7 +69,6 @@ function Field({
   suffix,
   min = 0,
   max = Number.MAX_SAFE_INTEGER,
-  placeholder,
   className,
 }: {
   label: string;
@@ -39,27 +77,18 @@ function Field({
   suffix?: string;
   min?: number;
   max?: number;
-  placeholder?: string;
   className?: string;
 }) {
   return (
     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
       {label}
       <span className="flex items-center gap-1">
-        <input
-          type="text"
-          inputMode="decimal"
-          placeholder={placeholder}
-          value={value === 0 ? "" : String(value)}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
-            const n = raw === "" ? 0 : Number(raw);
-            onChange(Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : 0);
-          }}
-          className={cn(
-            "tnum h-9 w-40 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring",
-            className,
-          )}
+        <NumberField
+          value={value}
+          onChange={onChange}
+          min={min}
+          max={max}
+          className={cn("h-9 w-40", className)}
         />
         {suffix && <span>{suffix}</span>}
       </span>
@@ -68,16 +97,12 @@ function Field({
 }
 
 export function MortgagePage() {
-  const [c, setC] = useState<MortgageCfg>(loadMortgageCfg);
-  const set = (patch: Partial<MortgageCfg>) => setC((p) => ({ ...p, ...patch }));
-  useEffect(() => {
-    localStorage.setItem(MORTGAGE_KEY, JSON.stringify(c));
-  }, [c]);
+  const [c, set] = useMortgageCfg();
 
   const { data: rates } = useRates();
   useEffect(() => {
-    if (rates && c.marketRate === 0)
-      setC((p) => ({ ...p, marketRate: rates.market_rate }));
+    if (rates && c.marketRate === 0) set({ marketRate: rates.market_rate });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rates, c.marketRate]);
 
   const rate = cfgRate(c, rates?.market_rate ?? 20);
@@ -89,19 +114,35 @@ export function MortgagePage() {
     set({ downPct: Math.round(pct * 10) / 10 });
   };
 
-  const rows = TERMS.map((years) => {
-    const months = years * 12;
-    const m = annuity(loan, rate, months);
-    const total = m * months;
+  const rows = TERMS.map((years, i, arr) => {
+    const m = annuity(loan, rate, years * 12);
+    const overpay = Math.round(m * years * 12 - loan);
+    const prevYears = i > 0 ? arr[i - 1] : years;
+    const prevM = annuity(loan, rate, prevYears * 12);
+    const prevOverpay = Math.round(prevM * prevYears * 12 - loan);
     return {
       years,
       monthly: Math.round(m),
-      total: Math.round(total + down),
-      overpay: Math.round(total - loan),
-      ok: c.comfort > 0 && m <= c.comfort,
+      total: Math.round(m * years * 12 + down),
+      overpay,
+      // цена лишнего года: +переплата и -платёж относительно срока на год короче
+      overpayStep: i > 0 ? overpay - prevOverpay : 0,
+      reliefStep: i > 0 ? Math.round(prevM - m) : 0,
     };
-  });
+  }).map((r) => ({
+    ...r,
+    ok: c.comfort > 0 && r.monthly <= c.comfort * (1 + COMFORT_SLACK),
+  }));
+
   const optimal = rows.find((r) => r.ok)?.years ?? null;
+  // точка убывающей отдачи: 5 лет экономии на платеже от лишнего года уже
+  // меньше, чем этот год добавляет к переплате — дальше растягивать невыгодно
+  const knee =
+    rows.find(
+      (r) => r.years > 1 && r.overpayStep > 0 && r.reliefStep * 60 < r.overpayStep,
+    )?.years ?? null;
+
+  const split = yearlySplit(loan, rate, c.tableTerm);
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6 p-5 md:p-8">
@@ -116,7 +157,7 @@ export function MortgagePage() {
       <div className="rounded-xl border border-border bg-card p-4">
         <p className="mb-3 text-xs text-muted-foreground">
           Цену конкретной квартиры можно подставить из карточки квартиры (панель
-          справа) — там же есть быстрый расчёт.
+          справа) — там же есть быстрый расчёт и графики.
         </p>
         <div className="flex flex-wrap gap-x-6 gap-y-4">
           <Field
@@ -196,7 +237,7 @@ export function MortgagePage() {
             onChange={(n) => set({ comfort: n })}
           />
           <Field
-            label="Срок для оценки в таблице квартир, лет"
+            label="Срок для графиков и таблицы квартир, лет"
             value={c.tableTerm}
             min={1}
             max={30}
@@ -210,6 +251,14 @@ export function MortgagePage() {
             Кредит: <span className="tnum font-semibold">{money(loan)} ₽</span>{" "}
             под <span className="tnum font-semibold">{rate}%</span>
           </span>
+          {optimal && (
+            <span className="text-muted-foreground">
+              оптимальный срок:{" "}
+              <span className="font-medium text-primary">
+                {optimal} {yearWord(optimal)}
+              </span>
+            </span>
+          )}
           {rates && (
             <button
               type="button"
@@ -225,6 +274,7 @@ export function MortgagePage() {
         </div>
       </div>
 
+      {/* по годам: платёж, переплата, цена лишнего года */}
       <div className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="max-h-[520px] overflow-y-auto">
           <table className="w-full text-sm">
@@ -233,6 +283,12 @@ export function MortgagePage() {
                 <th className="px-4 py-2.5">Срок</th>
                 <th className="px-4 py-2.5 text-right">Платёж / мес</th>
                 <th className="px-4 py-2.5 text-right">Переплата</th>
+                <th
+                  className="px-4 py-2.5 text-right"
+                  title="Что стоит +1 год к сроку: насколько вырастет общая переплата и насколько снизится платёж"
+                >
+                  Цена лишнего года
+                </th>
                 <th className="px-4 py-2.5 text-right">Всего выплат</th>
               </tr>
             </thead>
@@ -243,13 +299,22 @@ export function MortgagePage() {
                   className={cn(
                     "border-b border-border/60 last:border-0",
                     optimal === r.years && "bg-pos-soft/50",
+                    knee === r.years && optimal !== r.years && "bg-accent/10",
                   )}
                 >
                   <td className="px-4 py-2">
-                    {r.years} {r.years === 1 ? "год" : r.years < 5 ? "года" : "лет"}
+                    {r.years} {yearWord(r.years)}
                     {optimal === r.years && (
                       <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
                         оптимальный
+                      </span>
+                    )}
+                    {knee === r.years && optimal !== r.years && (
+                      <span
+                        className="ml-2 rounded-full bg-accent/20 px-2 py-0.5 text-xs font-medium text-accent-foreground"
+                        title="Дальше увеличение срока почти не снижает платёж, а переплата продолжает расти"
+                      >
+                        дальше нет смысла
                       </span>
                     )}
                   </td>
@@ -264,7 +329,25 @@ export function MortgagePage() {
                   <td className="tnum px-4 py-2 text-right text-muted-foreground">
                     {money(r.overpay)} ₽
                   </td>
-                  <td className="tnum px-4 py-2 text-right">{money(r.total)} ₽</td>
+                  <td className="tnum px-4 py-2 text-right text-xs">
+                    {r.overpayStep > 0 ? (
+                      <span>
+                        <span className="text-neg">
+                          +{moneyShort(r.overpayStep)}
+                        </span>{" "}
+                        переплаты
+                        <br />
+                        <span className="text-pos">
+                          −{money(r.reliefStep)} ₽/мес
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="tnum px-4 py-2 text-right">
+                    {money(r.total)} ₽
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -272,78 +355,234 @@ export function MortgagePage() {
         </div>
       </div>
 
-      <div className="h-72 w-full rounded-xl bg-panel p-4">
-        <ResponsiveContainer>
-          <LineChart data={rows} margin={{ left: 8, right: 8, top: 8, bottom: 4 }}>
-            <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
-            <XAxis
-              dataKey="years"
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              tickLine={false}
-              axisLine={{ stroke: "var(--border)" }}
-            />
-            <YAxis
-              yAxisId="m"
-              width={54}
-              tickFormatter={(v) => moneyShort(v)}
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis
-              yAxisId="o"
-              orientation="right"
-              width={54}
-              tickFormatter={(v) => moneyShort(v)}
-              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-              tickLine={false}
-              axisLine={false}
-            />
-            {c.comfort > 0 && (
-              <ReferenceLine
+      {/* 1. платёж и переплата от срока */}
+      <figure className="space-y-1">
+        <figcaption className="text-xs text-muted-foreground">
+          Платёж и переплата в зависимости от срока. Точка — оптимальный срок.
+        </figcaption>
+        <div className="h-72 w-full rounded-xl bg-panel p-4">
+          <ResponsiveContainer>
+            <LineChart data={rows} margin={{ left: 8, right: 8, top: 8, bottom: 4 }}>
+              <CartesianGrid
+                stroke="var(--border)"
+                strokeDasharray="2 4"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="years"
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={{ stroke: "var(--border)" }}
+              />
+              <YAxis
                 yAxisId="m"
-                y={c.comfort}
-                stroke="var(--pos)"
-                strokeDasharray="4 4"
-                label={{
-                  value: "комфортный",
-                  fontSize: 10,
-                  fill: "var(--pos)",
-                  position: "insideTopRight",
+                width={54}
+                tickFormatter={(v) => moneyShort(v)}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                yAxisId="o"
+                orientation="right"
+                width={54}
+                tickFormatter={(v) => moneyShort(v)}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              {c.comfort > 0 && (
+                <ReferenceLine
+                  yAxisId="m"
+                  y={c.comfort}
+                  stroke="var(--pos)"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: "комфортный",
+                    fontSize: 10,
+                    fill: "var(--pos)",
+                    position: "insideTopRight",
+                  }}
+                />
+              )}
+              {optimal && (
+                <ReferenceLine
+                  yAxisId="m"
+                  x={optimal}
+                  stroke="var(--primary)"
+                  strokeDasharray="3 3"
+                />
+              )}
+              <Tooltip
+                formatter={(v, n) => [`${money(Number(v))} ₽`, n]}
+                labelFormatter={(l) => `${l} ${yearWord(Number(l))}`}
+                contentStyle={TIP}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line
+                yAxisId="m"
+                type="monotone"
+                dataKey="monthly"
+                name="Платёж / мес"
+                stroke="var(--chart-1)"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                yAxisId="o"
+                type="monotone"
+                dataKey="overpay"
+                name="Переплата"
+                stroke="var(--chart-2)"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </figure>
+
+      {/* 2. компромисс: платёж против переплаты */}
+      <figure className="space-y-1">
+        <figcaption className="text-xs text-muted-foreground">
+          Компромисс: каждая точка — срок от 1 до 30 лет. Изгиб — там, где
+          удлинение срока почти перестаёт снижать платёж, а переплата всё растёт.
+        </figcaption>
+        <div className="h-72 w-full rounded-xl bg-panel p-4">
+          <ResponsiveContainer>
+            <LineChart data={rows} margin={{ left: 8, right: 8, top: 8, bottom: 4 }}>
+              <CartesianGrid
+                stroke="var(--border)"
+                strokeDasharray="2 4"
+              />
+              <XAxis
+                type="number"
+                dataKey="monthly"
+                name="Платёж"
+                tickFormatter={(v) => moneyShort(v)}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={{ stroke: "var(--border)" }}
+              />
+              <YAxis
+                dataKey="overpay"
+                tickFormatter={(v) => moneyShort(v)}
+                width={54}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              {c.comfort > 0 && (
+                <ReferenceLine
+                  x={c.comfort}
+                  stroke="var(--pos)"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: "комфортный платёж",
+                    fontSize: 10,
+                    fill: "var(--pos)",
+                    position: "insideTopLeft",
+                  }}
+                />
+              )}
+              <Tooltip
+                cursor={{ stroke: "var(--border)" }}
+                formatter={(v) => `${money(Number(v))} ₽`}
+                labelFormatter={() => ""}
+                contentStyle={TIP}
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const p = payload[0].payload as (typeof rows)[number];
+                  return (
+                    <div style={TIP as React.CSSProperties} className="px-2 py-1">
+                      <div className="font-medium">
+                        {p.years} {yearWord(p.years)}
+                      </div>
+                      <div>платёж {money(p.monthly)} ₽/мес</div>
+                      <div>переплата {money(p.overpay)} ₽</div>
+                    </div>
+                  );
                 }}
               />
-            )}
-            <Tooltip
-              formatter={(v, n) => [`${money(Number(v))} ₽`, n]}
-              labelFormatter={(l) => `${l} лет`}
-              contentStyle={{
-                background: "var(--popover)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-            />
-            <Line
-              yAxisId="m"
-              type="monotone"
-              dataKey="monthly"
-              name="Платёж / мес"
-              stroke="var(--chart-1)"
-              strokeWidth={2}
-              dot={false}
-            />
-            <Line
-              yAxisId="o"
-              type="monotone"
-              dataKey="overpay"
-              name="Переплата"
-              stroke="var(--chart-2)"
-              strokeWidth={2}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+              <Line
+                type="monotone"
+                dataKey="overpay"
+                stroke="var(--chart-2)"
+                strokeWidth={2}
+                dot={(props) => {
+                  const p = props.payload as (typeof rows)[number];
+                  const hit = p.years === optimal || p.years === knee;
+                  return (
+                    <circle
+                      key={p.years}
+                      cx={props.cx}
+                      cy={props.cy}
+                      r={hit ? 5 : 2.5}
+                      fill={
+                        p.years === optimal
+                          ? "var(--primary)"
+                          : p.years === knee
+                            ? "var(--accent-foreground)"
+                            : "var(--chart-2)"
+                      }
+                    />
+                  );
+                }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </figure>
+
+      {/* 3. структура выплат по годам для выбранного срока */}
+      <figure className="space-y-1">
+        <figcaption className="text-xs text-muted-foreground">
+          Куда уходят платежи при сроке {c.tableTerm} {yearWord(c.tableTerm)}:
+          первые годы — почти одни проценты.
+        </figcaption>
+        <div className="h-72 w-full rounded-xl bg-panel p-4">
+          <ResponsiveContainer>
+            <BarChart data={split} margin={{ left: 8, right: 8, top: 8, bottom: 4 }}>
+              <CartesianGrid
+                stroke="var(--border)"
+                strokeDasharray="2 4"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="year"
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={{ stroke: "var(--border)" }}
+              />
+              <YAxis
+                width={54}
+                tickFormatter={(v) => moneyShort(v)}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                formatter={(v, n) => [`${money(Number(v))} ₽`, n]}
+                labelFormatter={(l) => `${l}-й год`}
+                contentStyle={TIP}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar
+                dataKey="interest"
+                name="Проценты"
+                stackId="a"
+                fill="var(--chart-2)"
+              />
+              <Bar
+                dataKey="principal"
+                name="Тело кредита"
+                stackId="a"
+                fill="var(--chart-1)"
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </figure>
     </div>
   );
 }

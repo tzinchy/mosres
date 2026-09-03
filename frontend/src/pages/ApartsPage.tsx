@@ -5,9 +5,16 @@ import { ApartsTable } from "@/components/ApartsTable";
 import { ApartsToolbar } from "@/components/ApartsToolbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApartCols } from "@/hooks/useApartCols";
-import { useAparts, type ApartFilters } from "@/hooks/useAparts";
+import {
+  CLIENT_ONLY_KEYS,
+  useAparts,
+  type ApartFilters,
+} from "@/hooks/useAparts";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useToggleFavorite } from "@/hooks/useFavorites";
+import { useMortgageCfg } from "@/hooks/useMortgageCfg";
+import { useRates } from "@/hooks/useDashboard";
+import { monthlyFor } from "@/lib/mortgage";
 import type { ApartRow } from "@/lib/types";
 
 const BOOL_KEYS: (keyof ApartFilters)[] = [
@@ -37,18 +44,39 @@ export function ApartsPage() {
   const [selected, setSelected] = useState<ApartRow | null>(null);
   const cols = useApartCols();
   const q = useDebouncedValue(filters.q, 300);
-  const effective = useMemo<ApartFilters>(() => ({ ...filters, q }), [filters, q]);
+  const [mtgCfg] = useMortgageCfg();
+  const { data: rates } = useRates();
+  const marketRate = rates?.market_rate ?? 20;
+
+  const effective = useMemo<ApartFilters>(() => {
+    const f: ApartFilters = { ...filters, q };
+    for (const k of CLIENT_ONLY_KEYS) delete f[k];
+    return f;
+  }, [filters, q]);
 
   const { data, isLoading, error } = useAparts(effective);
   const toggle = useToggleFavorite();
 
   const rows = useMemo(() => {
     if (!data) return data;
-    if (!filters.best_only) return data;
-    return [...data]
-      .filter((r) => (r.deal_score ?? 0) >= 5)
-      .sort((a, b) => (b.deal_score ?? 0) - (a.deal_score ?? 0));
-  }, [data, filters.best_only]);
+    let r = data;
+    if (filters.best_only) {
+      r = [...r]
+        .filter((x) => (x.deal_score ?? 0) >= 5)
+        .sort((a, b) => (b.deal_score ?? 0) - (a.deal_score ?? 0));
+    }
+    const { mtg_min, mtg_max } = filters;
+    if (mtg_min != null || mtg_max != null) {
+      r = r.filter((x) => {
+        if (!x.price) return false;
+        const m = monthlyFor(x.price, mtgCfg, marketRate);
+        if (mtg_min != null && m < mtg_min) return false;
+        if (mtg_max != null && m > mtg_max) return false;
+        return true;
+      });
+    }
+    return r;
+  }, [data, filters.best_only, filters.mtg_min, filters.mtg_max, mtgCfg, marketRate]);
 
   return (
     <div className="space-y-4 p-5 md:p-8">
