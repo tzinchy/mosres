@@ -10,6 +10,7 @@ SELECT
               < NULLIF(regexp_replace(na.price, '\D', '', 'g'), '')::numeric
     ) AS discounted,
     count(*) FILTER (WHERE COALESCE(na.property, '') ILIKE '%семейн%') AS family,
+    count(*) FILTER (WHERE na.auction IS NOT NULL) AS auction,
     round(avg(NULLIF(regexp_replace(na.price, '\D', '', 'g'), '')::numeric)) AS avg_price,
     round(avg(NULLIF(regexp_replace(na.price_m, '\D', '', 'g'), '')::numeric)) AS avg_price_m
 FROM new_aparts na

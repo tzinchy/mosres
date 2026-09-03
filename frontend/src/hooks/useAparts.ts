@@ -11,6 +11,8 @@ export interface ApartFilters {
   reserved_only?: boolean;
   available_only?: boolean;
   family_only?: boolean;
+  auction_only?: boolean;
+  finishing?: "FULL" | "NO" | "STD";
   comment_only?: boolean;
   best_only?: boolean;
   min_price?: number;

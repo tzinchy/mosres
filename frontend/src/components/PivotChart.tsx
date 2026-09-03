@@ -21,12 +21,14 @@ const DIMS: Record<PivotDimension, string> = {
   district: "По округам",
   rooms: "По комнатности",
   building: "По домам",
+  finishing: "По отделке",
 };
 const METRICS: Record<PivotMetric, string> = {
   count: "Количество квартир",
   reserved: "В резерве",
   discounted: "Со скидкой",
   family: "По семейной ипотеке",
+  auction: "На аукционе",
   avg_price: "Средняя цена",
   avg_price_m: "Средняя цена м²",
 };

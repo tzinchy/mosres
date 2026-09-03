@@ -91,6 +91,14 @@ PIVOT_DIMS = {
         ),
         "join": "",
     },
+    "finishing": {
+        "key": (
+            "CASE b.finishing_code WHEN 'FULL' THEN 'С отделкой' "
+            "WHEN 'NO' THEN 'Без отделки' WHEN 'STD' THEN 'Отделка по реновации' "
+            "ELSE COALESCE(b.finishing_code, 'не указано') END"
+        ),
+        "join": "LEFT JOIN buildings b ON b.building_id = na.building_id::int",
+    },
     "building": {
         "key": "COALESCE(na.address, na.building, 'дом ' || na.building_id)",
         "join": "",
@@ -323,6 +331,8 @@ class MosResService:
         reserved_only: bool = False,
         available_only: bool = False,
         family_only: bool = False,
+        auction_only: bool = False,
+        finishing: str | None = None,
         comment_only: bool = False,
         min_price: float | None = None,
         max_price: float | None = None,
@@ -339,6 +349,8 @@ class MosResService:
                 reserved_only=reserved_only,
                 available_only=available_only,
                 family_only=family_only,
+                auction_only=auction_only,
+                finishing=finishing,
                 comment_only=comment_only,
                 min_price=min_price,
                 max_price=max_price,

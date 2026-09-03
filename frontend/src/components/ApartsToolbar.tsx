@@ -26,13 +26,21 @@ const TOGGLES: { key: keyof ApartFilters; label: string }[] = [
   { key: "available_only", label: "Не в резерве" },
   { key: "reserved_only", label: "В резерве" },
   { key: "family_only", label: "Семейная" },
+  { key: "auction_only", label: "Аукцион" },
   { key: "comment_only", label: "С комментарием" },
+];
+
+const FINISHING: { value: ApartFilters["finishing"]; label: string }[] = [
+  { value: "FULL", label: "С отделкой" },
+  { value: "NO", label: "Без отделки" },
+  { value: "STD", label: "По реновации" },
 ];
 
 // filter keys that count toward the "active filters" badge (q lives in its own input)
 const COUNTED: (keyof ApartFilters)[] = [
   ...TOGGLES.map((t) => t.key),
   "building_id",
+  "finishing",
   "min_price",
   "max_price",
   "min_discount",
@@ -150,6 +158,33 @@ export function ApartsToolbar({
                 {(buildings.data ?? []).map((b) => (
                   <SelectItem key={b.building_id} value={String(b.building_id)}>
                     {b.address ?? `Дом ${b.building_id}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={value.finishing ?? "any"}
+              onValueChange={(v) =>
+                set({
+                  finishing:
+                    v === "any" ? undefined : (v as ApartFilters["finishing"]),
+                })
+              }
+            >
+              <SelectTrigger className="h-9 w-full">
+                <SelectValue placeholder="Отделка — любая">
+                  {(v) =>
+                    FINISHING.find((f) => f.value === v)?.label ??
+                    "Отделка — любая"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="any">Отделка — любая</SelectItem>
+                {FINISHING.map((f) => (
+                  <SelectItem key={f.value} value={f.value as string}>
+                    {f.label}
                   </SelectItem>
                 ))}
               </SelectContent>

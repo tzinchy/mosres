@@ -22,6 +22,7 @@ latest AS (
                 < NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric
         ) AS disc,
         (COALESCE(nah.property, '') ILIKE '%семейн%') AS fam,
+        (nah.auction IS NOT NULL) AS auc,
         NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric AS price_num,
         NULLIF(regexp_replace(nah.price_m, '\D', '', 'g'), '')::numeric AS pm_num,
         row_number() OVER (
@@ -41,6 +42,7 @@ SELECT
     count(new_apart_id) FILTER (WHERE rn = 1 AND reserve = 1)  AS reserved,
     count(new_apart_id) FILTER (WHERE rn = 1 AND disc)         AS discounted,
     count(new_apart_id) FILTER (WHERE rn = 1 AND fam)          AS family,
+    count(new_apart_id) FILTER (WHERE rn = 1 AND auc)          AS auction,
     round(avg(price_num) FILTER (WHERE rn = 1))                AS avg_price,
     round(avg(pm_num) FILTER (WHERE rn = 1))                   AS avg_price_m
 FROM latest

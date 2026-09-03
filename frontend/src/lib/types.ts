@@ -35,6 +35,10 @@ export interface ApartRow {
   tour_3d_url: string | null;
   metro: MetroStop[];
   family_hypotec: number | null;
+  finishing_code: string | null;
+  finishing_label: string | null;
+  is_auction: boolean;
+  auction_url: string | null;
   deal_score: number | null;
   mosres_url: string;
   updated_at: string;
@@ -172,12 +176,18 @@ export interface DashboardPoint {
   family: number;
 }
 
-export type PivotDimension = "date" | "district" | "rooms" | "building";
+export type PivotDimension =
+  | "date"
+  | "district"
+  | "rooms"
+  | "building"
+  | "finishing";
 export type PivotMetric =
   | "count"
   | "reserved"
   | "discounted"
   | "family"
+  | "auction"
   | "avg_price"
   | "avg_price_m";
 

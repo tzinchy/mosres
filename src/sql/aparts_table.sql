@@ -73,6 +73,15 @@ SELECT
     END                                                                  AS type_label,
     COALESCE(mm.stops, '[]'::jsonb)                                       AS metro,
     b.family_hypotec                                                     AS family_hypotec,
+    b.finishing_code                                                     AS finishing_code,
+    CASE b.finishing_code
+        WHEN 'FULL' THEN 'С отделкой'
+        WHEN 'NO'   THEN 'Без отделки'
+        WHEN 'STD'  THEN 'Отделка по реновации'
+        ELSE b.finishing_code
+    END                                                                  AS finishing_label,
+    (na.auction IS NOT NULL)                                             AS is_auction,
+    na.auction                                                          AS auction_url,
     -- «выгода» = на сколько % ниже своего исторического максимума + размер текущей скидки, %
     round(
         COALESCE(GREATEST(0, -CASE WHEN mx.price_max > 0
@@ -138,6 +147,8 @@ WHERE (
   AND (NOT CAST(:reserved_only AS boolean) OR na.reserve = 1)
   AND (NOT CAST(:available_only AS boolean) OR COALESCE(na.reserve, 0) = 0)
   AND (NOT CAST(:family_only AS boolean) OR COALESCE(na.property, '') ILIKE '%семейн%')
+  AND (NOT CAST(:auction_only AS boolean) OR na.auction IS NOT NULL)
+  AND (CAST(:finishing AS text) IS NULL OR b.finishing_code = CAST(:finishing AS text))
   AND (NOT CAST(:comment_only AS boolean) OR cmt.new_apart_id IS NOT NULL)
   AND (CAST(:min_price AS numeric) IS NULL OR cur.price_num >= CAST(:min_price AS numeric))
   AND (CAST(:max_price AS numeric) IS NULL OR cur.price_num <= CAST(:max_price AS numeric))

@@ -160,12 +160,25 @@ export function ApartSheet({
                 <span className="tnum">кв. {apart.number}</span>
                 <span>· {apart.type_label ?? "квартира"}</span>
                 <span className="tnum">· {apart.rooms}-комн · {apart.area} м²</span>
+                {apart.finishing_label && <span>· {apart.finishing_label}</span>}
               </div>
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {apart.is_family && (
                   <Badge className="border-transparent bg-accent text-accent-foreground">
                     семейная ипотека
                   </Badge>
+                )}
+                {apart.auction_url && (
+                  <a
+                    href={apart.auction_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Badge className="border-transparent bg-reserve-soft text-reserve hover:underline">
+                      аукцион ↗
+                    </Badge>
+                  </a>
                 )}
                 <ReserveTag reserve={apart.reserve} />
                 <DiscountCell row={apart} />

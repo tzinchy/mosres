@@ -40,6 +40,10 @@ class ApartRow(BaseModel):
     tour_3d_url: str | None = None
     metro: list[MetroStop] = []
     family_hypotec: int | None = None
+    finishing_code: str | None = None
+    finishing_label: str | None = None
+    is_auction: bool = False
+    auction_url: str | None = None
     deal_score: float | None = None
     mosres_url: str
     updated_at: datetime.datetime

@@ -100,6 +100,11 @@ export function ApartsTable({
                   семейная
                 </Badge>
               )}
+              {r.is_auction && (
+                <Badge className="shrink-0 border-transparent bg-reserve-soft text-reserve">
+                  аукцион
+                </Badge>
+              )}
               <ReserveTag reserve={r.reserve} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -114,6 +119,7 @@ export function ApartsTable({
               ) : (
                 <span className="truncate">{r.building}</span>
               )}
+              {r.finishing_label && <span>{r.finishing_label}</span>}
               <MetroList stops={r.metro} />
             </div>
           </div>

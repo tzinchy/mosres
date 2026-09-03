@@ -92,6 +92,8 @@ async def get_aparts(
     reserved_only: bool = False,
     available_only: bool = False,
     family_only: bool = False,
+    auction_only: bool = False,
+    finishing: Literal["FULL", "NO", "STD"] | None = None,
     comment_only: bool = False,
     min_price: float | None = None,
     max_price: float | None = None,
@@ -108,6 +110,8 @@ async def get_aparts(
         reserved_only=reserved_only,
         available_only=available_only,
         family_only=family_only,
+        auction_only=auction_only,
+        finishing=finishing,
         comment_only=comment_only,
         min_price=min_price,
         max_price=max_price,
@@ -188,9 +192,15 @@ async def get_dashboard_changes(
     response_model=list[PivotPoint],
 )
 async def get_dashboard_pivot(
-    dimension: Literal["date", "district", "rooms", "building"],
+    dimension: Literal["date", "district", "rooms", "building", "finishing"],
     metric: Literal[
-        "count", "reserved", "discounted", "family", "avg_price", "avg_price_m"
+        "count",
+        "reserved",
+        "discounted",
+        "family",
+        "auction",
+        "avg_price",
+        "avg_price_m",
     ],
     favorites_only: bool = False,
     date_from: datetime.date | None = None,
