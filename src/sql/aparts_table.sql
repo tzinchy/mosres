@@ -82,6 +82,11 @@ SELECT
     END                                                                  AS finishing_label,
     (na.auction IS NOT NULL)                                             AS is_auction,
     na.auction                                                          AS auction_url,
+    na.term_of_application                                              AS term_of_application,
+    CASE
+        WHEN na.term_of_application ~ '^\d{2}\.\d{2}\.\d{4}$'
+        THEN (to_date(na.term_of_application, 'DD.MM.YYYY') - CURRENT_DATE)
+    END                                                                  AS deadline_days,
     -- «выгода» = на сколько % ниже своего исторического максимума + размер текущей скидки, %
     round(
         COALESCE(GREATEST(0, -CASE WHEN mx.price_max > 0
@@ -149,6 +154,14 @@ WHERE (
   AND (NOT CAST(:family_only AS boolean) OR COALESCE(na.property, '') ILIKE '%семейн%')
   AND (NOT CAST(:auction_only AS boolean) OR na.auction IS NOT NULL)
   AND (CAST(:finishing AS text) IS NULL OR b.finishing_code = CAST(:finishing AS text))
+  AND (
+        CAST(:deadline_max AS integer) IS NULL
+        OR (
+            na.term_of_application ~ '^\d{2}\.\d{2}\.\d{4}$'
+            AND (to_date(na.term_of_application, 'DD.MM.YYYY') - CURRENT_DATE)
+                BETWEEN 0 AND CAST(:deadline_max AS integer)
+        )
+      )
   AND (NOT CAST(:comment_only AS boolean) OR cmt.new_apart_id IS NOT NULL)
   AND (CAST(:min_price AS numeric) IS NULL OR cur.price_num >= CAST(:min_price AS numeric))
   AND (CAST(:max_price AS numeric) IS NULL OR cur.price_num <= CAST(:max_price AS numeric))

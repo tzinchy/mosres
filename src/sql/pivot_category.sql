@@ -1,5 +1,6 @@
--- Current snapshot of new_aparts grouped by one category. {key} and {join} are
--- substituted from a whitelist in the service layer (never user input).
+-- Current snapshot of new_aparts grouped by one category. {key} is substituted
+-- from a whitelist in the service layer (never user input). buildings/districts
+-- are always joined so any dimension can also be scoped to one округ.
 SELECT
     {key} AS key,
     count(*) AS count,
@@ -14,9 +15,13 @@ SELECT
     round(avg(NULLIF(regexp_replace(na.price, '\D', '', 'g'), '')::numeric)) AS avg_price,
     round(avg(NULLIF(regexp_replace(na.price_m, '\D', '', 'g'), '')::numeric)) AS avg_price_m
 FROM new_aparts na
-{join}
-WHERE NOT CAST(:favorites_only AS boolean)
-   OR na.new_apart_id IN (SELECT new_apart_id FROM favorites)
+LEFT JOIN buildings b ON b.building_id = na.building_id::int
+LEFT JOIN districts d ON d.district_id = b.county
+WHERE (
+        NOT CAST(:favorites_only AS boolean)
+        OR na.new_apart_id IN (SELECT new_apart_id FROM favorites)
+      )
+  AND (CAST(:district AS text) IS NULL OR d.name = CAST(:district AS text))
 GROUP BY 1
 ORDER BY count DESC
 LIMIT 40;

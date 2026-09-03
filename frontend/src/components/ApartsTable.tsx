@@ -2,12 +2,11 @@ import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
+  DeadlineBadge,
   DiscountCell,
   FinishingBadge,
   PriceDelta,
@@ -25,7 +25,6 @@ import {
 import { ColumnsMenu } from "@/components/ColumnsMenu";
 import { MetroList } from "@/components/MetroList";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useApartCols, type ApartCols } from "@/hooks/useApartCols";
 import { money } from "@/lib/format";
 import type { ApartRow } from "@/lib/types";
@@ -111,6 +110,7 @@ export function ApartsTable({
                 </Badge>
               )}
               <FinishingBadge code={r.finishing_code} label={r.finishing_label} />
+              <DeadlineBadge days={r.deadline_days} />
               <ReserveTag reserve={r.reserve} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -259,9 +259,30 @@ export function ApartsTable({
     enableColumnResizing: true,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 50 } },
   });
+
+  const PAGE = 80;
+  const [visible, setVisible] = useState(PAGE);
+  const sentinel = useRef<HTMLTableRowElement>(null);
+  const allRows = table.getRowModel().rows;
+
+  // reset the window whenever the underlying list or sort changes
+  useEffect(() => {
+    setVisible(PAGE);
+  }, [rows, sorting]);
+
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (e) => e[0].isIntersecting && setVisible((v) => v + PAGE),
+      { rootMargin: "600px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [allRows.length]);
+
+  const shown = allRows.slice(0, visible);
 
   return (
     <div>
@@ -325,8 +346,12 @@ export function ApartsTable({
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((r) => {
+            {shown.map((r) => {
               const o = r.original;
+              const hot =
+                o.deadline_days !== null &&
+                o.deadline_days >= 0 &&
+                o.deadline_days <= 7;
               const drop =
                 (o.price_delta_prev !== null && o.price_delta_prev < 0) ||
                 o.discount_is_new;
@@ -337,9 +362,13 @@ export function ApartsTable({
                   className={cn(
                     "cursor-pointer border-b border-border/60 last:border-0 hover:bg-secondary/60",
                     selectedId === o.new_apart_id && "bg-primary/10",
-                    drop
-                      ? "border-l-[3px] border-l-pos"
-                      : "border-l-[3px] border-l-transparent",
+                    hot && "bg-neg-soft/40",
+                    "border-l-[3px]",
+                    hot
+                      ? "border-l-neg"
+                      : drop
+                        ? "border-l-pos"
+                        : "border-l-transparent",
                   )}
                 >
                   {r.getVisibleCells().map((cell) => (
@@ -357,7 +386,7 @@ export function ApartsTable({
                 </tr>
               );
             })}
-            {rows.length === 0 && (
+            {allRows.length === 0 && (
               <tr>
                 <td
                   colSpan={columns.length}
@@ -367,38 +396,14 @@ export function ApartsTable({
                 </td>
               </tr>
             )}
+            <tr ref={sentinel} aria-hidden="true" />
           </tbody>
         </table>
       </div>
 
-      {table.getPageCount() > 1 && (
-        <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
-          <span className="tnum">
-            {table.getState().pagination.pageIndex * 50 + 1}–
-            {Math.min(
-              (table.getState().pagination.pageIndex + 1) * 50,
-              rows.length,
-            )}{" "}
-            из {rows.length}
-          </span>
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Назад
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Вперёд
-            </Button>
-          </div>
+      {allRows.length > 0 && (
+        <div className="tnum mt-2 text-xs text-muted-foreground">
+          показано {Math.min(visible, allRows.length)} из {allRows.length}
         </div>
       )}
     </div>

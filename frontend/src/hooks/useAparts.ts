@@ -13,6 +13,7 @@ export interface ApartFilters {
   family_only?: boolean;
   auction_only?: boolean;
   finishing?: "FULL" | "NO" | "STD";
+  deadline_max?: number;
   comment_only?: boolean;
   best_only?: boolean;
   min_price?: number;

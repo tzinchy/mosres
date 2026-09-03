@@ -41,6 +41,7 @@ const COUNTED: (keyof ApartFilters)[] = [
   ...TOGGLES.map((t) => t.key),
   "building_id",
   "finishing",
+  "deadline_max",
   "min_price",
   "max_price",
   "min_discount",
@@ -207,6 +208,11 @@ export function ApartsToolbar({
               placeholder="Скидка от, %"
               value={value.min_discount}
               onChange={(n) => set({ min_discount: n })}
+            />
+            <NumInput
+              placeholder="Заявка ≤ дней"
+              value={value.deadline_max}
+              onChange={(n) => set({ deadline_max: n })}
             />
 
             <div className="flex flex-wrap gap-1.5">

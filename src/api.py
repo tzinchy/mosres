@@ -21,6 +21,8 @@ from src.schemas import (
     PivotPoint,
     ScatterPoint,
     SankeyRow,
+    BreakdownRow,
+    DeadlinePoint,
     FavoriteToggleResult,
     MetroStat,
     Notification,
@@ -96,6 +98,7 @@ async def get_aparts(
     family_only: bool = False,
     auction_only: bool = False,
     finishing: Literal["FULL", "NO", "STD"] | None = None,
+    deadline_max: int | None = None,
     comment_only: bool = False,
     min_price: float | None = None,
     max_price: float | None = None,
@@ -114,6 +117,7 @@ async def get_aparts(
         family_only=family_only,
         auction_only=auction_only,
         finishing=finishing,
+        deadline_max=deadline_max,
         comment_only=comment_only,
         min_price=min_price,
         max_price=max_price,
@@ -207,6 +211,7 @@ async def get_dashboard_pivot(
     favorites_only: bool = False,
     date_from: datetime.date | None = None,
     date_to: datetime.date | None = None,
+    district: str | None = None,
     mosres_service: MosResService = Depends(get_mosres_service),
 ):
     return await mosres_service.get_dashboard_pivot(
@@ -215,6 +220,7 @@ async def get_dashboard_pivot(
         favorites_only=favorites_only,
         date_from=date_from,
         date_to=date_to,
+        district=district,
     )
 
 
@@ -240,6 +246,34 @@ async def get_dashboard_sankey(
     mosres_service: MosResService = Depends(get_mosres_service),
 ):
     return await mosres_service.get_sankey(favorites_only=favorites_only)
+
+
+@app.get(
+    "/dashboard/deadlines",
+    tags=["dashboard"],
+    response_model=list[DeadlinePoint],
+)
+async def get_dashboard_deadlines(
+    favorites_only: bool = False,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_deadlines(favorites_only=favorites_only)
+
+
+@app.get(
+    "/dashboard/breakdown",
+    tags=["dashboard"],
+    response_model=list[BreakdownRow],
+)
+async def get_dashboard_breakdown(
+    dimension: Literal["district", "rooms", "finishing"],
+    favorites_only: bool = False,
+    district: str | None = None,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_breakdown(
+        dimension=dimension, favorites_only=favorites_only, district=district
+    )
 
 
 @app.get("/buildings/stats", tags=["buildings"], response_model=list[BuildingStat])

@@ -7,7 +7,12 @@ import {
   Tooltip,
   YAxis,
 } from "recharts";
-import { DiscountCell, FinishingBadge, ReserveTag } from "@/components/cells";
+import {
+  DeadlineBadge,
+  DiscountCell,
+  FinishingBadge,
+  ReserveTag,
+} from "@/components/cells";
 import { MetroList } from "@/components/MetroList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -160,12 +165,16 @@ export function ApartSheet({
                 <span className="tnum">кв. {apart.number}</span>
                 <span>· {apart.type_label ?? "квартира"}</span>
                 <span className="tnum">· {apart.rooms}-комн · {apart.area} м²</span>
+                {apart.term_of_application && (
+                  <span className="tnum">· заявка до {apart.term_of_application}</span>
+                )}
               </div>
               <div className="mt-1 flex flex-wrap gap-1.5">
                 <FinishingBadge
                   code={apart.finishing_code}
                   label={apart.finishing_label}
                 />
+                <DeadlineBadge days={apart.deadline_days} />
                 {apart.is_family && (
                   <Badge className="border-transparent bg-accent text-accent-foreground">
                     семейная ипотека

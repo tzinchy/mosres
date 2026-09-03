@@ -44,6 +44,8 @@ class ApartRow(BaseModel):
     finishing_label: str | None = None
     is_auction: bool = False
     auction_url: str | None = None
+    term_of_application: str | None = None
+    deadline_days: int | None = None
     deal_score: float | None = None
     mosres_url: str
     updated_at: datetime.datetime
@@ -115,6 +117,23 @@ class SankeyRow(BaseModel):
     district: str
     rooms: str
     bucket: str
+    count: int
+
+
+class BreakdownRow(BaseModel):
+    key: str
+    count: int
+    reserved: int
+    discounted: int
+    family: int
+    auction: int
+    avg_price: float | None = None
+    avg_price_m: float | None = None
+
+
+class DeadlinePoint(BaseModel):
+    date: datetime.date
+    days_left: int
     count: int
 
 

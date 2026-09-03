@@ -34,35 +34,30 @@ function jitter(id: number) {
   return (h / 1000 - 0.5) * 0.7;
 }
 
-function median(xs: number[]) {
-  if (!xs.length) return 0;
-  const s = [...xs].sort((a, b) => a - b);
-  return s[s.length >> 1];
-}
-
 export function Beeswarm({ favOnly }: { favOnly: boolean }) {
   const { data, isLoading } = useScatter(favOnly);
   const [xKey, setXKey] = useState<XKey>("price_m");
 
-  const { rows, districts } = useMemo(() => {
+  // fixed district order (by apartment count) — does not change when the
+  // metric toggles, so rows stay put
+  const districts = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const p of data ?? []) n.set(p.district, (n.get(p.district) ?? 0) + 1);
+    return [...n.keys()].sort((a, b) => n.get(b)! - n.get(a)!);
+  }, [data]);
+
+  const { rows } = useMemo(() => {
     const pts = (data ?? []).filter((p) => (p[xKey] ?? 0) > 0);
-    const byDistrict = new Map<string, number[]>();
-    for (const p of pts) {
-      const arr = byDistrict.get(p.district) ?? [];
-      arr.push(p[xKey] as number);
-      byDistrict.set(p.district, arr);
-    }
-    const districts = [...byDistrict.keys()].sort(
-      (a, b) => median(byDistrict.get(a)!) - median(byDistrict.get(b)!),
-    );
     const yIndex = new Map(districts.map((d, i) => [d, i]));
-    const rows = pts.map((p) => ({
-      ...p,
-      x: p[xKey] as number,
-      y: yIndex.get(p.district)! + jitter(p.new_apart_id),
-    }));
-    return { rows, districts };
-  }, [data, xKey]);
+    const rows = pts
+      .filter((p) => yIndex.has(p.district))
+      .map((p) => ({
+        ...p,
+        x: p[xKey] as number,
+        y: yIndex.get(p.district)! + jitter(p.new_apart_id),
+      }));
+    return { rows };
+  }, [data, xKey, districts]);
 
   const groups = ROOM_ORDER.filter((r) => rows.some((p) => p.rooms === r)).map(
     (r) => [r, rows.filter((p) => p.rooms === r)] as const,

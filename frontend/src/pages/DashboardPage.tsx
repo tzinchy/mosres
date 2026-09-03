@@ -5,6 +5,9 @@ import { Beeswarm } from "@/components/Beeswarm";
 import { DashboardBreakdowns } from "@/components/DashboardBreakdowns";
 import { DashboardChanges } from "@/components/DashboardChanges";
 import { DashboardChart } from "@/components/DashboardChart";
+import { DeadlinesChart } from "@/components/DeadlinesChart";
+import { DistrictBubbles } from "@/components/DistrictBubbles";
+import { HotAparts } from "@/components/HotAparts";
 import { MetroChart } from "@/components/MetroChart";
 import { PivotChart } from "@/components/PivotChart";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
@@ -163,7 +166,28 @@ export function DashboardPage() {
           </section>
 
           <section>
-            <SectionTitle help="Выберите разрез, показатель и тип графика. «По датам» использует диапазон дат из блока «Состояние списка».">
+            <SectionTitle help="Сколько квартир выходит на торги в каждую дату (срок подачи заявки, term_of_application). Красные — ближайшие 7 дней. Клик — открыть список.">
+              Квартиры по датам заявок
+            </SectionTitle>
+            <DeadlinesChart favOnly={favOnly} />
+          </section>
+
+          <section>
+            <SectionTitle help="Квартиры с ближайшим сроком подачи заявки (term_of_application). После срока раунд закрывается — квартира уходит на аукцион или в следующий раунд.">
+              Горящие: заявка скоро
+            </SectionTitle>
+            <HotAparts favOnly={favOnly} />
+          </section>
+
+          <section>
+            <SectionTitle help="Каждая точка — квартира, разбросана по вертикали внутри своего округа (порядок округов фиксирован по числу квартир). Видно форму распределения цены — где сгущения, разброс, выбросы.">
+              Разброс цены по округам
+            </SectionTitle>
+            <Beeswarm favOnly={favOnly} />
+          </section>
+
+          <section>
+            <SectionTitle help="Выберите разрез, показатель, округ и тип графика. «По датам» использует диапазон дат из блока «Состояние списка».">
               Свой график
             </SectionTitle>
             <PivotChart
@@ -185,17 +209,17 @@ export function DashboardPage() {
           )}
 
           <section>
-            <SectionTitle help="Поток квартир: округ → комнатность → ценовой диапазон. Толщина связи — число квартир.">
-              Округ → комнатность → цена
+            <SectionTitle help="Округа как пузыри: размер — число квартир, положение по горизонтали — средняя цена м², по вертикали — число квартир.">
+              Округа: размер = число квартир
             </SectionTitle>
-            <SankeyChart favOnly={favOnly} />
+            <DistrictBubbles favOnly={favOnly} />
           </section>
 
           <section>
-            <SectionTitle help="Каждая точка — квартира, разбросана по вертикали внутри своего округа. Округа отсортированы по медиане. Видно форму распределения цены — где сгущения.">
-              Разброс цены по округам
+            <SectionTitle help="Поток квартир: округ → комнатность → ценовой диапазон. Толщина связи — число квартир. Наведи на округ — подсветится весь его поток.">
+              Округ → комнатность → цена
             </SectionTitle>
-            <Beeswarm favOnly={favOnly} />
+            <SankeyChart favOnly={favOnly} />
           </section>
 
           {all.data && all.data.length > 0 && (

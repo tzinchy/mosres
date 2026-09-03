@@ -11,7 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDashboardPivot } from "@/hooks/useDashboard";
+import { useBreakdown, useDashboardPivot } from "@/hooks/useDashboard";
 import { moneyShort, shortDate } from "@/lib/format";
 import type { PivotDimension, PivotMetric } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -70,13 +70,16 @@ export function PivotChart({
   const [dimension, setDimension] = useState<PivotDimension>("district");
   const [metric, setMetric] = useState<PivotMetric>("count");
   const [type, setType] = useState<"line" | "bar">("bar");
+  const [district, setDistrict] = useState("");
 
+  const districtList = useBreakdown("district", favOnly);
   const { data, isLoading } = useDashboardPivot(
     dimension,
     metric,
     favOnly,
     dateFrom,
     dateTo,
+    district || undefined,
   );
 
   const money = MONEY.includes(metric);
@@ -98,6 +101,21 @@ export function PivotChart({
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Select value={dimension} onChange={setDimension} options={DIMS} />
         <Select value={metric} onChange={setMetric} options={METRICS} />
+        <select
+          value={district}
+          onChange={(e) => setDistrict(e.target.value)}
+          className="h-8 rounded-md border border-border bg-card px-2 text-xs"
+        >
+          <option value="">Все округа</option>
+          {[...(districtList.data ?? [])]
+            .map((d) => d.key)
+            .sort()
+            .map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+        </select>
         <div className="flex gap-1">
           {(["bar", "line"] as const).map((t) => (
             <button

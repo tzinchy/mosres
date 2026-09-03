@@ -106,6 +106,7 @@ async def get_aparts_table(
     family_only: bool,
     auction_only: bool,
     finishing: str | None,
+    deadline_max: int | None,
     comment_only: bool,
     min_price: float | None,
     max_price: float | None,
@@ -127,6 +128,7 @@ async def get_aparts_table(
             "family_only": family_only,
             "auction_only": auction_only,
             "finishing": finishing or None,
+            "deadline_max": deadline_max,
             "comment_only": comment_only,
             "min_price": min_price,
             "max_price": max_price,
@@ -235,8 +237,14 @@ async def get_sankey(*, favorites_only: bool, session: AsyncSession):
     return result.mappings().all()
 
 
+async def get_deadlines(*, favorites_only: bool, session: AsyncSession):
+    sql = await read_from_sql_folder("deadlines")
+    result = await session.execute(text(sql), {"favorites_only": favorites_only})
+    return result.mappings().all()
+
+
 async def get_pivot_date(
-    *, favorites_only: bool, date_from, date_to, session: AsyncSession
+    *, favorites_only: bool, date_from, date_to, district, session: AsyncSession
 ):
     sql = await read_from_sql_folder("pivot_date")
     result = await session.execute(
@@ -245,17 +253,20 @@ async def get_pivot_date(
             "favorites_only": favorites_only,
             "date_from": date_from,
             "date_to": date_to,
+            "district": district,
         },
     )
     return result.mappings().all()
 
 
 async def get_pivot_category(
-    *, key_expr: str, join: str, favorites_only: bool, session: AsyncSession
+    *, key_expr: str, favorites_only: bool, district, session: AsyncSession
 ):
     template = await read_from_sql_folder("pivot_category")
-    sql = template.replace("{key}", key_expr).replace("{join}", join)
-    result = await session.execute(text(sql), {"favorites_only": favorites_only})
+    sql = template.replace("{key}", key_expr)
+    result = await session.execute(
+        text(sql), {"favorites_only": favorites_only, "district": district}
+    )
     return result.mappings().all()
 
 

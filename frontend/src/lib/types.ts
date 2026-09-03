@@ -39,6 +39,8 @@ export interface ApartRow {
   finishing_label: string | null;
   is_auction: boolean;
   auction_url: string | null;
+  term_of_application: string | null;
+  deadline_days: number | null;
   deal_score: number | null;
   mosres_url: string;
   updated_at: string;
@@ -212,6 +214,23 @@ export interface SankeyRow {
   rooms: string;
   bucket: string;
   count: number;
+}
+
+export interface DeadlinePoint {
+  date: string;
+  days_left: number;
+  count: number;
+}
+
+export interface BreakdownRow {
+  key: string;
+  count: number;
+  reserved: number;
+  discounted: number;
+  family: number;
+  auction: number;
+  avg_price: number | null;
+  avg_price_m: number | null;
 }
 
 export type ChangeKind =

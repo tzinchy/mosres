@@ -28,6 +28,10 @@ export function ApartsPage() {
     const f: ApartFilters = {};
     for (const k of BOOL_KEYS) if (params.get(k)) (f[k] as boolean) = true;
     if (params.get("building_id")) f.building_id = Number(params.get("building_id"));
+    if (params.get("deadline_max"))
+      f.deadline_max = Number(params.get("deadline_max"));
+    const fin = params.get("finishing");
+    if (fin === "FULL" || fin === "NO" || fin === "STD") f.finishing = fin;
     return f;
   });
   const [selected, setSelected] = useState<ApartRow | null>(null);

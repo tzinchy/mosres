@@ -1,3 +1,5 @@
+import { ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboardChanges } from "@/hooks/useDashboard";
@@ -55,55 +57,74 @@ export function DashboardChanges({
   }
 
   return (
-    <div className="space-y-5">
-      {GROUPS.filter((g) => byKind.has(g.kind)).map((g) => {
-        const items = byKind.get(g.kind)!;
-        return (
-          <div key={g.kind}>
-            <div className="mb-2 flex items-baseline gap-2 text-sm font-medium">
-              <span
-                className={cn(
-                  g.tone === "pos" && "text-pos",
-                  g.tone === "neg" && "text-neg",
-                  g.tone === "reserve" && "text-reserve",
-                )}
+    <div className="space-y-2">
+      {GROUPS.filter((g) => byKind.has(g.kind)).map((g) => (
+        <Group key={g.kind} g={g} items={byKind.get(g.kind)!} />
+      ))}
+    </div>
+  );
+}
+
+function Group({
+  g,
+  items,
+}: {
+  g: (typeof GROUPS)[number];
+  items: DashboardChange[];
+}) {
+  const [open, setOpen] = useState(false);
+  const toneCls =
+    g.tone === "pos"
+      ? "text-pos"
+      : g.tone === "neg"
+        ? "text-neg"
+        : "text-reserve";
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-4 py-2.5 text-sm hover:bg-secondary/60"
+      >
+        <ChevronDown
+          size={14}
+          className={cn(
+            "shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
+        <span className={cn("font-medium", toneCls)}>{g.title}</span>
+        <span className="tnum text-xs text-muted-foreground">{items.length}</span>
+      </button>
+      {open && (
+        <div className="divide-y divide-border border-t border-border">
+          {items.map((c) => {
+            const line = priceLine(c);
+            return (
+              <Link
+                key={`${c.new_apart_id}-${c.kind}`}
+                to={g.to}
+                className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-secondary/60"
               >
-                {g.title}
-              </span>
-              <span className="tnum text-xs text-muted-foreground">
-                {items.length}
-              </span>
-            </div>
-            <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
-              {items.map((c) => {
-                const line = priceLine(c);
-                return (
-                  <Link
-                    key={`${c.new_apart_id}-${c.kind}`}
-                    to={g.to}
-                    className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-secondary/60"
-                  >
-                    <span className="min-w-0 truncate">
-                      {c.address}
-                      {c.number ? `, кв. ${c.number}` : ""}
-                    </span>
-                    {line && (
-                      <span
-                        className={cn(
-                          "tnum shrink-0 text-xs",
-                          g.tone === "pos" ? "text-pos" : "text-neg",
-                        )}
-                      >
-                        {line}
-                      </span>
+                <span className="min-w-0 truncate">
+                  {c.address}
+                  {c.number ? `, кв. ${c.number}` : ""}
+                </span>
+                {line && (
+                  <span
+                    className={cn(
+                      "tnum shrink-0 text-xs",
+                      g.tone === "pos" ? "text-pos" : "text-neg",
                     )}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+                  >
+                    {line}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

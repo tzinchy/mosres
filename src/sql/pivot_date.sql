@@ -35,6 +35,16 @@ latest AS (
             NOT CAST(:favorites_only AS boolean)
             OR nah.new_apart_id IN (SELECT new_apart_id FROM fav)
        )
+       AND (
+            CAST(:district AS text) IS NULL
+            OR nah.new_apart_id IN (
+                SELECT na.new_apart_id
+                FROM new_aparts na
+                JOIN buildings b ON b.building_id = na.building_id::int
+                JOIN districts d ON d.district_id = b.county
+                WHERE d.name = CAST(:district AS text)
+            )
+       )
 )
 SELECT
     d::text AS key,

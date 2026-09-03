@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/lib/api";
 import type {
   ApartVersion,
+  BreakdownRow,
   BuildingStat,
   DashboardChange,
+  DeadlinePoint,
   DashboardMetrics,
   DashboardPoint,
   MetroStat,
@@ -45,6 +47,7 @@ export const useDashboardPivot = (
   favoritesOnly: boolean,
   dateFrom?: string,
   dateTo?: string,
+  district?: string,
 ) =>
   useQuery({
     queryKey: [
@@ -54,6 +57,7 @@ export const useDashboardPivot = (
       favoritesOnly,
       dateFrom ?? "",
       dateTo ?? "",
+      district ?? "",
     ],
     queryFn: () =>
       apiGet<PivotPoint[]>("/dashboard/pivot", {
@@ -62,6 +66,7 @@ export const useDashboardPivot = (
         favorites_only: favoritesOnly,
         date_from: dimension === "date" ? dateFrom : undefined,
         date_to: dimension === "date" ? dateTo : undefined,
+        district: district || undefined,
       }),
   });
 
@@ -79,6 +84,28 @@ export const useSankey = (favoritesOnly: boolean) =>
     queryKey: ["sankey", favoritesOnly],
     queryFn: () =>
       apiGet<SankeyRow[]>("/dashboard/sankey", {
+        favorites_only: favoritesOnly,
+      }),
+  });
+
+export const useDeadlines = (favoritesOnly: boolean) =>
+  useQuery({
+    queryKey: ["deadlines", favoritesOnly],
+    queryFn: () =>
+      apiGet<DeadlinePoint[]>("/dashboard/deadlines", {
+        favorites_only: favoritesOnly,
+      }),
+  });
+
+export const useBreakdown = (
+  dimension: "district" | "rooms" | "finishing",
+  favoritesOnly: boolean,
+) =>
+  useQuery({
+    queryKey: ["breakdown", dimension, favoritesOnly],
+    queryFn: () =>
+      apiGet<BreakdownRow[]>("/dashboard/breakdown", {
+        dimension,
         favorites_only: favoritesOnly,
       }),
   });

@@ -64,6 +64,28 @@ export function FinishingBadge({
   return <Badge className={cn("shrink-0 border-transparent", tone)}>{label}</Badge>;
 }
 
+/** days until the purchase-application deadline (term_of_application) */
+export function DeadlineBadge({ days }: { days: number | null }) {
+  if (days == null) return null;
+  if (days < 0)
+    return (
+      <Badge className="shrink-0 border-transparent bg-secondary text-muted-foreground">
+        заявка закрыта
+      </Badge>
+    );
+  const tone =
+    days <= 7
+      ? "bg-neg-soft text-neg font-medium"
+      : days <= 14
+        ? "bg-accent text-accent-foreground"
+        : "bg-secondary text-secondary-foreground";
+  return (
+    <Badge className={cn("tnum shrink-0 border-transparent", tone)}>
+      заявка: {days} дн
+    </Badge>
+  );
+}
+
 export function ReserveTag({ reserve }: { reserve: number | null }) {
   if (reserve !== 1) return null;
   return (

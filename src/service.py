@@ -17,6 +17,8 @@ from src.schemas import (
     PivotPoint,
     ScatterPoint,
     SankeyRow,
+    BreakdownRow,
+    DeadlinePoint,
     MetroStat,
     Notification,
     PriceHistoryPoint,
@@ -52,6 +54,7 @@ from src.repository import (
     get_pivot_category,
     get_scatter,
     get_sankey,
+    get_deadlines,
     get_history_date_range,
     get_buildings_stats,
     get_notifications,
@@ -337,6 +340,7 @@ class MosResService:
         family_only: bool = False,
         auction_only: bool = False,
         finishing: str | None = None,
+        deadline_max: int | None = None,
         comment_only: bool = False,
         min_price: float | None = None,
         max_price: float | None = None,
@@ -355,6 +359,7 @@ class MosResService:
                 family_only=family_only,
                 auction_only=auction_only,
                 finishing=finishing,
+                deadline_max=deadline_max,
                 comment_only=comment_only,
                 min_price=min_price,
                 max_price=max_price,
@@ -441,6 +446,7 @@ class MosResService:
         favorites_only: bool = False,
         date_from: datetime.date | None = None,
         date_to: datetime.date | None = None,
+        district: str | None = None,
     ) -> list[PivotPoint]:
         if dimension == "date":
             today = datetime.date.today()
@@ -459,6 +465,7 @@ class MosResService:
                     favorites_only=favorites_only,
                     date_from=df,
                     date_to=dt,
+                    district=district,
                     session=session,
                 )
         else:
@@ -466,8 +473,8 @@ class MosResService:
             async with Session() as session:
                 rows = await get_pivot_category(
                     key_expr=dim["key"],
-                    join=dim["join"],
                     favorites_only=favorites_only,
+                    district=district,
                     session=session,
                 )
 
@@ -492,6 +499,31 @@ class MosResService:
                 favorites_only=favorites_only, session=session
             )
         return [SankeyRow.model_validate(dict(r)) for r in rows]
+
+    async def get_deadlines(
+        self, favorites_only: bool = False
+    ) -> list[DeadlinePoint]:
+        async with Session() as session:
+            rows = await get_deadlines(
+                favorites_only=favorites_only, session=session
+            )
+        return [DeadlinePoint.model_validate(dict(r)) for r in rows]
+
+    async def get_breakdown(
+        self,
+        dimension: str,
+        favorites_only: bool = False,
+        district: str | None = None,
+    ) -> list[BreakdownRow]:
+        dim = PIVOT_DIMS[dimension]
+        async with Session() as session:
+            rows = await get_pivot_category(
+                key_expr=dim["key"],
+                favorites_only=favorites_only,
+                district=district,
+                session=session,
+            )
+        return [BreakdownRow.model_validate(dict(r)) for r in rows]
 
     async def get_buildings_stats(self) -> list[BuildingStat]:
         async with Session() as session:
