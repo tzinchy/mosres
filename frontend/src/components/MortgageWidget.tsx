@@ -22,7 +22,8 @@ import {
   DOWN_COLORS,
   loanFor,
   MIN_DOWN_PCT,
-  resolveDowns,
+  pctOfPrice,
+  resolveDownRubs,
   type Program,
 } from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
@@ -54,28 +55,29 @@ export function MortgageWidget({
 
   const rate = cfgRate(c, rates?.market_rate ?? 20);
   const months = c.tableTerm * 12;
-  const downs = resolveDowns(c);
+  const downs = resolveDownRubs(c);
+  const downPctNow = pctOfPrice(c.downRub, price);
 
-  const payAt = (p: number, priceOverride = price) =>
-    Math.round(annuity(loanFor(priceOverride, p), rate, months));
+  const payAt = (rub: number, priceOverride = price) =>
+    Math.round(annuity(loanFor(priceOverride, rub), rate, months));
 
   // диапазон итоговой цены аукциона: старт +10…30 % (по текущему взносу)
   const loPrice = Math.round(price * (1 + AUCTION_UPLIFT_MIN));
   const hiPrice = Math.round(price * (1 + AUCTION_UPLIFT_MAX));
-  const base = payAt(c.downPct);
-  const auLo = isAuction ? payAt(c.downPct, loPrice) : null;
-  const auHi = isAuction ? payAt(c.downPct, hiPrice) : null;
+  const base = payAt(c.downRub);
+  const auLo = isAuction ? payAt(c.downRub, loPrice) : null;
+  const auHi = isAuction ? payAt(c.downRub, hiPrice) : null;
 
   const series = Array.from({ length: 30 }, (_, i) => {
     const y = i + 1;
     const row: Record<string, number | number[]> = { y };
-    downs.forEach((p, di) => {
-      row[`m${di}`] = Math.round(annuity(loanFor(price, p), rate, y * 12));
+    downs.forEach((rub, di) => {
+      row[`m${di}`] = Math.round(annuity(loanFor(price, rub), rate, y * 12));
     });
     if (isAuction) {
       row.band = [
-        Math.round(annuity(loanFor(loPrice, c.downPct), rate, y * 12)),
-        Math.round(annuity(loanFor(hiPrice, c.downPct), rate, y * 12)),
+        Math.round(annuity(loanFor(loPrice, c.downRub), rate, y * 12)),
+        Math.round(annuity(loanFor(hiPrice, c.downRub), rate, y * 12)),
       ];
     }
     return row;
@@ -146,9 +148,9 @@ export function MortgageWidget({
           )}{" "}
           ₽<span className="text-sm font-normal">/мес</span>
           <span className="ml-1 text-xs font-normal text-muted-foreground">
-            · взнос {Math.round(c.downPct)}%
+            · взнос {moneyShort(c.downRub)} ({downPctNow}%)
           </span>
-          {c.downPct < MIN_DOWN_PCT && (
+          {downPctNow < MIN_DOWN_PCT && (
             <span className="ml-1 rounded-full bg-neg-soft px-1.5 py-0.5 text-xs font-medium text-neg">
               недостаточно средств
             </span>
@@ -198,12 +200,12 @@ export function MortgageWidget({
                   fillOpacity={0.16}
                 />
               )}
-              {downs.map((p, di) => (
+              {downs.map((rub, di) => (
                 <Line
                   key={di}
                   type="monotone"
                   dataKey={`m${di}`}
-                  name={`взнос ${Math.round(p)}%`}
+                  name={`взнос ${moneyShort(rub)} (${pctOfPrice(rub, price)}%)`}
                   stroke={DOWN_COLORS[di % DOWN_COLORS.length]}
                   strokeWidth={2}
                   dot={false}
@@ -213,13 +215,13 @@ export function MortgageWidget({
           </ResponsiveContainer>
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
-          {downs.map((p, di) => (
+          {downs.map((rub, di) => (
             <span key={di} className="inline-flex items-center gap-1">
               <span
                 className="inline-block h-0.5 w-3"
                 style={{ background: DOWN_COLORS[di % DOWN_COLORS.length] }}
               />
-              взнос {Math.round(p)}%
+              {moneyShort(rub)} ({pctOfPrice(rub, price)}%)
             </span>
           ))}
           {isAuction && (

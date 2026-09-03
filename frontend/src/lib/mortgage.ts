@@ -4,19 +4,20 @@ export type Program = "family" | "market" | "custom";
 
 export interface MortgageCfg {
   price: number;
-  downPct: number;
+  /** первоначальный взнос — АБСОЛЮТНАЯ сумма в ₽ («мои деньги»), одна и та же для любой квартиры */
+  downRub: number;
   program: Program;
   familyRate: number;
   marketRate: number; // 0 = не задано, подставится из /rates
   customRate: number;
   comfort: number;
   tableTerm: number; // срок для оценки платежа в таблице квартир, лет
-  compareDowns: number[]; // доп. доли взноса (%) для сравнения на графиках
+  compareDowns: number[]; // доп. суммы взноса, ₽, для сравнения на графиках
 }
 
 export const MORTGAGE_DEFAULT: MortgageCfg = {
   price: 15_000_000,
-  downPct: 20,
+  downRub: 3_000_000,
   program: "family",
   familyRate: 6,
   marketRate: 0,
@@ -28,17 +29,24 @@ export const MORTGAGE_DEFAULT: MortgageCfg = {
 
 export function loadMortgageCfg(): MortgageCfg {
   try {
-    const cfg = {
-      ...MORTGAGE_DEFAULT,
-      ...JSON.parse(localStorage.getItem(MORTGAGE_KEY) ?? "{}"),
-    };
-    // heal junk from earlier builds: keep valid numbers, at most 3 extras
-    cfg.compareDowns = (
-      Array.isArray(cfg.compareDowns) ? cfg.compareDowns : []
-    )
+    const raw = JSON.parse(localStorage.getItem(MORTGAGE_KEY) ?? "{}");
+    const cfg = { ...MORTGAGE_DEFAULT, ...raw };
+    const price = Number(cfg.price) || MORTGAGE_DEFAULT.price;
+
+    // migrate the old percent-based model (downPct + compareDowns as %)
+    if (cfg.downRub == null && raw.downPct != null) {
+      cfg.downRub = Math.round((price * Number(raw.downPct)) / 100);
+    }
+    let cd = (Array.isArray(cfg.compareDowns) ? cfg.compareDowns : [])
       .map((n: unknown) => Number(n))
-      .filter((n: number) => Number.isFinite(n) && n >= 0 && n <= 95)
-      .slice(0, 3);
+      .filter((n: number) => Number.isFinite(n) && n >= 0);
+    // old values were percentages (all tiny); anything ≤ 95 → treat as %
+    if (cd.length && cd.every((n: number) => n > 0 && n <= 95)) {
+      cd = cd.map((p: number) => Math.round((price * p) / 100));
+    }
+    cfg.compareDowns = cd.slice(0, 3);
+    if (!Number.isFinite(cfg.downRub)) cfg.downRub = MORTGAGE_DEFAULT.downRub;
+    delete (cfg as Record<string, unknown>).downPct;
     return cfg;
   } catch {
     return { ...MORTGAGE_DEFAULT };
@@ -64,14 +72,22 @@ export function cfgRate(c: MortgageCfg, marketFallback: number): number {
   return c.customRate;
 }
 
+/** loan body = price minus the (fixed) down payment, never below zero */
+export function loanFor(price: number, downRub: number): number {
+  return Math.max(0, price - Math.min(downRub, price));
+}
+
 /** estimated monthly payment for an apartment price under a saved config */
 export function monthlyFor(
   price: number,
   c: MortgageCfg,
   marketFallback: number,
 ): number {
-  const loan = Math.max(0, price - (price * c.downPct) / 100);
-  return annuity(loan, cfgRate(c, marketFallback), c.tableTerm * 12);
+  return annuity(
+    loanFor(price, c.downRub),
+    cfgRate(c, marketFallback),
+    c.tableTerm * 12,
+  );
 }
 
 /** distinct colour per compared down payment, in list order */
@@ -80,13 +96,12 @@ export const DOWN_COLORS = ["#4363d8", "#3cb44b", "#d98324", "#e6194b"];
 /** banks typically want at least this share down; below it — "недостаточно средств" */
 export const MIN_DOWN_PCT = 20;
 
-/** the ordered list of down-payment shares (%) every chart draws: current first, then saved extras */
-export function resolveDowns(c: MortgageCfg): number[] {
-  return [c.downPct, ...c.compareDowns]
-    .filter((p) => p >= 0 && p <= 95)
-    .slice(0, 4);
+/** what share of the price a ₽ down payment covers, 1 decimal */
+export function pctOfPrice(rub: number, price: number): number {
+  return price > 0 ? Math.round((rub / price) * 1000) / 10 : 0;
 }
 
-export function loanFor(price: number, downPct: number): number {
-  return Math.max(0, price - Math.round((price * downPct) / 100));
+/** the ordered list of down-payment sums (₽) every chart draws: current first, then saved extras */
+export function resolveDownRubs(c: MortgageCfg): number[] {
+  return [c.downRub, ...c.compareDowns].filter((r) => r >= 0).slice(0, 4);
 }

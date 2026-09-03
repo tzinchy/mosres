@@ -25,7 +25,8 @@ import {
   DOWN_COLORS,
   loanFor,
   MIN_DOWN_PCT,
-  resolveDowns,
+  pctOfPrice,
+  resolveDownRubs,
 } from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
 
@@ -113,8 +114,9 @@ export function MortgagePage() {
   }, [rates, c.marketRate]);
 
   const rate = cfgRate(c, rates?.market_rate ?? 20);
-  const down = Math.round((c.price * c.downPct) / 100);
+  const down = Math.min(c.downRub, c.price);
   const loan = Math.max(0, c.price - down);
+  const downPctNow = pctOfPrice(c.downRub, c.price);
 
   const rows = TERMS.map((years, i, arr) => {
     const m = annuity(loan, rate, years * 12);
@@ -156,12 +158,12 @@ export function MortgagePage() {
 
   // все графики строятся сразу для нескольких первоначальных взносов —
   // список редактируется в блоке «Мои первоначальные взносы» и сохраняется
-  const downs = resolveDowns(c);
+  const downs = resolveDownRubs(c);
   const multi = downs.length > 1;
-  const downSeries = downs.map((p, i) => {
-    const ln = loanFor(c.price, p);
+  const downSeries = downs.map((rub, i) => {
+    const ln = loanFor(c.price, rub);
     return {
-      p,
+      p: rub,
       color: DOWN_COLORS[i % DOWN_COLORS.length],
       term: TERMS.map((years) => {
         const m = annuity(ln, rate, years * 12);
@@ -181,8 +183,8 @@ export function MortgagePage() {
     });
     return o;
   });
-  const downLabel = (p: number) =>
-    `взнос ${p}% · ${moneyShort(Math.round((c.price * p) / 100))}`;
+  const downLabel = (rub: number) =>
+    `взнос ${moneyShort(rub)} · ${pctOfPrice(rub, c.price)}%`;
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6 p-5 md:p-8">
@@ -276,9 +278,9 @@ export function MortgagePage() {
             Кредит: <span className="tnum font-semibold">{money(loan)} ₽</span>{" "}
             под <span className="tnum font-semibold">{rate}%</span>
           </span>
-          {c.downPct < MIN_DOWN_PCT && (
+          {downPctNow < MIN_DOWN_PCT && (
             <span className="rounded-full bg-neg-soft px-2 py-0.5 text-xs font-medium text-neg">
-              взнос ниже {MIN_DOWN_PCT}% — недостаточно средств
+              взнос {downPctNow}% — ниже {MIN_DOWN_PCT}%, недостаточно средств
             </span>
           )}
           {optimal && (
@@ -626,8 +628,8 @@ export function MortgagePage() {
       <figure className="space-y-1">
         <figcaption className="text-xs text-muted-foreground">
           Куда уходят платежи при сроке {c.tableTerm} {yearWord(c.tableTerm)} и
-          текущем взносе {Math.round(c.downPct)}%: первые годы — почти одни
-          проценты.
+          текущем взносе {moneyShort(c.downRub)} ({downPctNow}%): первые годы —
+          почти одни проценты.
         </figcaption>
         <div className="h-72 w-full rounded-xl bg-panel p-4">
           <ResponsiveContainer>

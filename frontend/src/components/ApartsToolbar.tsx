@@ -245,7 +245,8 @@ export function ApartsToolbar({
                 <span className="text-xs text-muted-foreground">лет</span>
               </div>
               <p className="text-[11px] leading-tight text-muted-foreground">
-                Платёж считается по калькулятору: взнос {mtg.downPct}%,{" "}
+                Платёж считается по калькулятору: взнос{" "}
+                {mtg.downRub.toLocaleString("ru-RU")} ₽,{" "}
                 {mtg.program === "family"
                   ? "семейная"
                   : mtg.program === "market"

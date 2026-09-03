@@ -231,7 +231,7 @@ export function ApartsTable({
       id: "mortgage",
       header: () => (
         <span
-          title={`Оценка по калькулятору: взнос ${mtgCfg.downPct}%, ${mtgProgram} ставка ${mtgRate}%, срок ${mtgCfg.tableTerm} лет. Параметры — на странице «Ипотека».`}
+          title={`Оценка по калькулятору: взнос ${moneyShort(mtgCfg.downRub)} ₽, ${mtgProgram} ставка ${mtgRate}%, срок ${mtgCfg.tableTerm} лет. Параметры — на странице «Ипотека».`}
           className="underline decoration-dotted underline-offset-2"
         >
           Ипотека/мес
