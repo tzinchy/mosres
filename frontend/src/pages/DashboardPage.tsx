@@ -7,7 +7,6 @@ import { DashboardChanges } from "@/components/DashboardChanges";
 import { DashboardChart } from "@/components/DashboardChart";
 import { DeadlinesChart } from "@/components/DeadlinesChart";
 import { DistrictBubbles } from "@/components/DistrictBubbles";
-import { HotAparts } from "@/components/HotAparts";
 import { MetroChart } from "@/components/MetroChart";
 import { PivotChart } from "@/components/PivotChart";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
@@ -195,13 +194,6 @@ export function DashboardPage() {
             help="Сколько квартир выходит на торги в каждую дату (срок подачи заявки, term_of_application). Красные — ближайшие 7 дней. Клик по столбцу — открыть список."
           >
             <DeadlinesChart favOnly={favOnly} />
-          </Section>
-
-          <Section
-            title="Горящие: заявка скоро"
-            help="Квартиры с ближайшим сроком подачи заявки. После срока раунд закрывается — квартира уходит на аукцион или в следующий раунд."
-          >
-            <HotAparts favOnly={favOnly} />
           </Section>
 
           <Section

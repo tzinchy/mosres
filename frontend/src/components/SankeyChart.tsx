@@ -13,11 +13,75 @@ const BUCKET_ORDER = [
   "30–50 млн",
   "50+ млн",
 ];
-const DISTRICT_PALETTE = [
-  "#4f7686", "#b0763d", "#7d6ca6", "#4f8a6b", "#a1502a", "#5c6b8a",
-  "#3c8f8f", "#9c6b8a", "#6b8f3c", "#8f6b3c", "#3c6b9c", "#8a8f98",
-];
+
+// Vivid categorical scale for Moscow's административные округа — maximally
+// distinct hues so adjacent flows never blend into one grey mass.
+const DISTRICT_COLOR: Record<string, string> = {
+  ЦАО: "#e6194b",
+  САО: "#3cb44b",
+  СВАО: "#4363d8",
+  ВАО: "#f58231",
+  ЮВАО: "#911eb4",
+  ЮАО: "#f032e6",
+  ЮЗАО: "#009c8f",
+  ЗАО: "#9a6324",
+  СЗАО: "#808000",
+  ЗелАО: "#000075",
+  НАО: "#00b4d8",
+  ТАО: "#bcbd22",
+  Прочие: "#9aa0a6",
+};
+const DISTRICT_FALLBACK = ["#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#f032e6", "#009c8f", "#9a6324", "#808000", "#000075", "#00b4d8", "#bcbd22"];
+
+// Sequential green→red price ramp for the ценовой диапазон column.
+const BUCKET_COLOR: Record<string, string> = {
+  "до 10 млн": "#3f8f5f",
+  "10–15 млн": "#7fa03c",
+  "15–20 млн": "#c9a227",
+  "20–30 млн": "#d98324",
+  "30–50 млн": "#c8552f",
+  "50+ млн": "#a83232",
+};
+const ROOM_COLOR = "#5c6b8a";
+
+// Short округ code → human label for tooltips ("СВАО" → "Северо-Восточный округ").
+const DISTRICT_FULL: Record<string, string> = {
+  ЦАО: "Центральный округ",
+  САО: "Северный округ",
+  СВАО: "Северо-Восточный округ",
+  ВАО: "Восточный округ",
+  ЮВАО: "Юго-Восточный округ",
+  ЮАО: "Южный округ",
+  ЮЗАО: "Юго-Западный округ",
+  ЗАО: "Западный округ",
+  СЗАО: "Северо-Западный округ",
+  ЗелАО: "Зеленоградский округ",
+  НАО: "Новомосковский округ",
+  ТАО: "Троицкий округ",
+  Прочие: "Прочие округа",
+};
+
 const SEP = "|";
+
+function kvartira(n: number) {
+  const d = n % 10;
+  const dd = n % 100;
+  if (d === 1 && dd !== 11) return "квартира";
+  if (d >= 2 && d <= 4 && (dd < 12 || dd > 14)) return "квартиры";
+  return "квартир";
+}
+const flats = (n: number) => `${n} ${kvartira(n)}`;
+
+type Layer = 0 | 1 | 2;
+
+function districtLabel(name: string) {
+  return DISTRICT_FULL[name] ?? name;
+}
+function nodePhrase(name: string, layer: Layer) {
+  if (layer === 0) return districtLabel(name);
+  if (layer === 1) return name === "Студия" ? "Студии" : name;
+  return `цена ${name} ₽`;
+}
 
 function build(rows: SankeyRow[]) {
   const districts = [...new Set(rows.map((r) => r.district))].sort();
@@ -26,23 +90,27 @@ function build(rows: SankeyRow[]) {
   const names = [...districts, ...rooms, ...buckets];
 
   const districtColor = new Map(
-    districts.map((d, i) => [d, DISTRICT_PALETTE[i % DISTRICT_PALETTE.length]]),
+    districts.map((d, i) => [
+      d,
+      DISTRICT_COLOR[d] ?? DISTRICT_FALLBACK[i % DISTRICT_FALLBACK.length],
+    ]),
   );
-  const nodes = names.map((name, i) => ({
-    name,
-    layer:
-      i < districts.length
-        ? 0
-        : i < districts.length + rooms.length
-          ? 1
-          : 2,
-    color:
-      i < districts.length
-        ? districtColor.get(name)!
-        : i < districts.length + rooms.length
-          ? "var(--chart-3)"
-          : "var(--chart-2)",
-  }));
+  const nRoom = districts.length + rooms.length;
+  const layerOf = (i: number): Layer => (i < districts.length ? 0 : i < nRoom ? 1 : 2);
+
+  const nodes = names.map((name, i) => {
+    const layer = layerOf(i);
+    return {
+      name,
+      layer,
+      color:
+        layer === 0
+          ? districtColor.get(name)!
+          : layer === 1
+            ? ROOM_COLOR
+            : BUCKET_COLOR[name] ?? ROOM_COLOR,
+    };
+  });
   const idx = new Map(names.map((n, i) => [n, i]));
 
   const acc = new Map<string, number>();
@@ -55,12 +123,10 @@ function build(rows: SankeyRow[]) {
   const links = [...acc].map(([k, v]) => {
     const at = k.indexOf(SEP);
     const src = k.slice(0, at);
-    return {
-      source: idx.get(src)!,
-      target: idx.get(k.slice(at + 1))!,
-      value: v,
-      color: districtColor.get(src) ?? "var(--muted-foreground)",
-    };
+    const dst = k.slice(at + 1);
+    // 1st hop keeps its округ colour; 2nd hop takes the target price-bucket colour.
+    const color = districtColor.get(src) ?? BUCKET_COLOR[dst] ?? ROOM_COLOR;
+    return { source: idx.get(src)!, target: idx.get(dst)!, value: v, color };
   });
   return { nodes, links };
 }
@@ -81,7 +147,8 @@ export function SankeyChart({ favOnly }: { favOnly: boolean }) {
     );
 
   const Node = ({ x, y, width, height, index, payload }: any) => {
-    const right = payload.layer === 2;
+    const layer: Layer = payload.layer;
+    const right = layer === 2;
     return (
       <g
         onMouseEnter={() => setHoverNode(index)}
@@ -94,9 +161,10 @@ export function SankeyChart({ favOnly }: { favOnly: boolean }) {
           textAnchor={right ? "end" : "start"}
           dominantBaseline="middle"
           fontSize={11}
+          fontWeight={layer === 0 ? 600 : 400}
           fill="var(--foreground)"
         >
-          {payload.name}
+          {layer === 1 && payload.name === "Студия" ? "Студии" : payload.name}
         </text>
       </g>
     );
@@ -108,7 +176,7 @@ export function SankeyChart({ favOnly }: { favOnly: boolean }) {
       hoverLink === index ||
       hoverNode === payload.source.index ||
       hoverNode === payload.target.index;
-    const opacity = lit ? 0.6 : anyHover ? 0.05 : 0.18;
+    const opacity = lit ? 0.85 : anyHover ? 0.08 : 0.4;
     return (
       <path
         d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
@@ -122,28 +190,59 @@ export function SankeyChart({ favOnly }: { favOnly: boolean }) {
     );
   };
 
+  const TipContent = ({ payload }: any) => {
+    const p = payload?.[0]?.payload;
+    if (!p) return null;
+    let text: string;
+    if (p.source && typeof p.source === "object") {
+      const s: Layer = p.source.layer;
+      const from = nodePhrase(p.source.name, s);
+      const to = nodePhrase(p.target.name, (s + 1) as Layer);
+      const cap = from.charAt(0).toUpperCase() + from.slice(1);
+      text = `${cap} → ${to}: ${flats(p.value)}`;
+    } else {
+      const phrase = nodePhrase(p.name, p.layer);
+      const cap = phrase.charAt(0).toUpperCase() + phrase.slice(1);
+      text = `${cap} — ${flats(p.value)}`;
+    }
+    return (
+      <div
+        style={{
+          background: "var(--popover)",
+          border: "1px solid var(--border)",
+          borderRadius: 8,
+          padding: "6px 10px",
+          fontSize: 12,
+          color: "var(--popover-foreground)",
+          maxWidth: 260,
+        }}
+      >
+        {text}
+      </div>
+    );
+  };
+
   return (
     <div className="h-[500px] w-full rounded-xl bg-panel p-4">
-      <ResponsiveContainer>
-        <Sankey
-          data={chart}
-          node={<Node />}
-          link={<Link />}
-          nodePadding={14}
-          nodeWidth={10}
-          margin={{ left: 8, right: 8, top: 8, bottom: 8 }}
-        >
-          <Tooltip
-            formatter={(v) => [`${v} кв.`, ""]}
-            contentStyle={{
-              background: "var(--popover)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              fontSize: 12,
-            }}
-          />
-        </Sankey>
-      </ResponsiveContainer>
+      <div className="mb-1 flex justify-between px-1 text-xs font-medium text-muted-foreground">
+        <span>Округ</span>
+        <span>Комнатность</span>
+        <span>Ценовой диапазон</span>
+      </div>
+      <div className="h-[calc(100%-1.5rem)]">
+        <ResponsiveContainer>
+          <Sankey
+            data={chart}
+            node={<Node />}
+            link={<Link />}
+            nodePadding={14}
+            nodeWidth={10}
+            margin={{ left: 8, right: 8, top: 8, bottom: 8 }}
+          >
+            <Tooltip content={<TipContent />} />
+          </Sankey>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
