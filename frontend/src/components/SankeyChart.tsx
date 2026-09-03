@@ -3,6 +3,7 @@ import { ResponsiveContainer, Sankey, Tooltip } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSankey } from "@/hooks/useDashboard";
 import type { SankeyRow } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const ROOM_ORDER = ["Студия", "1-комн", "2-комн", "3-комн", "4-комн", "5-комн"];
 const BUCKET_ORDER = [
@@ -62,6 +63,8 @@ const DISTRICT_FULL: Record<string, string> = {
 };
 
 const SEP = "|";
+type Mode = "rooms" | "direct";
+type Kind = "district" | "rooms" | "bucket";
 
 function kvartira(n: number) {
   const d = n % 10;
@@ -72,22 +75,20 @@ function kvartira(n: number) {
 }
 const flats = (n: number) => `${n} ${kvartira(n)}`;
 
-type Layer = 0 | 1 | 2;
-
 function districtLabel(name: string) {
   return DISTRICT_FULL[name] ?? name;
 }
-function nodePhrase(name: string, layer: Layer) {
-  if (layer === 0) return districtLabel(name);
-  if (layer === 1) return name === "Студия" ? "Студии" : name;
+function nodePhrase(name: string, kind: Kind) {
+  if (kind === "district") return districtLabel(name);
+  if (kind === "rooms") return name === "Студия" ? "Студии" : name;
   return `цена ${name} ₽`;
 }
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function build(rows: SankeyRow[]) {
+function build(rows: SankeyRow[], mode: Mode) {
   const districts = [...new Set(rows.map((r) => r.district))].sort();
   const rooms = ROOM_ORDER.filter((r) => rows.some((x) => x.rooms === r));
   const buckets = BUCKET_ORDER.filter((b) => rows.some((x) => x.bucket === b));
-  const names = [...districts, ...rooms, ...buckets];
 
   const districtColor = new Map(
     districts.map((d, i) => [
@@ -95,45 +96,73 @@ function build(rows: SankeyRow[]) {
       DISTRICT_COLOR[d] ?? DISTRICT_FALLBACK[i % DISTRICT_FALLBACK.length],
     ]),
   );
-  const nRoom = districts.length + rooms.length;
-  const layerOf = (i: number): Layer => (i < districts.length ? 0 : i < nRoom ? 1 : 2);
 
-  const nodes = names.map((name, i) => {
-    const layer = layerOf(i);
+  const order =
+    mode === "rooms"
+      ? [...districts, ...rooms, ...buckets]
+      : [...districts, ...buckets];
+  const kindOf = (name: string): Kind =>
+    districts.includes(name) ? "district" : buckets.includes(name) ? "bucket" : "rooms";
+  const lastRight = mode === "rooms" ? "bucket" : "bucket";
+
+  const nodes = order.map((name) => {
+    const kind = kindOf(name);
     return {
       name,
-      layer,
+      kind,
+      right: kind === lastRight,
       color:
-        layer === 0
+        kind === "district"
           ? districtColor.get(name)!
-          : layer === 1
+          : kind === "rooms"
             ? ROOM_COLOR
             : BUCKET_COLOR[name] ?? ROOM_COLOR,
     };
   });
-  const idx = new Map(names.map((n, i) => [n, i]));
+  const idx = new Map(order.map((n, i) => [n, i]));
 
   const acc = new Map<string, number>();
   const bump = (a: string, b: string, n: number) =>
     acc.set(a + SEP + b, (acc.get(a + SEP + b) ?? 0) + n);
   for (const row of rows) {
-    bump(row.district, row.rooms, row.count);
-    bump(row.rooms, row.bucket, row.count);
+    if (mode === "rooms") {
+      bump(row.district, row.rooms, row.count);
+      bump(row.rooms, row.bucket, row.count);
+    } else {
+      bump(row.district, row.bucket, row.count);
+    }
   }
   const links = [...acc].map(([k, v]) => {
     const at = k.indexOf(SEP);
     const src = k.slice(0, at);
     const dst = k.slice(at + 1);
-    // 1st hop keeps its округ colour; 2nd hop takes the target price-bucket colour.
+    // округ colour on any hop that starts at an округ; otherwise the target bucket colour.
     const color = districtColor.get(src) ?? BUCKET_COLOR[dst] ?? ROOM_COLOR;
     return { source: idx.get(src)!, target: idx.get(dst)!, value: v, color };
   });
-  return { nodes, links };
+
+  // for every price bucket — which округа feed it, biggest first (tooltip)
+  const breakdown = new Map<string, { district: string; count: number }[]>();
+  for (const b of buckets) {
+    const per = new Map<string, number>();
+    for (const row of rows)
+      if (row.bucket === b)
+        per.set(row.district, (per.get(row.district) ?? 0) + row.count);
+    breakdown.set(
+      b,
+      [...per]
+        .map(([district, count]) => ({ district, count }))
+        .sort((x, y) => y.count - x.count),
+    );
+  }
+
+  return { nodes, links, breakdown, districtColor };
 }
 
 export function SankeyChart({ favOnly }: { favOnly: boolean }) {
   const { data, isLoading } = useSankey(favOnly);
-  const chart = useMemo(() => (data ? build(data) : null), [data]);
+  const [mode, setMode] = useState<Mode>("rooms");
+  const chart = useMemo(() => (data ? build(data, mode) : null), [data, mode]);
   const [hoverNode, setHoverNode] = useState<number | null>(null);
   const [hoverLink, setHoverLink] = useState<number | null>(null);
   const anyHover = hoverNode !== null || hoverLink !== null;
@@ -147,8 +176,7 @@ export function SankeyChart({ favOnly }: { favOnly: boolean }) {
     );
 
   const Node = ({ x, y, width, height, index, payload }: any) => {
-    const layer: Layer = payload.layer;
-    const right = layer === 2;
+    const right: boolean = payload.right;
     return (
       <g
         onMouseEnter={() => setHoverNode(index)}
@@ -161,10 +189,12 @@ export function SankeyChart({ favOnly }: { favOnly: boolean }) {
           textAnchor={right ? "end" : "start"}
           dominantBaseline="middle"
           fontSize={11}
-          fontWeight={layer === 0 ? 600 : 400}
+          fontWeight={payload.kind === "district" ? 600 : 400}
           fill="var(--foreground)"
         >
-          {layer === 1 && payload.name === "Студия" ? "Студии" : payload.name}
+          {payload.kind === "rooms" && payload.name === "Студия"
+            ? "Студии"
+            : payload.name}
         </text>
       </g>
     );
@@ -176,7 +206,7 @@ export function SankeyChart({ favOnly }: { favOnly: boolean }) {
       hoverLink === index ||
       hoverNode === payload.source.index ||
       hoverNode === payload.target.index;
-    const opacity = lit ? 0.85 : anyHover ? 0.08 : 0.4;
+    const opacity = lit ? 0.9 : anyHover ? 0.08 : 0.5;
     return (
       <path
         d={`M${sourceX},${sourceY} C${sourceControlX},${sourceY} ${targetControlX},${targetY} ${targetX},${targetY}`}
@@ -190,49 +220,99 @@ export function SankeyChart({ favOnly }: { favOnly: boolean }) {
     );
   };
 
+  const box = {
+    background: "var(--popover)",
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    padding: "6px 10px",
+    fontSize: 12,
+    color: "var(--popover-foreground)",
+    maxWidth: 300,
+  } as const;
+
   const TipContent = ({ payload }: any) => {
     const p = payload?.[0]?.payload;
     if (!p) return null;
-    let text: string;
+
+    // link hover
     if (p.source && typeof p.source === "object") {
-      const s: Layer = p.source.layer;
-      const from = nodePhrase(p.source.name, s);
-      const to = nodePhrase(p.target.name, (s + 1) as Layer);
-      const cap = from.charAt(0).toUpperCase() + from.slice(1);
-      text = `${cap} → ${to}: ${flats(p.value)}`;
-    } else {
-      const phrase = nodePhrase(p.name, p.layer);
-      const cap = phrase.charAt(0).toUpperCase() + phrase.slice(1);
-      text = `${cap} — ${flats(p.value)}`;
+      const from = nodePhrase(p.source.name, p.source.kind);
+      const to = nodePhrase(p.target.name, p.target.kind);
+      return (
+        <div style={box}>
+          {cap(from)} → {to}: {flats(p.value)}
+        </div>
+      );
     }
+
+    // node hover
+    const phrase = nodePhrase(p.name, p.kind);
+    const rows = p.kind === "bucket" ? chart.breakdown.get(p.name) : null;
     return (
-      <div
-        style={{
-          background: "var(--popover)",
-          border: "1px solid var(--border)",
-          borderRadius: 8,
-          padding: "6px 10px",
-          fontSize: 12,
-          color: "var(--popover-foreground)",
-          maxWidth: 260,
-        }}
-      >
-        {text}
+      <div style={box}>
+        <div>
+          {cap(phrase)} — {flats(p.value)}
+        </div>
+        {rows && rows.length > 0 && (
+          <div style={{ marginTop: 4, display: "grid", gap: 2 }}>
+            {rows.slice(0, 7).map((r) => (
+              <div
+                key={r.district}
+                style={{ display: "flex", alignItems: "center", gap: 6 }}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 2,
+                    background: chart.districtColor.get(r.district) ?? ROOM_COLOR,
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ flex: 1 }}>{districtLabel(r.district)}</span>
+                <span style={{ opacity: 0.7 }}>{r.count}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
 
   return (
-    <div className="h-[500px] w-full rounded-xl bg-panel p-4">
+    <div className="h-[520px] w-full rounded-xl bg-panel p-4">
+      <div className="mb-2 flex items-center gap-1.5 text-xs">
+        <span className="mr-1 text-muted-foreground">Разбивка:</span>
+        {(
+          [
+            ["rooms", "по комнатности"],
+            ["direct", "округ → цена"],
+          ] as [Mode, string][]
+        ).map(([m, l]) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={cn(
+              "rounded-full border px-2.5 py-0.5 transition-colors",
+              mode === m
+                ? "border-primary bg-primary/15 font-medium text-primary"
+                : "border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
       <div className="mb-1 flex justify-between px-1 text-xs font-medium text-muted-foreground">
         <span>Округ</span>
-        <span>Комнатность</span>
+        {mode === "rooms" && <span>Комнатность</span>}
         <span>Ценовой диапазон</span>
       </div>
-      <div className="h-[calc(100%-1.5rem)]">
+      <div className="h-[calc(100%-3rem)]">
         <ResponsiveContainer>
           <Sankey
-            data={chart}
+            data={{ nodes: chart.nodes, links: chart.links }}
             node={<Node />}
             link={<Link />}
             nodePadding={14}

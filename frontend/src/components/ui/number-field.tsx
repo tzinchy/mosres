@@ -41,10 +41,16 @@ export function NumberField({
       }}
       onChange={(e) => {
         const raw = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
-        setText(raw);
         const n = Number(raw);
-        if (raw !== "" && Number.isFinite(n))
-          onChange(Math.min(max, Math.max(min, n)));
+        if (raw === "" || !Number.isFinite(n)) {
+          setText(raw);
+          return;
+        }
+        const clamped = Math.min(max, Math.max(min, n));
+        // let the raw text stand while typing, but snap it the moment a
+        // bound is crossed so the field can't show an impossible value
+        setText(clamped !== n ? String(clamped) : raw);
+        onChange(clamped);
       }}
       onBlur={() => {
         focused.current = false;

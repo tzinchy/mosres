@@ -20,10 +20,6 @@ import { annuity, cfgRate } from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
 
 const TERMS = Array.from({ length: 30 }, (_, i) => i + 1);
-// «оптимальный» — самый короткий срок, который влезает в комфортный платёж;
-// небольшое превышение допускаем, иначе +1 год ради 2–3 тыс./мес стоит
-// сотни тысяч лишней переплаты.
-const COMFORT_SLACK = 0.03;
 
 const TIP = {
   background: "var(--popover)",
@@ -131,10 +127,18 @@ export function MortgagePage() {
     };
   }).map((r) => ({
     ...r,
-    ok: c.comfort > 0 && r.monthly <= c.comfort * (1 + COMFORT_SLACK),
+    // строгая проверка — для цвета платежа в таблице
+    ok: c.comfort > 0 && r.monthly <= c.comfort,
   }));
 
-  const optimal = rows.find((r) => r.ok)?.years ?? null;
+  // оптимальный = самый короткий срок, платёж которого укладывается в
+  // комфортный. Крошечный допуск (0.5%, не больше 2 000 ₽) — только на
+  // округление, чтобы платёж 60 196 при комфортных 60 000 считался «влез».
+  const grace = Math.min(c.comfort * 0.005, 2000);
+  const optimal =
+    c.comfort > 0
+      ? rows.find((r) => r.monthly <= c.comfort + grace)?.years ?? null
+      : null;
   // точка убывающей отдачи: 5 лет экономии на платеже от лишнего года уже
   // меньше, чем этот год добавляет к переплате — дальше растягивать невыгодно
   const knee =
@@ -156,8 +160,10 @@ export function MortgagePage() {
 
       <div className="rounded-xl border border-border bg-card p-4">
         <p className="mb-3 text-xs text-muted-foreground">
-          Цену конкретной квартиры можно подставить из карточки квартиры (панель
-          справа) — там же есть быстрый расчёт и графики.
+          Цену квартиры можно подставить из карточки (панель справа) — там же
+          быстрый расчёт и графики. Первоначальный взнос задаёте вы (по
+          умолчанию 20%), он нигде не «подтягивается». Из внешних источников
+          берётся только ключевая ставка ЦБ — и лишь для оценки рыночной.
         </p>
         <div className="flex flex-wrap gap-x-6 gap-y-4">
           <Field
