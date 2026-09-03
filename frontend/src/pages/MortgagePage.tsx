@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -27,6 +27,8 @@ const TIP = {
   borderRadius: 8,
   fontSize: 12,
 } as const;
+
+const CMP_COLORS = ["#4363d8", "#3cb44b", "#d98324", "#e6194b"];
 
 function yearWord(y: number) {
   return y === 1 ? "год" : y % 10 >= 2 && y % 10 <= 4 && (y < 10 || y > 20) ? "года" : "лет";
@@ -148,6 +150,21 @@ export function MortgagePage() {
 
   const split = yearlySplit(loan, rate, c.tableTerm);
 
+  // сравнение нескольких первоначальных взносов на одном графике
+  const [cmpPct, setCmpPct] = useState<number[]>([0, 15, 30]);
+  const [cmpMetric, setCmpMetric] = useState<"monthly" | "overpay">("monthly");
+  const cmpU = [...new Set(cmpPct.filter((p) => p >= 0 && p <= 95))];
+  const cmpData = TERMS.map((years) => {
+    const o: Record<string, number> = { years };
+    for (const p of cmpU) {
+      const dn = Math.round((c.price * p) / 100);
+      const ln = Math.max(0, c.price - dn);
+      const m = annuity(ln, rate, years * 12);
+      o[`p${p}`] = Math.round(cmpMetric === "monthly" ? m : m * years * 12 - ln);
+    }
+    return o;
+  });
+
   return (
     <div className="mx-auto max-w-[1100px] space-y-6 p-5 md:p-8">
       <div>
@@ -172,22 +189,21 @@ export function MortgagePage() {
             min={0}
             onChange={(n) => set({ price: n })}
           />
-          <Field
-            label="Первоначальный взнос, ₽"
-            value={down}
-            min={0}
-            max={c.price}
-            onChange={setDownRub}
-          />
-          <Field
-            label="…он же в %"
-            value={c.downPct}
-            min={0}
-            max={95}
-            suffix="%"
-            className="w-24"
-            onChange={(n) => set({ downPct: n })}
-          />
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Первоначальный взнос, ₽
+            <span className="flex items-center gap-1">
+              <NumberField
+                value={down}
+                min={0}
+                max={c.price}
+                onChange={setDownRub}
+                className="h-9 w-40"
+              />
+              <span className="tnum whitespace-nowrap">
+                {c.price > 0 ? Math.round(c.downPct) : 0}%
+              </span>
+            </span>
+          </label>
           <div className="flex flex-col gap-1 text-xs text-muted-foreground">
             Программа
             <div className="flex h-9 rounded-md border border-input p-0.5">
@@ -258,10 +274,24 @@ export function MortgagePage() {
             под <span className="tnum font-semibold">{rate}%</span>
           </span>
           {optimal && (
-            <span className="text-muted-foreground">
-              оптимальный срок:{" "}
+            <span
+              className="text-muted-foreground"
+              title="Самый короткий срок, платёж которого укладывается в комфортный. Короче — платёж уже не по карману, длиннее — больше переплата."
+            >
+              мин. срок в бюджете:{" "}
               <span className="font-medium text-primary">
                 {optimal} {yearWord(optimal)}
+              </span>
+            </span>
+          )}
+          {knee && (
+            <span
+              className="text-muted-foreground"
+              title="Дальше каждый добавленный год почти не снижает платёж, но заметно увеличивает переплату."
+            >
+              растягивать смысла нет с{" "}
+              <span className="font-medium text-accent-foreground">
+                {knee} {yearWord(knee)}
               </span>
             </span>
           )}
@@ -311,8 +341,11 @@ export function MortgagePage() {
                   <td className="px-4 py-2">
                     {r.years} {yearWord(r.years)}
                     {optimal === r.years && (
-                      <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
-                        оптимальный
+                      <span
+                        className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary"
+                        title="Самый короткий срок, платёж которого укладывается в комфортный"
+                      >
+                        мин. в бюджете
                       </span>
                     )}
                     {knee === r.years && optimal !== r.years && (
@@ -364,7 +397,8 @@ export function MortgagePage() {
       {/* 1. платёж и переплата от срока */}
       <figure className="space-y-1">
         <figcaption className="text-xs text-muted-foreground">
-          Платёж и переплата в зависимости от срока. Точка — оптимальный срок.
+          Платёж и переплата в зависимости от срока. Линии — мин. срок в
+          бюджете и точка убывающей отдачи.
         </figcaption>
         <div className="h-72 w-full rounded-xl bg-panel p-4">
           <ResponsiveContainer>
@@ -586,6 +620,130 @@ export function MortgagePage() {
                 fill="var(--chart-1)"
               />
             </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </figure>
+
+      {/* 4. сравнение первоначальных взносов */}
+      <figure className="space-y-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <figcaption className="text-xs text-muted-foreground">
+            Сравнение взносов —{" "}
+            {cmpMetric === "monthly" ? "платёж/мес" : "переплата"} по сроку
+          </figcaption>
+          <div className="flex h-7 rounded-md border border-input p-0.5 text-xs">
+            {(
+              [
+                ["monthly", "платёж"],
+                ["overpay", "переплата"],
+              ] as const
+            ).map(([k, l]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setCmpMetric(k)}
+                className={cn(
+                  "rounded px-2 transition-colors",
+                  cmpMetric === k
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground",
+                )}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {cmpPct.map((p, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs"
+              >
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ background: CMP_COLORS[i % CMP_COLORS.length] }}
+                />
+                <NumberField
+                  value={p}
+                  min={0}
+                  max={95}
+                  inputMode="numeric"
+                  onChange={(n) =>
+                    setCmpPct((a) => a.map((x, j) => (j === i ? n : x)))
+                  }
+                  className="h-5 w-9 border-0 bg-transparent px-0 text-right"
+                />
+                %
+                <span className="tnum text-muted-foreground">
+                  {moneyShort(Math.round((c.price * p) / 100))}
+                </span>
+                {cmpPct.length > 1 && (
+                  <button
+                    type="button"
+                    aria-label="убрать"
+                    onClick={() =>
+                      setCmpPct((a) => a.filter((_, j) => j !== i))
+                    }
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
+            ))}
+            {cmpPct.length < 4 && (
+              <button
+                type="button"
+                onClick={() => setCmpPct((a) => [...a, 50])}
+                className="rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                + взнос
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="h-72 w-full rounded-xl bg-panel p-4">
+          <ResponsiveContainer>
+            <LineChart
+              data={cmpData}
+              margin={{ left: 8, right: 8, top: 8, bottom: 4 }}
+            >
+              <CartesianGrid
+                stroke="var(--border)"
+                strokeDasharray="2 4"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="years"
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={{ stroke: "var(--border)" }}
+              />
+              <YAxis
+                width={54}
+                tickFormatter={(v) => moneyShort(v)}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                formatter={(v, n) => [`${money(Number(v))} ₽`, n]}
+                labelFormatter={(l) => `${l} ${yearWord(Number(l))}`}
+                contentStyle={TIP}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {cmpU.map((p) => (
+                <Line
+                  key={p}
+                  type="monotone"
+                  dataKey={`p${p}`}
+                  name={`взнос ${p}%`}
+                  stroke={CMP_COLORS[cmpPct.indexOf(p) % CMP_COLORS.length]}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </figure>
