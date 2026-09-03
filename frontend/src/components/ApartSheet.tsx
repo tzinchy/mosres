@@ -14,6 +14,7 @@ import {
   ReserveTag,
 } from "@/components/cells";
 import { MetroList } from "@/components/MetroList";
+import { MortgageWidget } from "@/components/MortgageWidget";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -277,6 +278,8 @@ export function ApartSheet({
                   </a>
                 )}
               </div>
+
+              <MortgageWidget price={apart.price} />
 
               <CommentsSection apartId={apart.new_apart_id} />
 

@@ -25,13 +25,15 @@ import {
 import { ColumnsMenu } from "@/components/ColumnsMenu";
 import { MetroList } from "@/components/MetroList";
 import { Badge } from "@/components/ui/badge";
+import { useRates } from "@/hooks/useDashboard";
 import { useApartCols, type ApartCols } from "@/hooks/useApartCols";
 import { money } from "@/lib/format";
+import { loadMortgageCfg, monthlyFor } from "@/lib/mortgage";
 import type { ApartRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const col = createColumnHelper<ApartRow>();
-const NUMERIC = new Set(["price", "delta_prev", "delta_max"]);
+const NUMERIC = new Set(["price", "delta_prev", "delta_max", "mortgage"]);
 
 export function ApartsTable({
   rows,
@@ -52,6 +54,9 @@ export function ApartsTable({
   ]);
   const fallback = useApartCols();
   const { visibility, setVisibility } = cols ?? fallback;
+  const { data: rateInfo } = useRates();
+  const marketRate = rateInfo?.market_rate ?? 20;
+  const mtgCfg = loadMortgageCfg();
 
   const columns = [
     col.accessor("is_favorite", {
@@ -203,6 +208,19 @@ export function ApartsTable({
       size: 128,
       sortDescFirst: true,
       cell: (c) => <DiscountCell row={c.row.original} />,
+    }),
+    col.accessor((r) => monthlyFor(r.price ?? 0, mtgCfg, marketRate), {
+      id: "mortgage",
+      header: "Ипотека/мес",
+      size: 130,
+      cell: (c) =>
+        c.row.original.price ? (
+          <span className="tnum whitespace-nowrap text-sm">
+            ≈ {money(Math.round(c.getValue()))} ₽
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     }),
     col.display({
       id: "plan",

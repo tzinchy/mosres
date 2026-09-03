@@ -10,12 +10,13 @@ export const APART_COL_LABELS: Record<string, string> = {
   delta_prev: "Δ к прошлой",
   delta_max: "Δ к максимуму",
   discount: "Скидка",
+  mortgage: "Ипотека/мес",
   plan: "Планировка",
   updated: "Обновлено",
 };
 
 // hidden until the user opts in via the columns menu
-const DEFAULTS: VisibilityState = { updated: false };
+const DEFAULTS: VisibilityState = { updated: false, mortgage: false };
 
 export interface ApartCols {
   visibility: VisibilityState;

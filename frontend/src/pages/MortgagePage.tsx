@@ -1,80 +1,65 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { useAparts } from "@/hooks/useAparts";
 import { useRates } from "@/hooks/useDashboard";
 import { money, moneyShort, shortDate } from "@/lib/format";
+import {
+  MORTGAGE_KEY,
+  annuity,
+  cfgRate,
+  loadMortgageCfg,
+  type MortgageCfg,
+} from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
 
-const KEY = "mosres-mortgage";
-const TERMS = [5, 7, 10, 12, 15, 20, 25, 30];
+const TERMS = Array.from({ length: 30 }, (_, i) => i + 1);
 
-type Program = "family" | "market" | "custom";
-interface Cfg {
-  price: number;
-  downPct: number;
-  program: Program;
-  familyRate: number;
-  marketRate: number; // 0 = не задано, подставится из /rates
-  customRate: number;
-  comfort: number;
-}
-const DEFAULT: Cfg = {
-  price: 15_000_000,
-  downPct: 20,
-  program: "family",
-  familyRate: 6,
-  marketRate: 0,
-  customRate: 20,
-  comfort: 150_000,
-};
-
-function load(): Cfg {
-  try {
-    return { ...DEFAULT, ...JSON.parse(localStorage.getItem(KEY) ?? "{}") };
-  } catch {
-    return { ...DEFAULT };
-  }
-}
-
-/** monthly annuity payment */
-function annuity(loan: number, annualPct: number, months: number): number {
-  const r = annualPct / 100 / 12;
-  if (r === 0) return loan / months;
-  const k = Math.pow(1 + r, months);
-  return (loan * r * k) / (k - 1);
-}
-
+/** number field: no spinners, no stuck leading zero, clamps to [min, max] */
 function Field({
   label,
   value,
   onChange,
   suffix,
-  step = 1,
+  min = 0,
+  max = Number.MAX_SAFE_INTEGER,
+  placeholder,
+  className,
 }: {
   label: string;
   value: number;
   onChange: (n: number) => void;
   suffix?: string;
-  step?: number;
+  min?: number;
+  max?: number;
+  placeholder?: string;
+  className?: string;
 }) {
   return (
     <label className="flex flex-col gap-1 text-xs text-muted-foreground">
       {label}
       <span className="flex items-center gap-1">
         <input
-          type="number"
-          step={step}
-          value={Number.isFinite(value) ? value : ""}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="tnum h-9 w-40 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
+          type="text"
+          inputMode="decimal"
+          placeholder={placeholder}
+          value={value === 0 ? "" : String(value)}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
+            const n = raw === "" ? 0 : Number(raw);
+            onChange(Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : 0);
+          }}
+          className={cn(
+            "tnum h-9 w-40 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring",
+            className,
+          )}
         />
         {suffix && <span>{suffix}</span>}
       </span>
@@ -83,41 +68,26 @@ function Field({
 }
 
 export function MortgagePage() {
-  const [c, setC] = useState<Cfg>(load);
-  const set = (patch: Partial<Cfg>) => setC((p) => ({ ...p, ...patch }));
+  const [c, setC] = useState<MortgageCfg>(loadMortgageCfg);
+  const set = (patch: Partial<MortgageCfg>) => setC((p) => ({ ...p, ...patch }));
   useEffect(() => {
-    localStorage.setItem(KEY, JSON.stringify(c));
+    localStorage.setItem(MORTGAGE_KEY, JSON.stringify(c));
   }, [c]);
 
   const { data: rates } = useRates();
-  // подставить рыночную ставку из ЦБ, если пользователь ещё не трогал поле
   useEffect(() => {
     if (rates && c.marketRate === 0)
       setC((p) => ({ ...p, marketRate: rates.market_rate }));
   }, [rates, c.marketRate]);
 
-  const [q, setQ] = useState("");
-  const { data: aparts } = useAparts({});
-  const matches = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (s.length < 2) return [];
-    return (aparts ?? [])
-      .filter(
-        (a) =>
-          a.price &&
-          (`${a.address ?? ""} ${a.number ?? ""}`.toLowerCase().includes(s)),
-      )
-      .slice(0, 6);
-  }, [aparts, q]);
-
-  const rate =
-    c.program === "family"
-      ? c.familyRate
-      : c.program === "market"
-        ? c.marketRate || rates?.market_rate || 20
-        : c.customRate;
+  const rate = cfgRate(c, rates?.market_rate ?? 20);
   const down = Math.round((c.price * c.downPct) / 100);
   const loan = Math.max(0, c.price - down);
+
+  const setDownRub = (rub: number) => {
+    const pct = c.price > 0 ? (Math.min(rub, c.price) / c.price) * 100 : 0;
+    set({ downPct: Math.round(pct * 10) / 10 });
+  };
 
   const rows = TERMS.map((years) => {
     const months = years * 12;
@@ -125,7 +95,6 @@ export function MortgagePage() {
     const total = m * months;
     return {
       years,
-      rate,
       monthly: Math.round(m),
       total: Math.round(total + down),
       overpay: Math.round(total - loan),
@@ -139,56 +108,38 @@ export function MortgagePage() {
       <div>
         <h1 className="text-lg font-semibold">Ипотека</h1>
         <p className="text-sm text-muted-foreground">
-          Аннуитетный расчёт по заданным ставкам. Актуальные ставки уточняйте в
-          банке — здесь они редактируются вручную.
+          Аннуитетный расчёт. Семейная — 6% (госпрограмма); рыночная — оценка
+          «ключевая ЦБ + пункты», точную ставку банка вводите в «Свою».
         </p>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4">
-        <div className="relative mb-4 max-w-md">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Взять цену из квартиры — адрес или номер"
-            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-ring"
-          />
-          {matches.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-border bg-popover shadow-md">
-              {matches.map((a) => (
-                <button
-                  key={a.new_apart_id}
-                  type="button"
-                  onClick={() => {
-                    set({ price: a.price ?? c.price });
-                    setQ("");
-                  }}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-secondary/60"
-                >
-                  <span className="truncate">
-                    {a.address}
-                    {a.number ? `, кв. ${a.number}` : ""}
-                  </span>
-                  <span className="tnum shrink-0 text-xs text-muted-foreground">
-                    {money(a.price)} ₽
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
+        <p className="mb-3 text-xs text-muted-foreground">
+          Цену конкретной квартиры можно подставить из карточки квартиры (панель
+          справа) — там же есть быстрый расчёт.
+        </p>
         <div className="flex flex-wrap gap-x-6 gap-y-4">
           <Field
             label="Цена квартиры, ₽"
             value={c.price}
-            step={100000}
+            min={0}
             onChange={(n) => set({ price: n })}
           />
           <Field
-            label="Первоначальный взнос, %"
+            label="Первоначальный взнос, ₽"
+            value={down}
+            min={0}
+            max={c.price}
+            onChange={setDownRub}
+          />
+          <Field
+            label="…он же в %"
             value={c.downPct}
-            onChange={(n) => set({ downPct: Math.min(90, Math.max(0, n)) })}
-            suffix={`= ${money(down)} ₽`}
+            min={0}
+            max={95}
+            suffix="%"
+            className="w-24"
+            onChange={(n) => set({ downPct: n })}
           />
           <div className="flex flex-col gap-1 text-xs text-muted-foreground">
             Программа
@@ -225,7 +176,9 @@ export function MortgagePage() {
                   : "Ставка, %"
             }
             value={rate}
-            step={0.1}
+            min={0}
+            max={100}
+            className="w-28"
             onChange={(n) =>
               set(
                 c.program === "family"
@@ -239,78 +192,84 @@ export function MortgagePage() {
           <Field
             label="Комфортный платёж, ₽/мес"
             value={c.comfort}
-            step={5000}
+            min={0}
             onChange={(n) => set({ comfort: n })}
+          />
+          <Field
+            label="Срок для оценки в таблице квартир, лет"
+            value={c.tableTerm}
+            min={1}
+            max={30}
+            className="w-24"
+            onChange={(n) => set({ tableTerm: n })}
           />
         </div>
 
         <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
           <span>
-            Сумма кредита:{" "}
-            <span className="tnum font-semibold">{money(loan)} ₽</span>
+            Кредит: <span className="tnum font-semibold">{money(loan)} ₽</span>{" "}
+            под <span className="tnum font-semibold">{rate}%</span>
           </span>
           {rates && (
-            <span
-              className="text-xs text-muted-foreground"
-              title="Семейная ипотека — 6%, ставка фиксирована госпрограммой. «Рыночная» — оценка: ключевая ставка ЦБ плюс несколько процентных пунктов (обычно 3–5). Точную ставку своего банка вводите вручную в поле «Своя»."
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => set({ program: "market", marketRate: 0 })}
+              title="Оценка: ключевая ставка ЦБ + несколько процентных пунктов (обычно 3–5). Точную ставку банка вводите в «Свою»."
             >
-              Ключевая ставка ЦБ {rates.key_rate}%
-              {rates.key_rate_date
-                ? ` на ${shortDate(rates.key_rate_date)}`
-                : ""}{" "}
-              · рыночная ≈ {rates.market_rate}% · семейная {rates.family_rate}%
-            </span>
+              ключевая ЦБ {rates.key_rate}%
+              {rates.key_rate_date ? ` (${shortDate(rates.key_rate_date)})` : ""}{" "}
+              → рыночная ≈ {rates.market_rate}%
+            </button>
           )}
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs text-muted-foreground">
-              <th className="px-4 py-2.5">Срок</th>
-              <th className="px-4 py-2.5 text-right">Ставка</th>
-              <th className="px-4 py-2.5 text-right">Платёж / мес</th>
-              <th className="px-4 py-2.5 text-right">Переплата</th>
-              <th className="px-4 py-2.5 text-right">Всего выплат</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr
-                key={r.years}
-                className={cn(
-                  "border-b border-border/60 last:border-0",
-                  r.ok && "bg-pos-soft/40",
-                )}
-              >
-                <td className="px-4 py-2.5">
-                  {r.years} лет
-                  {optimal === r.years && (
-                    <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
-                      оптимальный
-                    </span>
-                  )}
-                </td>
-                <td className="tnum px-4 py-2.5 text-right">{r.rate}%</td>
-                <td
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="max-h-[520px] overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-card">
+              <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                <th className="px-4 py-2.5">Срок</th>
+                <th className="px-4 py-2.5 text-right">Платёж / мес</th>
+                <th className="px-4 py-2.5 text-right">Переплата</th>
+                <th className="px-4 py-2.5 text-right">Всего выплат</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr
+                  key={r.years}
                   className={cn(
-                    "tnum px-4 py-2.5 text-right font-medium",
-                    c.comfort > 0 && (r.ok ? "text-pos" : "text-neg"),
+                    "border-b border-border/60 last:border-0",
+                    optimal === r.years && "bg-pos-soft/50",
                   )}
                 >
-                  {money(r.monthly)} ₽
-                </td>
-                <td className="tnum px-4 py-2.5 text-right text-muted-foreground">
-                  {money(r.overpay)} ₽
-                </td>
-                <td className="tnum px-4 py-2.5 text-right">
-                  {money(r.total)} ₽
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <td className="px-4 py-2">
+                    {r.years} {r.years === 1 ? "год" : r.years < 5 ? "года" : "лет"}
+                    {optimal === r.years && (
+                      <span className="ml-2 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+                        оптимальный
+                      </span>
+                    )}
+                  </td>
+                  <td
+                    className={cn(
+                      "tnum px-4 py-2 text-right font-medium",
+                      c.comfort > 0 && (r.ok ? "text-pos" : "text-neg"),
+                    )}
+                  >
+                    {money(r.monthly)} ₽
+                  </td>
+                  <td className="tnum px-4 py-2 text-right text-muted-foreground">
+                    {money(r.overpay)} ₽
+                  </td>
+                  <td className="tnum px-4 py-2 text-right">{money(r.total)} ₽</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="h-72 w-full rounded-xl bg-panel p-4">
@@ -319,7 +278,6 @@ export function MortgagePage() {
             <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
             <XAxis
               dataKey="years"
-              unit=" л"
               tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
               tickLine={false}
               axisLine={{ stroke: "var(--border)" }}
@@ -341,6 +299,20 @@ export function MortgagePage() {
               tickLine={false}
               axisLine={false}
             />
+            {c.comfort > 0 && (
+              <ReferenceLine
+                yAxisId="m"
+                y={c.comfort}
+                stroke="var(--pos)"
+                strokeDasharray="4 4"
+                label={{
+                  value: "комфортный",
+                  fontSize: 10,
+                  fill: "var(--pos)",
+                  position: "insideTopRight",
+                }}
+              />
+            )}
             <Tooltip
               formatter={(v, n) => [`${money(Number(v))} ₽`, n]}
               labelFormatter={(l) => `${l} лет`}
@@ -358,7 +330,7 @@ export function MortgagePage() {
               name="Платёж / мес"
               stroke="var(--chart-1)"
               strokeWidth={2}
-              dot
+              dot={false}
             />
             <Line
               yAxisId="o"
@@ -367,7 +339,7 @@ export function MortgagePage() {
               name="Переплата"
               stroke="var(--chart-2)"
               strokeWidth={2}
-              dot
+              dot={false}
             />
           </LineChart>
         </ResponsiveContainer>
