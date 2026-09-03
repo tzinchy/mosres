@@ -77,6 +77,9 @@ export function monthlyFor(
 /** distinct colour per compared down payment, in list order */
 export const DOWN_COLORS = ["#4363d8", "#3cb44b", "#d98324", "#e6194b"];
 
+/** banks typically want at least this share down; below it — "недостаточно средств" */
+export const MIN_DOWN_PCT = 20;
+
 /** the ordered list of down-payment shares (%) every chart draws: current first, then saved extras */
 export function resolveDowns(c: MortgageCfg): number[] {
   return [c.downPct, ...c.compareDowns]

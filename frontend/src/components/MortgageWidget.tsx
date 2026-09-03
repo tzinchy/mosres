@@ -21,6 +21,7 @@ import {
   cfgRate,
   DOWN_COLORS,
   loanFor,
+  MIN_DOWN_PCT,
   resolveDowns,
   type Program,
 } from "@/lib/mortgage";
@@ -147,6 +148,11 @@ export function MortgageWidget({
           <span className="ml-1 text-xs font-normal text-muted-foreground">
             · взнос {Math.round(c.downPct)}%
           </span>
+          {c.downPct < MIN_DOWN_PCT && (
+            <span className="ml-1 rounded-full bg-neg-soft px-1.5 py-0.5 text-xs font-medium text-neg">
+              недостаточно средств
+            </span>
+          )}
         </div>
         {isAuction && auLo && auHi && (
           <div className="tnum text-xs text-reserve">

@@ -2,13 +2,13 @@ import { Plus, X } from "lucide-react";
 import { NumberField } from "@/components/ui/number-field";
 import { useMortgageCfg } from "@/hooks/useMortgageCfg";
 import { moneyShort } from "@/lib/format";
-import { DOWN_COLORS, resolveDowns } from "@/lib/mortgage";
+import { DOWN_COLORS, MIN_DOWN_PCT, resolveDowns } from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
 
 /**
  * "Мои первоначальные взносы" — the editable list that drives every mortgage
- * chart (calculator page and the apartment sheet). Row 0 is the current
- * взнос from settings; the rest are saved comparison shares.
+ * chart (calculator page and the apartment sheet). You enter the sum in ₽;
+ * the % is derived from the price. Row 0 is the current взнос from settings.
  */
 export function MortgageDowns({
   price,
@@ -17,69 +17,67 @@ export function MortgageDowns({
 }: {
   price: number;
   className?: string;
-  /** narrow container (apartment sheet) — drop the ₽ column, keep % */
   compact?: boolean;
 }) {
   const [c, set] = useMortgageCfg();
-  const shown = resolveDowns(c); // current + extras, capped at 4
+  const shown = resolveDowns(c);
   const canAdd = c.compareDowns.length < 3 && shown.length < 4;
+  const hasPrice = price > 0;
 
   const rubOf = (p: number) => Math.round((price * p) / 100);
-  const pctOf = (rub: number) => (price > 0 ? (rub / price) * 100 : 0);
+  const pctOf = (rub: number) =>
+    hasPrice ? Math.round((rub / price) * 1000) / 10 : 0;
 
   const setExtra = (i: number, p: number) =>
     set({ compareDowns: c.compareDowns.map((x, j) => (j === i ? p : x)) });
 
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-border bg-card p-4",
-        className,
-      )}
-    >
+    <div className={cn("rounded-xl border border-border bg-card p-4", className)}>
       <div
         className={cn(
           "mb-3 gap-x-2",
-          compact
-            ? "flex flex-col"
-            : "flex flex-wrap items-center justify-between",
+          compact ? "flex flex-col" : "flex flex-wrap items-center justify-between",
         )}
       >
         <h2 className="text-sm font-semibold">Мои первоначальные взносы</h2>
         <span className="text-xs text-muted-foreground">
-          на всех графиках{compact ? " и в расчёте выше" : ""}
+          сумма в ₽ · процент считается от цены{compact ? "" : " · на всех графиках"}
         </span>
       </div>
 
-      <div className="space-y-2">
-        {/* текущий — правит взнос в настройках */}
-        <Row
-          compact={compact}
-          color={DOWN_COLORS[0]}
-          pct={Math.round(c.downPct * 10) / 10}
-          rub={rubOf(c.downPct)}
-          tag="текущий"
-          onPct={(p) => set({ downPct: p })}
-          onRub={(r) => set({ downPct: Math.round(pctOf(r) * 10) / 10 })}
-        />
+      {!hasPrice && (
+        <p className="text-xs text-muted-foreground">
+          Укажите цену квартиры, чтобы задать взносы суммой.
+        </p>
+      )}
 
-        {c.compareDowns.map((p, i) => (
+      {hasPrice && (
+        <div className="space-y-2">
           <Row
-            key={i}
             compact={compact}
-            color={DOWN_COLORS[(i + 1) % DOWN_COLORS.length]}
-            pct={p}
-            rub={rubOf(p)}
-            onPct={(v) => setExtra(i, v)}
-            onRub={(r) => setExtra(i, Math.round(pctOf(r) * 10) / 10)}
-            onRemove={() =>
-              set({ compareDowns: c.compareDowns.filter((_, j) => j !== i) })
-            }
+            color={DOWN_COLORS[0]}
+            rub={rubOf(c.downPct)}
+            pct={c.downPct}
+            tag="текущий"
+            onRub={(r) => set({ downPct: pctOf(r) })}
           />
-        ))}
-      </div>
+          {c.compareDowns.map((p, i) => (
+            <Row
+              key={i}
+              compact={compact}
+              color={DOWN_COLORS[(i + 1) % DOWN_COLORS.length]}
+              rub={rubOf(p)}
+              pct={p}
+              onRub={(r) => setExtra(i, pctOf(r))}
+              onRemove={() =>
+                set({ compareDowns: c.compareDowns.filter((_, j) => j !== i) })
+              }
+            />
+          ))}
+        </div>
+      )}
 
-      {canAdd && (
+      {hasPrice && canAdd && (
         <button
           type="button"
           onClick={() => {
@@ -95,68 +93,56 @@ export function MortgageDowns({
           <Plus size={13} /> добавить взнос
         </button>
       )}
-      {price <= 0 && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Укажите цену квартиры, чтобы увидеть суммы.
-        </p>
-      )}
     </div>
   );
 }
 
 function Row({
   color,
-  pct,
   rub,
+  pct,
   tag,
   compact,
-  onPct,
   onRub,
   onRemove,
 }: {
   color: string;
-  pct: number;
   rub: number;
+  pct: number;
   tag?: string;
   compact?: boolean;
-  onPct: (p: number) => void;
   onRub: (r: number) => void;
   onRemove?: () => void;
 }) {
+  const short = Math.round(pct * 10) / 10;
+  const low = pct < MIN_DOWN_PCT;
   return (
-    <div className="flex flex-wrap items-center gap-2 text-sm">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
       <span
         className="h-3 w-3 shrink-0 rounded-full"
         style={{ background: color }}
       />
       <NumberField
-        value={pct}
+        value={rub}
         min={0}
-        max={95}
-        onChange={onPct}
-        className="h-9 w-16"
+        onChange={onRub}
+        className={cn("h-9", compact ? "w-28" : "w-36")}
       />
-      <span className="text-muted-foreground">%</span>
-      {!compact && (
-        <>
-          <span className="text-muted-foreground">=</span>
-          <NumberField
-            value={rub}
-            min={0}
-            onChange={onRub}
-            className="h-9 w-32"
-          />
-          <span className="text-muted-foreground">₽</span>
-        </>
-      )}
+      <span className="text-muted-foreground">₽</span>
       <span className="tnum text-xs text-muted-foreground">
-        {compact ? "" : "("}
-        {moneyShort(rub)}
-        {compact ? "" : ")"}
+        · {short}%{compact ? "" : ` (${moneyShort(rub)})`}
       </span>
       {tag && (
         <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
           {tag}
+        </span>
+      )}
+      {low && (
+        <span
+          className="rounded-full bg-neg-soft px-2 py-0.5 text-xs font-medium text-neg"
+          title={`Первоначальный взнос ниже ${MIN_DOWN_PCT}% — банки такую ипотеку обычно не одобряют`}
+        >
+          недостаточно средств
         </span>
       )}
       {onRemove && (

@@ -24,6 +24,7 @@ import {
   cfgRate,
   DOWN_COLORS,
   loanFor,
+  MIN_DOWN_PCT,
   resolveDowns,
 } from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
@@ -115,11 +116,6 @@ export function MortgagePage() {
   const down = Math.round((c.price * c.downPct) / 100);
   const loan = Math.max(0, c.price - down);
 
-  const setDownRub = (rub: number) => {
-    const pct = c.price > 0 ? (Math.min(rub, c.price) / c.price) * 100 : 0;
-    set({ downPct: Math.round(pct * 10) / 10 });
-  };
-
   const rows = TERMS.map((years, i, arr) => {
     const m = annuity(loan, rate, years * 12);
     const overpay = Math.round(m * years * 12 - loan);
@@ -200,10 +196,9 @@ export function MortgagePage() {
 
       <div className="rounded-xl border border-border bg-card p-4">
         <p className="mb-3 text-xs text-muted-foreground">
-          Цену квартиры можно подставить из карточки (панель справа) — там же
-          быстрый расчёт и графики. Первоначальный взнос задаёте вы (по
-          умолчанию 20%), он нигде не «подтягивается». Из внешних источников
-          берётся только ключевая ставка ЦБ — и лишь для оценки рыночной.
+          Цену квартиры можно подставить из карточки (панель справа). Взносы
+          задаются суммой ниже. Из внешних источников берётся только ключевая
+          ставка ЦБ — и лишь для оценки рыночной.
         </p>
         <div className="flex flex-wrap gap-x-6 gap-y-4">
           <Field
@@ -212,21 +207,6 @@ export function MortgagePage() {
             min={0}
             onChange={(n) => set({ price: n })}
           />
-          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
-            Первоначальный взнос, ₽
-            <span className="flex items-center gap-1">
-              <NumberField
-                value={down}
-                min={0}
-                max={c.price}
-                onChange={setDownRub}
-                className="h-9 w-40"
-              />
-              <span className="tnum whitespace-nowrap">
-                {c.price > 0 ? Math.round(c.downPct) : 0}%
-              </span>
-            </span>
-          </label>
           <div className="flex flex-col gap-1 text-xs text-muted-foreground">
             Программа
             <div className="flex h-9 rounded-md border border-input p-0.5">
@@ -296,6 +276,11 @@ export function MortgagePage() {
             Кредит: <span className="tnum font-semibold">{money(loan)} ₽</span>{" "}
             под <span className="tnum font-semibold">{rate}%</span>
           </span>
+          {c.downPct < MIN_DOWN_PCT && (
+            <span className="rounded-full bg-neg-soft px-2 py-0.5 text-xs font-medium text-neg">
+              взнос ниже {MIN_DOWN_PCT}% — недостаточно средств
+            </span>
+          )}
           {optimal && (
             <span
               className="text-muted-foreground"
@@ -332,6 +317,8 @@ export function MortgagePage() {
           )}
         </div>
       </div>
+
+      <MortgageDowns price={c.price} />
 
       {/* по годам: платёж, переплата, цена лишнего года */}
       <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -416,9 +403,6 @@ export function MortgagePage() {
           </table>
         </div>
       </div>
-
-      {/* управление сравнением взносов — общее для всех графиков ниже */}
-      <MortgageDowns price={c.price} />
 
       {/* 1. платёж от срока */}
       <figure className="space-y-1">
