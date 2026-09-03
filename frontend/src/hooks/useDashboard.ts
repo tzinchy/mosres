@@ -8,6 +8,9 @@ import type {
   DashboardPoint,
   MetroStat,
   Notification,
+  PivotDimension,
+  PivotMetric,
+  PivotPoint,
   PriceHistoryPoint,
   RefreshStatus,
 } from "@/lib/types";
@@ -31,6 +34,32 @@ export const useDashboardTimeseries = (
         favorites_only: favoritesOnly,
         date_from: dateFrom,
         date_to: dateTo,
+      }),
+  });
+
+export const useDashboardPivot = (
+  dimension: PivotDimension,
+  metric: PivotMetric,
+  favoritesOnly: boolean,
+  dateFrom?: string,
+  dateTo?: string,
+) =>
+  useQuery({
+    queryKey: [
+      "pivot",
+      dimension,
+      metric,
+      favoritesOnly,
+      dateFrom ?? "",
+      dateTo ?? "",
+    ],
+    queryFn: () =>
+      apiGet<PivotPoint[]>("/dashboard/pivot", {
+        dimension,
+        metric,
+        favorites_only: favoritesOnly,
+        date_from: dimension === "date" ? dateFrom : undefined,
+        date_to: dimension === "date" ? dateTo : undefined,
       }),
   });
 

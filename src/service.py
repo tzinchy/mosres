@@ -14,6 +14,7 @@ from src.schemas import (
     DashboardMetrics,
     DashboardPoint,
     DashboardChange,
+    PivotPoint,
     MetroStat,
     Notification,
     PriceHistoryPoint,
@@ -45,6 +46,8 @@ from src.repository import (
     get_dashboard_metrics,
     get_dashboard_timeseries,
     get_dashboard_changes,
+    get_pivot_date,
+    get_pivot_category,
     get_history_date_range,
     get_buildings_stats,
     get_notifications,
@@ -69,6 +72,30 @@ def _clamp_date(
     d: datetime.date, lo: datetime.date, hi: datetime.date
 ) -> datetime.date:
     return max(lo, min(d, hi))
+
+
+# key / join fragments are hard-coded here, never taken from the request.
+# dimension/metric names are validated by the Literal types on the endpoint.
+PIVOT_DIMS = {
+    "district": {
+        "key": "COALESCE(d.name, 'Прочие')",
+        "join": (
+            "LEFT JOIN buildings b ON b.building_id = na.building_id::int "
+            "LEFT JOIN districts d ON d.district_id = b.county"
+        ),
+    },
+    "rooms": {
+        "key": (
+            "CASE WHEN COALESCE(na.rooms, '0') IN ('0', '') THEN 'Студия' "
+            "ELSE na.rooms || '-комн' END"
+        ),
+        "join": "",
+    },
+    "building": {
+        "key": "COALESCE(na.address, na.building, 'дом ' || na.building_id)",
+        "join": "",
+    },
+}
 
 
 class MosResService:
@@ -390,6 +417,47 @@ class MosResService:
                 favorites_only=favorites_only, date=date, session=session
             )
         return [DashboardChange.model_validate(dict(r)) for r in rows]
+
+    async def get_dashboard_pivot(
+        self,
+        dimension: str,
+        metric: str,
+        favorites_only: bool = False,
+        date_from: datetime.date | None = None,
+        date_to: datetime.date | None = None,
+    ) -> list[PivotPoint]:
+        if dimension == "date":
+            today = datetime.date.today()
+            floor = today - datetime.timedelta(days=400)
+            async with Session() as session:
+                rng = await get_history_date_range(session=session)
+                df = _clamp_date(
+                    date_from or rng["history_from"] or today, floor, today
+                )
+                dt = _clamp_date(
+                    date_to or rng["history_to"] or today, floor, today
+                )
+                if df > dt:
+                    df = dt
+                rows = await get_pivot_date(
+                    favorites_only=favorites_only,
+                    date_from=df,
+                    date_to=dt,
+                    session=session,
+                )
+        else:
+            dim = PIVOT_DIMS[dimension]
+            async with Session() as session:
+                rows = await get_pivot_category(
+                    key_expr=dim["key"],
+                    join=dim["join"],
+                    favorites_only=favorites_only,
+                    session=session,
+                )
+
+        return [
+            PivotPoint(key=str(r["key"]), value=r[metric]) for r in rows
+        ]
 
     async def get_buildings_stats(self) -> list[BuildingStat]:
         async with Session() as session:

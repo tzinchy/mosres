@@ -91,6 +91,11 @@ class DashboardPoint(BaseModel):
     family: int
 
 
+class PivotPoint(BaseModel):
+    key: str
+    value: float | None = None
+
+
 class DashboardChange(BaseModel):
     new_apart_id: int
     address: str | None = None

@@ -1,5 +1,6 @@
 import datetime
 from contextlib import asynccontextmanager
+from typing import Literal
 
 from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse, RedirectResponse
@@ -17,6 +18,7 @@ from src.schemas import (
     DashboardChange,
     DashboardMetrics,
     DashboardPoint,
+    PivotPoint,
     FavoriteToggleResult,
     MetroStat,
     Notification,
@@ -177,6 +179,30 @@ async def get_dashboard_changes(
 ):
     return await mosres_service.get_dashboard_changes(
         date=date, favorites_only=favorites_only
+    )
+
+
+@app.get(
+    "/dashboard/pivot",
+    tags=["dashboard"],
+    response_model=list[PivotPoint],
+)
+async def get_dashboard_pivot(
+    dimension: Literal["date", "district", "rooms", "building"],
+    metric: Literal[
+        "count", "reserved", "discounted", "family", "avg_price", "avg_price_m"
+    ],
+    favorites_only: bool = False,
+    date_from: datetime.date | None = None,
+    date_to: datetime.date | None = None,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_dashboard_pivot(
+        dimension=dimension,
+        metric=metric,
+        favorites_only=favorites_only,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 

@@ -219,6 +219,30 @@ async def get_dashboard_changes(
     return result.mappings().all()
 
 
+async def get_pivot_date(
+    *, favorites_only: bool, date_from, date_to, session: AsyncSession
+):
+    sql = await read_from_sql_folder("pivot_date")
+    result = await session.execute(
+        text(sql),
+        {
+            "favorites_only": favorites_only,
+            "date_from": date_from,
+            "date_to": date_to,
+        },
+    )
+    return result.mappings().all()
+
+
+async def get_pivot_category(
+    *, key_expr: str, join: str, favorites_only: bool, session: AsyncSession
+):
+    template = await read_from_sql_folder("pivot_category")
+    sql = template.replace("{key}", key_expr).replace("{join}", join)
+    result = await session.execute(text(sql), {"favorites_only": favorites_only})
+    return result.mappings().all()
+
+
 async def get_history_date_range(*, session: AsyncSession):
     result = await session.execute(
         text(

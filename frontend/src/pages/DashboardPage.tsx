@@ -5,6 +5,7 @@ import { DashboardBreakdowns } from "@/components/DashboardBreakdowns";
 import { DashboardChanges } from "@/components/DashboardChanges";
 import { DashboardChart } from "@/components/DashboardChart";
 import { MetroChart } from "@/components/MetroChart";
+import { PivotChart } from "@/components/PivotChart";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAparts } from "@/hooks/useAparts";
@@ -200,6 +201,17 @@ export function DashboardPage() {
             {ts.data && ts.data.some((p) => p.total > 0) && (
               <DashboardChart points={ts.data} />
             )}
+          </section>
+
+          <section>
+            <SectionTitle help="Выберите разрез, показатель и тип графика. «По датам» использует диапазон дат выше.">
+              Свой график
+            </SectionTitle>
+            <PivotChart
+              favOnly={favOnly}
+              dateFrom={chartFrom || undefined}
+              dateTo={chartTo || undefined}
+            />
           </section>
 
           {priceHistory.data && priceHistory.data.length > 0 && (

@@ -172,6 +172,20 @@ export interface DashboardPoint {
   family: number;
 }
 
+export type PivotDimension = "date" | "district" | "rooms" | "building";
+export type PivotMetric =
+  | "count"
+  | "reserved"
+  | "discounted"
+  | "family"
+  | "avg_price"
+  | "avg_price_m";
+
+export interface PivotPoint {
+  key: string;
+  value: number | null;
+}
+
 export type ChangeKind =
   | "price_drop"
   | "price_rise"
