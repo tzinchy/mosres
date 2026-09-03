@@ -16,7 +16,12 @@ import {
   Star,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { DiscountCell, PriceDelta, ReserveTag } from "@/components/cells";
+import {
+  DiscountCell,
+  FinishingBadge,
+  PriceDelta,
+  ReserveTag,
+} from "@/components/cells";
 import { ColumnsMenu } from "@/components/ColumnsMenu";
 import { MetroList } from "@/components/MetroList";
 import { Badge } from "@/components/ui/badge";
@@ -105,6 +110,7 @@ export function ApartsTable({
                   аукцион
                 </Badge>
               )}
+              <FinishingBadge code={r.finishing_code} label={r.finishing_label} />
               <ReserveTag reserve={r.reserve} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -119,7 +125,6 @@ export function ApartsTable({
               ) : (
                 <span className="truncate">{r.building}</span>
               )}
-              {r.finishing_label && <span>{r.finishing_label}</span>}
               <MetroList stops={r.metro} />
             </div>
           </div>
@@ -274,7 +279,7 @@ export function ApartsTable({
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         <table
           className="w-full table-fixed text-sm"
-          style={{ width: Math.max(table.getTotalSize(), 720) }}
+          style={{ minWidth: Math.max(table.getTotalSize(), 720) }}
         >
           <thead className="sticky top-0 z-10 bg-card">
             {table.getHeaderGroups().map((hg) => (

@@ -19,6 +19,8 @@ const GROUPS: {
   { kind: "family_off", title: "Перестали по семейной ипотеке", tone: "neg", to: "/aparts" },
   { kind: "reserved", title: "Ушли в резерв", tone: "reserve", to: "/aparts?reserved_only=1" },
   { kind: "unreserved", title: "Вышли из резерва", tone: "pos", to: "/aparts?available_only=1" },
+  { kind: "auction_on", title: "Перешли на аукцион", tone: "reserve", to: "/aparts?auction_only=1" },
+  { kind: "auction_off", title: "Убраны с аукциона", tone: "pos", to: "/aparts" },
 ];
 
 function priceLine(c: DashboardChange): string | null {

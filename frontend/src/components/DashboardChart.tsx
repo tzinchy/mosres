@@ -15,6 +15,7 @@ const SERIES = [
   { key: "discounted", label: "Со скидкой", color: "var(--pos)" },
   { key: "reserved", label: "В резерве", color: "var(--reserve)" },
   { key: "family", label: "По семейной ипотеке", color: "var(--chart-3)" },
+  { key: "auction", label: "На аукционе", color: "var(--chart-2)" },
 ] as const;
 
 export function DashboardChart({ points }: { points: DashboardPoint[] }) {

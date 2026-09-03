@@ -23,6 +23,8 @@ h AS (
         ) AS has_disc,
         COALESCE(nah.reserve, 0) AS reserve,
         (COALESCE(nah.property, '') ILIKE '%семейн%') AS fam,
+        (nah.auction IS NOT NULL) AS auc,
+        lag(nah.auction IS NOT NULL) OVER w AS prev_auc,
         lag(NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric)
             OVER w AS prev_price,
         lag(
@@ -72,6 +74,7 @@ SELECT
             OR has_disc IS DISTINCT FROM COALESCE(prev_disc, FALSE)
             OR reserve IS DISTINCT FROM COALESCE(prev_reserve, 0)
             OR fam IS DISTINCT FROM COALESCE(prev_fam, FALSE)
+            OR auc IS DISTINCT FROM COALESCE(prev_auc, FALSE)
         ))                                                        AS changed_today,
     count(*) FILTER (WHERE prev_price IS NOT NULL AND price_num < prev_price)
                                                                   AS price_drops_today,

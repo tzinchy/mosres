@@ -93,6 +93,7 @@ class DashboardPoint(BaseModel):
     reserved: int
     discounted: int
     family: int
+    auction: int
 
 
 class PivotPoint(BaseModel):

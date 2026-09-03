@@ -174,6 +174,7 @@ export interface DashboardPoint {
   reserved: number;
   discounted: number;
   family: number;
+  auction: number;
 }
 
 export type PivotDimension =
@@ -214,7 +215,9 @@ export type ChangeKind =
   | "reserved"
   | "unreserved"
   | "family_on"
-  | "family_off";
+  | "family_off"
+  | "auction_on"
+  | "auction_off";
 
 export interface DashboardChange {
   new_apart_id: number;

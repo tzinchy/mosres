@@ -160,6 +160,28 @@ export function DashboardPage() {
             <DashboardChanges date={date} favOnly={favOnly} />
           </section>
 
+          <section>
+            <SectionTitle help="Выберите разрез, показатель и тип графика. «По датам» использует диапазон дат из блока «Состояние списка».">
+              Свой график
+            </SectionTitle>
+            <PivotChart
+              favOnly={favOnly}
+              dateFrom={chartFrom || undefined}
+              dateTo={chartTo || undefined}
+            />
+          </section>
+
+          {metro.data && metro.data.length > 0 && (
+            <section>
+              <SectionTitle help="Топ станций метро: количество / со скидкой / в избранном / средняя цена м² в шаговой или транспортной доступности.">
+                По метро
+              </SectionTitle>
+              <div className="rounded-xl bg-panel p-4">
+                <MetroChart rows={metro.data} />
+              </div>
+            </section>
+          )}
+
           {all.data && all.data.length > 0 && (
             <section>
               <SectionTitle help="Срез текущего списка квартир по ключевым признакам.">
@@ -205,17 +227,6 @@ export function DashboardPage() {
           </section>
 
           <section>
-            <SectionTitle help="Выберите разрез, показатель и тип графика. «По датам» использует диапазон дат выше.">
-              Свой график
-            </SectionTitle>
-            <PivotChart
-              favOnly={favOnly}
-              dateFrom={chartFrom || undefined}
-              dateTo={chartTo || undefined}
-            />
-          </section>
-
-          <section>
             <SectionTitle help="Каждая точка — квартира: площадь по горизонтали, цена по вертикали. Цвет — округ или комнатность. Видно, где сосредоточены квартиры нужного типа и цены.">
               Квартиры: цена × площадь
             </SectionTitle>
@@ -232,18 +243,6 @@ export function DashboardPage() {
               </div>
             </section>
           )}
-
-          {metro.data && metro.data.length > 0 && (
-            <section>
-              <SectionTitle help="Топ станций метро по числу квартир со скидкой в шаговой/транспортной доступности.">
-                По метро
-              </SectionTitle>
-              <div className="rounded-xl bg-panel p-4">
-                <MetroChart rows={metro.data} />
-              </div>
-            </section>
-          )}
-
         </>
       )}
 

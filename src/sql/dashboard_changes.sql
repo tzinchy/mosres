@@ -19,6 +19,8 @@ h AS (
         ) AS disc,
         COALESCE(nah.reserve, 0) AS reserve,
         (COALESCE(nah.property, '') ILIKE '%семейн%') AS fam,
+        (nah.auction IS NOT NULL) AS auc,
+        lag(nah.auction IS NOT NULL) OVER w AS pauc,
         lag(NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric) OVER w AS pprice,
         lag(
             NULLIF(regexp_replace(COALESCE(nah.price_with_discount, ''), '\D', '', 'g'), '')::numeric > 0
@@ -70,6 +72,12 @@ CROSS JOIN LATERAL (VALUES
         NULL::numeric, NULL::numeric, NULL::numeric),
     ('family_off',
         NOT t.fam AND COALESCE(t.pfam, false),
+        NULL::numeric, NULL::numeric, NULL::numeric),
+    ('auction_on',
+        t.auc AND NOT COALESCE(t.pauc, false),
+        NULL::numeric, NULL::numeric, NULL::numeric),
+    ('auction_off',
+        NOT t.auc AND COALESCE(t.pauc, false),
         NULL::numeric, NULL::numeric, NULL::numeric)
 ) AS x(kind, matched, prev_price, next_price, pct)
 WHERE x.matched

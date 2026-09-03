@@ -24,7 +24,7 @@ const DIMS: Record<PivotDimension, string> = {
   finishing: "По отделке",
 };
 const METRICS: Record<PivotMetric, string> = {
-  count: "Количество квартир",
+  count: "Количество",
   reserved: "В резерве",
   discounted: "Со скидкой",
   family: "По семейной ипотеке",

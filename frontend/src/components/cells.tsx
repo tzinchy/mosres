@@ -47,6 +47,23 @@ export function DiscountCell({ row }: { row: ApartRow }) {
   );
 }
 
+export function FinishingBadge({
+  code,
+  label,
+}: {
+  code: string | null;
+  label: string | null;
+}) {
+  if (!code || !label) return null;
+  const tone =
+    code === "FULL"
+      ? "bg-pos-soft text-pos"
+      : code === "STD"
+        ? "bg-accent text-accent-foreground"
+        : "bg-secondary text-secondary-foreground";
+  return <Badge className={cn("shrink-0 border-transparent", tone)}>{label}</Badge>;
+}
+
 export function ReserveTag({ reserve }: { reserve: number | null }) {
   if (reserve !== 1) return null;
   return (

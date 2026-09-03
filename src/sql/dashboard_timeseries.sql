@@ -25,6 +25,7 @@ latest AS (
                 < NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric
         ) AS disc,
         (COALESCE(nah.property, '') ILIKE '%семейн%') AS fam,
+        (nah.auction IS NOT NULL) AS auc,
         row_number() OVER (
             PARTITION BY days.d, nah.new_apart_id ORDER BY nah.version DESC
         ) AS rn
@@ -41,7 +42,8 @@ SELECT
     count(new_apart_id) FILTER (WHERE rn = 1)                  AS total,
     count(new_apart_id) FILTER (WHERE rn = 1 AND reserve = 1)  AS reserved,
     count(new_apart_id) FILTER (WHERE rn = 1 AND disc)         AS discounted,
-    count(new_apart_id) FILTER (WHERE rn = 1 AND fam)          AS family
+    count(new_apart_id) FILTER (WHERE rn = 1 AND fam)          AS family,
+    count(new_apart_id) FILTER (WHERE rn = 1 AND auc)          AS auction
 FROM latest
 GROUP BY d
 ORDER BY d;
