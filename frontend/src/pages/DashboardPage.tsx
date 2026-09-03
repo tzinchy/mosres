@@ -13,6 +13,7 @@ import { PivotChart } from "@/components/PivotChart";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { SankeyChart } from "@/components/SankeyChart";
 import { ScatterExplorer } from "@/components/ScatterExplorer";
+import { Section } from "@/components/dash/Section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAparts } from "@/hooks/useAparts";
 import {
@@ -20,6 +21,7 @@ import {
   useDashboardTimeseries,
   useMetroStats,
   usePriceHistory,
+  useRates,
   useStatus,
 } from "@/hooks/useDashboard";
 import { money, pct, relTime, shortDate, todayISO } from "@/lib/format";
@@ -37,6 +39,7 @@ export function DashboardPage() {
   const [favOnly, setFavOnly] = useState(false);
   const { data: m, isLoading } = useDashboard(favOnly);
   const { data: status } = useStatus();
+  const { data: rates } = useRates();
   const metro = useMetroStats();
   const priceHistory = usePriceHistory();
   const all = useAparts({ favorites_only: favOnly || undefined });
@@ -148,11 +151,32 @@ export function DashboardPage() {
             </div>
           </section>
 
-          <section id="changes">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <SectionTitle help="Квартиры, у которых в выбранную дату изменилась цена, скидка, статус резерва или доступность по семейной ипотеке. По умолчанию — сегодня.">
-                Изменения за {shortDate(date)}
-              </SectionTitle>
+          {rates && (
+            <section>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-xl border border-border bg-card px-4 py-3 text-sm">
+                <span className="font-medium">Ставки ипотеки</span>
+                <span className="tnum text-muted-foreground">
+                  Ключевая ЦБ {rates.key_rate}%
+                  {rates.key_rate_date
+                    ? ` · ${shortDate(rates.key_rate_date)}`
+                    : ""}
+                </span>
+                <span className="tnum">Семейная {rates.family_rate}%</span>
+                <span className="tnum">Рыночная ≈ {rates.market_rate}%</span>
+                <Link
+                  to="/mortgage"
+                  className="ml-auto text-primary hover:underline"
+                >
+                  Калькулятор →
+                </Link>
+              </div>
+            </section>
+          )}
+
+          <Section
+            title={`Изменения за ${shortDate(date)}`}
+            help="Квартиры, у которых в выбранную дату изменилась цена, скидка, статус резерва, семейная ипотека или аукцион. По умолчанию — сегодня."
+            right={
               <input
                 type="date"
                 value={date}
@@ -161,79 +185,81 @@ export function DashboardPage() {
                 onChange={(e) => setDate(e.target.value)}
                 className={dateInputCls}
               />
-            </div>
+            }
+          >
             <DashboardChanges date={date} favOnly={favOnly} />
-          </section>
+          </Section>
 
-          <section>
-            <SectionTitle help="Сколько квартир выходит на торги в каждую дату (срок подачи заявки, term_of_application). Красные — ближайшие 7 дней. Клик — открыть список.">
-              Квартиры по датам заявок
-            </SectionTitle>
+          <Section
+            title="Квартиры по датам заявок"
+            help="Сколько квартир выходит на торги в каждую дату (срок подачи заявки, term_of_application). Красные — ближайшие 7 дней. Клик по столбцу — открыть список."
+          >
             <DeadlinesChart favOnly={favOnly} />
-          </section>
+          </Section>
 
-          <section>
-            <SectionTitle help="Квартиры с ближайшим сроком подачи заявки (term_of_application). После срока раунд закрывается — квартира уходит на аукцион или в следующий раунд.">
-              Горящие: заявка скоро
-            </SectionTitle>
+          <Section
+            title="Горящие: заявка скоро"
+            help="Квартиры с ближайшим сроком подачи заявки. После срока раунд закрывается — квартира уходит на аукцион или в следующий раунд."
+          >
             <HotAparts favOnly={favOnly} />
-          </section>
+          </Section>
 
-          <section>
-            <SectionTitle help="Каждая точка — квартира, разбросана по вертикали внутри своего округа (порядок округов фиксирован по числу квартир). Видно форму распределения цены — где сгущения, разброс, выбросы.">
-              Разброс цены по округам
-            </SectionTitle>
+          <Section
+            title="Разброс цены по округам"
+            help="Каждая точка — квартира, разбросана по вертикали внутри своего округа (порядок округов фиксирован по числу квартир). Видно форму распределения цены — где сгущения, разброс, выбросы."
+          >
             <Beeswarm favOnly={favOnly} />
-          </section>
+          </Section>
 
-          <section>
-            <SectionTitle help="Выберите разрез, показатель, округ и тип графика. «По датам» использует диапазон дат из блока «Состояние списка».">
-              Свой график
-            </SectionTitle>
+          <Section
+            title="Свой график"
+            help="Выберите разрез, показатель, округ и тип графика. «По датам» использует диапазон дат из блока «Состояние списка»."
+          >
             <PivotChart
               favOnly={favOnly}
               dateFrom={chartFrom || undefined}
               dateTo={chartTo || undefined}
             />
-          </section>
+          </Section>
 
           {metro.data && metro.data.length > 0 && (
-            <section>
-              <SectionTitle help="Топ станций метро: количество / со скидкой / в избранном / средняя цена м² в шаговой или транспортной доступности.">
-                По метро
-              </SectionTitle>
+            <Section
+              title="По метро"
+              help="Топ станций метро: количество / со скидкой / в избранном / средняя цена м² в шаговой или транспортной доступности."
+            >
               <div className="rounded-xl bg-panel p-4">
                 <MetroChart rows={metro.data} />
               </div>
-            </section>
+            </Section>
           )}
 
-          <section>
-            <SectionTitle help="Округа как пузыри: размер — число квартир, положение по горизонтали — средняя цена м², по вертикали — число квартир.">
-              Округа: размер = число квартир
-            </SectionTitle>
+          <Section
+            title="Округа: размер = число квартир"
+            help="Округа как пузыри: размер — число квартир, положение по горизонтали — средняя цена м², по вертикали — число квартир."
+          >
             <DistrictBubbles favOnly={favOnly} />
-          </section>
+          </Section>
 
-          <section>
-            <SectionTitle help="Поток квартир: округ → комнатность → ценовой диапазон. Толщина связи — число квартир. Наведи на округ — подсветится весь его поток.">
-              Округ → комнатность → цена
-            </SectionTitle>
+          <Section
+            title="Округ → комнатность → цена"
+            help="Поток квартир: округ → комнатность → ценовой диапазон. Толщина связи — число квартир. Наведи на округ — подсветится весь его поток."
+          >
             <SankeyChart favOnly={favOnly} />
-          </section>
+          </Section>
 
           {all.data && all.data.length > 0 && (
-            <section>
-              <SectionTitle help="Срез текущего списка квартир по ключевым признакам.">
-                Состав предложения
-              </SectionTitle>
+            <Section
+              title="Состав предложения"
+              help="Срез текущего списка квартир по ключевым признакам."
+            >
               <DashboardBreakdowns rows={all.data} />
-            </section>
+            </Section>
           )}
 
-          <section>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <SectionTitle help={CHART_HELP}>Состояние списка по датам</SectionTitle>
+          <Section
+            title="Состояние списка по датам"
+            help={CHART_HELP}
+            right={
               <div className="flex items-center gap-1.5">
                 <input
                   type="date"
@@ -253,7 +279,8 @@ export function DashboardPage() {
                   className={dateInputCls}
                 />
               </div>
-            </div>
+            }
+          >
             {ts.isLoading && <Skeleton className="h-72 w-full" />}
             {ts.data && ts.data.every((p) => p.total === 0) && (
               <p className="rounded-lg border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
@@ -264,24 +291,24 @@ export function DashboardPage() {
             {ts.data && ts.data.some((p) => p.total > 0) && (
               <DashboardChart points={ts.data} />
             )}
-          </section>
+          </Section>
 
-          <section>
-            <SectionTitle help="Каждая точка — квартира: площадь по горизонтали, цена по вертикали. Цвет — округ или комнатность. Видно, где сосредоточены квартиры нужного типа и цены.">
-              Квартиры: цена × площадь
-            </SectionTitle>
+          <Section
+            title="Квартиры: цена × площадь"
+            help="Каждая точка — квартира: площадь по горизонтали, цена по вертикали. Цвет — округ или комнатность."
+          >
             <ScatterExplorer favOnly={favOnly} />
-          </section>
+          </Section>
 
           {priceHistory.data && priceHistory.data.length > 0 && (
-            <section>
-              <SectionTitle help="Средняя цена за м² по округам по датам снимков данных. Наполняется по мере обновлений.">
-                Цена за м² по округам
-              </SectionTitle>
+            <Section
+              title="Цена за м² по округам"
+              help="Средняя цена за м² по округам по датам снимков данных. Наполняется по мере обновлений."
+            >
               <div className="rounded-xl bg-panel p-4">
                 <PriceHistoryChart points={priceHistory.data} />
               </div>
-            </section>
+            </Section>
           )}
         </>
       )}

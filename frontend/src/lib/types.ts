@@ -222,6 +222,13 @@ export interface DeadlinePoint {
   count: number;
 }
 
+export interface RatesInfo {
+  key_rate: number;
+  key_rate_date: string | null;
+  market_rate: number;
+  family_rate: number;
+}
+
 export interface BreakdownRow {
   key: string;
   count: number;

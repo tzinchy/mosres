@@ -14,6 +14,7 @@ import type {
   PivotMetric,
   PivotPoint,
   PriceHistoryPoint,
+  RatesInfo,
   SankeyRow,
   ScatterPoint,
   RefreshStatus,
@@ -143,6 +144,13 @@ export const useNotifications = (days = 14) =>
     queryKey: ["notifications", days],
     queryFn: () => apiGet<Notification[]>("/notifications", { days }),
     refetchInterval: 120_000,
+  });
+
+export const useRates = () =>
+  useQuery({
+    queryKey: ["rates"],
+    queryFn: () => apiGet<RatesInfo>("/rates"),
+    staleTime: 6 * 60 * 60 * 1000,
   });
 
 export const useStatus = () =>

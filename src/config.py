@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     )
     SCHEDULER_ENABLED: bool = True
     REFRESH_INTERVAL_MINUTES: int = 30
+    # рыночная ипотека ≈ ключевая ставка ЦБ + столько процентных пунктов
+    MARKET_RATE_DELTA: float = 4.0
+    # льготная (семейная) ипотека — фиксирована госпрограммой
+    FAMILY_RATE: float = 6.0
 
 
 MAIN_FOLDER = pathlib.Path("src")

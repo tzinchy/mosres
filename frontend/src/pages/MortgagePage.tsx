@@ -9,20 +9,21 @@ import {
   YAxis,
 } from "recharts";
 import { useAparts } from "@/hooks/useAparts";
-import { money, moneyShort } from "@/lib/format";
+import { useRates } from "@/hooks/useDashboard";
+import { money, moneyShort, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const KEY = "mosres-mortgage";
 const TERMS = [5, 7, 10, 12, 15, 20, 25, 30];
 
+type Program = "family" | "market" | "custom";
 interface Cfg {
   price: number;
   downPct: number;
-  program: "family" | "custom";
+  program: Program;
   familyRate: number;
+  marketRate: number; // 0 = не задано, подставится из /rates
   customRate: number;
-  longFrom: number;
-  longDelta: number;
   comfort: number;
 }
 const DEFAULT: Cfg = {
@@ -30,9 +31,8 @@ const DEFAULT: Cfg = {
   downPct: 20,
   program: "family",
   familyRate: 6,
-  customRate: 18,
-  longFrom: 20,
-  longDelta: 0,
+  marketRate: 0,
+  customRate: 20,
   comfort: 150_000,
 };
 
@@ -89,6 +89,13 @@ export function MortgagePage() {
     localStorage.setItem(KEY, JSON.stringify(c));
   }, [c]);
 
+  const { data: rates } = useRates();
+  // подставить рыночную ставку из ЦБ, если пользователь ещё не трогал поле
+  useEffect(() => {
+    if (rates && c.marketRate === 0)
+      setC((p) => ({ ...p, marketRate: rates.market_rate }));
+  }, [rates, c.marketRate]);
+
   const [q, setQ] = useState("");
   const { data: aparts } = useAparts({});
   const matches = useMemo(() => {
@@ -103,12 +110,16 @@ export function MortgagePage() {
       .slice(0, 6);
   }, [aparts, q]);
 
-  const baseRate = c.program === "family" ? c.familyRate : c.customRate;
+  const rate =
+    c.program === "family"
+      ? c.familyRate
+      : c.program === "market"
+        ? c.marketRate || rates?.market_rate || 20
+        : c.customRate;
   const down = Math.round((c.price * c.downPct) / 100);
   const loan = Math.max(0, c.price - down);
 
   const rows = TERMS.map((years) => {
-    const rate = baseRate + (years >= c.longFrom ? c.longDelta : 0);
     const months = years * 12;
     const m = annuity(loan, rate, months);
     const total = m * months;
@@ -185,7 +196,8 @@ export function MortgagePage() {
               {(
                 [
                   ["family", "Семейная"],
-                  ["custom", "Своя ставка"],
+                  ["market", "Рыночная"],
+                  ["custom", "Своя"],
                 ] as const
               ).map(([k, l]) => (
                 <button
@@ -205,11 +217,23 @@ export function MortgagePage() {
             </div>
           </div>
           <Field
-            label={c.program === "family" ? "Ставка (семейная), %" : "Ставка, %"}
-            value={c.program === "family" ? c.familyRate : c.customRate}
+            label={
+              c.program === "family"
+                ? "Ставка (семейная), %"
+                : c.program === "market"
+                  ? "Ставка (рыночная), %"
+                  : "Ставка, %"
+            }
+            value={rate}
             step={0.1}
             onChange={(n) =>
-              set(c.program === "family" ? { familyRate: n } : { customRate: n })
+              set(
+                c.program === "family"
+                  ? { familyRate: n }
+                  : c.program === "market"
+                    ? { marketRate: n }
+                    : { customRate: n },
+              )
             }
           />
           <Field
@@ -218,23 +242,26 @@ export function MortgagePage() {
             step={5000}
             onChange={(n) => set({ comfort: n })}
           />
-          <Field
-            label="Ставка выше при сроке от, лет"
-            value={c.longFrom}
-            onChange={(n) => set({ longFrom: n })}
-          />
-          <Field
-            label="…надбавка к ставке, %"
-            value={c.longDelta}
-            step={0.1}
-            onChange={(n) => set({ longDelta: n })}
-          />
         </div>
 
-        <p className="mt-4 text-sm">
-          Сумма кредита:{" "}
-          <span className="tnum font-semibold">{money(loan)} ₽</span>
-        </p>
+        <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+          <span>
+            Сумма кредита:{" "}
+            <span className="tnum font-semibold">{money(loan)} ₽</span>
+          </span>
+          {rates && (
+            <span
+              className="text-xs text-muted-foreground"
+              title="Семейная ипотека — 6%, ставка фиксирована госпрограммой. «Рыночная» — оценка: ключевая ставка ЦБ плюс несколько процентных пунктов (обычно 3–5). Точную ставку своего банка вводите вручную в поле «Своя»."
+            >
+              Ключевая ставка ЦБ {rates.key_rate}%
+              {rates.key_rate_date
+                ? ` на ${shortDate(rates.key_rate_date)}`
+                : ""}{" "}
+              · рыночная ≈ {rates.market_rate}% · семейная {rates.family_rate}%
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card">

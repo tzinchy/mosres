@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import FastAPI, Depends
+
+from src.rates import get_key_rate
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
@@ -23,6 +25,7 @@ from src.schemas import (
     SankeyRow,
     BreakdownRow,
     DeadlinePoint,
+    RatesInfo,
     FavoriteToggleResult,
     MetroStat,
     Notification,
@@ -151,6 +154,18 @@ async def delete_apart_comment(
     comment_id: int, mosres_service: MosResService = Depends(get_mosres_service)
 ):
     await mosres_service.delete_comment(comment_id)
+
+
+@app.get("/rates", tags=["dashboard"], response_model=RatesInfo)
+async def get_rates():
+    kr = await get_key_rate()
+    key = kr["rate"]
+    return RatesInfo(
+        key_rate=key,
+        key_rate_date=kr["date"],
+        market_rate=round(key + settings.MARKET_RATE_DELTA, 2),
+        family_rate=settings.FAMILY_RATE,
+    )
 
 
 @app.get("/dashboard", tags=["dashboard"], response_model=DashboardMetrics)

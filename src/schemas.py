@@ -137,6 +137,13 @@ class DeadlinePoint(BaseModel):
     count: int
 
 
+class RatesInfo(BaseModel):
+    key_rate: float
+    key_rate_date: datetime.date | None = None
+    market_rate: float  # оценка: ключевая + MARKET_RATE_DELTA
+    family_rate: float
+
+
 class DashboardChange(BaseModel):
     new_apart_id: int
     address: str | None = None
