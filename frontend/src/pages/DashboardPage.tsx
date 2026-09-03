@@ -7,6 +7,7 @@ import { DashboardChart } from "@/components/DashboardChart";
 import { MetroChart } from "@/components/MetroChart";
 import { PivotChart } from "@/components/PivotChart";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
+import { ScatterExplorer } from "@/components/ScatterExplorer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAparts } from "@/hooks/useAparts";
 import {
@@ -212,6 +213,13 @@ export function DashboardPage() {
               dateFrom={chartFrom || undefined}
               dateTo={chartTo || undefined}
             />
+          </section>
+
+          <section>
+            <SectionTitle help="Каждая точка — квартира: площадь по горизонтали, цена по вертикали. Цвет — округ или комнатность. Видно, где сосредоточены квартиры нужного типа и цены.">
+              Квартиры: цена × площадь
+            </SectionTitle>
+            <ScatterExplorer favOnly={favOnly} />
           </section>
 
           {priceHistory.data && priceHistory.data.length > 0 && (

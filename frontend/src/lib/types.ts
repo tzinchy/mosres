@@ -196,6 +196,16 @@ export interface PivotPoint {
   value: number | null;
 }
 
+export interface ScatterPoint {
+  new_apart_id: number;
+  address: string | null;
+  district: string;
+  rooms: string;
+  area: number;
+  price: number;
+  price_m: number | null;
+}
+
 export type ChangeKind =
   | "price_drop"
   | "price_rise"

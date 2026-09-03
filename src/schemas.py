@@ -100,6 +100,16 @@ class PivotPoint(BaseModel):
     value: float | None = None
 
 
+class ScatterPoint(BaseModel):
+    new_apart_id: int
+    address: str | None = None
+    district: str
+    rooms: str
+    area: float
+    price: float
+    price_m: float | None = None
+
+
 class DashboardChange(BaseModel):
     new_apart_id: int
     address: str | None = None

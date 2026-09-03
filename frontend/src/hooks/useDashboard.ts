@@ -12,6 +12,7 @@ import type {
   PivotMetric,
   PivotPoint,
   PriceHistoryPoint,
+  ScatterPoint,
   RefreshStatus,
 } from "@/lib/types";
 
@@ -60,6 +61,15 @@ export const useDashboardPivot = (
         favorites_only: favoritesOnly,
         date_from: dimension === "date" ? dateFrom : undefined,
         date_to: dimension === "date" ? dateTo : undefined,
+      }),
+  });
+
+export const useScatter = (favoritesOnly: boolean) =>
+  useQuery({
+    queryKey: ["scatter", favoritesOnly],
+    queryFn: () =>
+      apiGet<ScatterPoint[]>("/dashboard/scatter", {
+        favorites_only: favoritesOnly,
       }),
   });
 

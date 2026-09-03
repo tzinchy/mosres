@@ -223,6 +223,12 @@ async def get_dashboard_changes(
     return result.mappings().all()
 
 
+async def get_scatter(*, favorites_only: bool, session: AsyncSession):
+    sql = await read_from_sql_folder("scatter")
+    result = await session.execute(text(sql), {"favorites_only": favorites_only})
+    return result.mappings().all()
+
+
 async def get_pivot_date(
     *, favorites_only: bool, date_from, date_to, session: AsyncSession
 ):

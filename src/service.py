@@ -15,6 +15,7 @@ from src.schemas import (
     DashboardPoint,
     DashboardChange,
     PivotPoint,
+    ScatterPoint,
     MetroStat,
     Notification,
     PriceHistoryPoint,
@@ -48,6 +49,7 @@ from src.repository import (
     get_dashboard_changes,
     get_pivot_date,
     get_pivot_category,
+    get_scatter,
     get_history_date_range,
     get_buildings_stats,
     get_notifications,
@@ -470,6 +472,15 @@ class MosResService:
         return [
             PivotPoint(key=str(r["key"]), value=r[metric]) for r in rows
         ]
+
+    async def get_scatter(
+        self, favorites_only: bool = False
+    ) -> list[ScatterPoint]:
+        async with Session() as session:
+            rows = await get_scatter(
+                favorites_only=favorites_only, session=session
+            )
+        return [ScatterPoint.model_validate(dict(r)) for r in rows]
 
     async def get_buildings_stats(self) -> list[BuildingStat]:
         async with Session() as session:

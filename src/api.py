@@ -19,6 +19,7 @@ from src.schemas import (
     DashboardMetrics,
     DashboardPoint,
     PivotPoint,
+    ScatterPoint,
     FavoriteToggleResult,
     MetroStat,
     Notification,
@@ -214,6 +215,18 @@ async def get_dashboard_pivot(
         date_from=date_from,
         date_to=date_to,
     )
+
+
+@app.get(
+    "/dashboard/scatter",
+    tags=["dashboard"],
+    response_model=list[ScatterPoint],
+)
+async def get_dashboard_scatter(
+    favorites_only: bool = False,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_scatter(favorites_only=favorites_only)
 
 
 @app.get("/buildings/stats", tags=["buildings"], response_model=list[BuildingStat])
