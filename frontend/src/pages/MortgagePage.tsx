@@ -14,11 +14,18 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { MortgageDowns } from "@/components/MortgageDowns";
 import { NumberField } from "@/components/ui/number-field";
 import { useMortgageCfg } from "@/hooks/useMortgageCfg";
 import { useRates } from "@/hooks/useDashboard";
 import { money, moneyShort, shortDate } from "@/lib/format";
-import { annuity, cfgRate } from "@/lib/mortgage";
+import {
+  annuity,
+  cfgRate,
+  DOWN_COLORS,
+  loanFor,
+  resolveDowns,
+} from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
 
 const TERMS = Array.from({ length: 30 }, (_, i) => i + 1);
@@ -30,7 +37,6 @@ const TIP = {
   fontSize: 12,
 } as const;
 
-const CMP_COLORS = ["#4363d8", "#3cb44b", "#d98324", "#e6194b"];
 
 function yearWord(y: number) {
   return y === 1 ? "год" : y % 10 >= 2 && y % 10 <= 4 && (y < 10 || y > 20) ? "года" : "лет";
@@ -152,21 +158,15 @@ export function MortgagePage() {
 
   const split = yearlySplit(loan, rate, c.tableTerm);
 
-  // все графики строятся сразу для нескольких первоначальных взносов:
-  // текущий из настроек + добавленные для сравнения (тоже сохраняются)
-  const extraDowns = c.compareDowns;
-  const setExtraDowns = (fn: (a: number[]) => number[]) =>
-    set({ compareDowns: fn(c.compareDowns) });
-  const downs = [...new Set([Math.round(c.downPct), ...extraDowns])].filter(
-    (p) => p >= 0 && p <= 95,
-  );
+  // все графики строятся сразу для нескольких первоначальных взносов —
+  // список редактируется в блоке «Мои первоначальные взносы» и сохраняется
+  const downs = resolveDowns(c);
   const multi = downs.length > 1;
   const downSeries = downs.map((p, i) => {
-    const dn = Math.round((c.price * p) / 100);
-    const ln = Math.max(0, c.price - dn);
+    const ln = loanFor(c.price, p);
     return {
       p,
-      color: CMP_COLORS[i % CMP_COLORS.length],
+      color: DOWN_COLORS[i % DOWN_COLORS.length],
       term: TERMS.map((years) => {
         const m = annuity(ln, rate, years * 12);
         return {
@@ -418,70 +418,7 @@ export function MortgagePage() {
       </div>
 
       {/* управление сравнением взносов — общее для всех графиков ниже */}
-      <div className="flex flex-wrap items-center gap-1.5 text-xs">
-        <span className="mr-1 text-muted-foreground">
-          Взносы на графиках:
-        </span>
-        {downs.map((p, i) => (
-          <span
-            key={i}
-            className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5"
-          >
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: CMP_COLORS[i % CMP_COLORS.length] }}
-            />
-            {i === 0 ? (
-              <span title="Текущий взнос из настроек выше">
-                {p}% (текущий)
-              </span>
-            ) : (
-              <>
-                <NumberField
-                  value={p}
-                  min={0}
-                  max={95}
-                  inputMode="numeric"
-                  onChange={(n) =>
-                    setExtraDowns((a) =>
-                      a.map((x, j) => (j === i - 1 ? n : x)),
-                    )
-                  }
-                  className="h-5 w-9 border-0 bg-transparent px-0 text-right"
-                />
-                %
-                <button
-                  type="button"
-                  aria-label="убрать"
-                  onClick={() =>
-                    setExtraDowns((a) => a.filter((_, j) => j !== i - 1))
-                  }
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  ×
-                </button>
-              </>
-            )}
-            <span className="tnum text-muted-foreground">
-              {moneyShort(Math.round((c.price * p) / 100))}
-            </span>
-          </span>
-        ))}
-        {downs.length < 4 && (
-          <button
-            type="button"
-            onClick={() =>
-              setExtraDowns((a) => [
-                ...a,
-                Math.min(95, Math.round(c.downPct) + 15),
-              ])
-            }
-            className="rounded-full border border-dashed border-border px-2 py-0.5 text-muted-foreground hover:text-foreground"
-          >
-            + взнос
-          </button>
-        )}
-      </div>
+      <MortgageDowns price={c.price} />
 
       {/* 1. платёж от срока */}
       <figure className="space-y-1">

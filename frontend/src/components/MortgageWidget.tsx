@@ -10,12 +10,20 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { MortgageDowns } from "@/components/MortgageDowns";
 import { NumberField } from "@/components/ui/number-field";
 import { useMortgageCfg } from "@/hooks/useMortgageCfg";
 import { useRates } from "@/hooks/useDashboard";
 import { AUCTION_UPLIFT_MAX, AUCTION_UPLIFT_MIN } from "@/lib/auction";
 import { money, moneyShort } from "@/lib/format";
-import { annuity, cfgRate, type Program } from "@/lib/mortgage";
+import {
+  annuity,
+  cfgRate,
+  DOWN_COLORS,
+  loanFor,
+  resolveDowns,
+  type Program,
+} from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
 
 const TIP = {
@@ -25,7 +33,7 @@ const TIP = {
   fontSize: 11,
 } as const;
 
-const pct = (x: number) => `${Math.round(x * 100)}%`;
+const pctLabel = (x: number) => `${Math.round(x * 100)}%`;
 
 export function MortgageWidget({
   price,
@@ -45,30 +53,28 @@ export function MortgageWidget({
 
   const rate = cfgRate(c, rates?.market_rate ?? 20);
   const months = c.tableTerm * 12;
+  const downs = resolveDowns(c);
 
-  const calc = (p: number) => {
-    const dn = Math.round((p * c.downPct) / 100);
-    const ln = Math.max(0, p - dn);
-    const m = Math.round(annuity(ln, rate, months));
-    return { price: p, down: dn, loan: ln, monthly: m, overpay: Math.round(m * months - ln) };
-  };
-  const base = calc(price);
-  // диапазон итоговой цены аукциона: старт +10…30 %
-  const lo = isAuction ? calc(Math.round(price * (1 + AUCTION_UPLIFT_MIN))) : null;
-  const hi = isAuction ? calc(Math.round(price * (1 + AUCTION_UPLIFT_MAX))) : null;
+  const payAt = (p: number, priceOverride = price) =>
+    Math.round(annuity(loanFor(priceOverride, p), rate, months));
+
+  // диапазон итоговой цены аукциона: старт +10…30 % (по текущему взносу)
+  const loPrice = Math.round(price * (1 + AUCTION_UPLIFT_MIN));
+  const hiPrice = Math.round(price * (1 + AUCTION_UPLIFT_MAX));
+  const base = payAt(c.downPct);
+  const auLo = isAuction ? payAt(c.downPct, loPrice) : null;
+  const auHi = isAuction ? payAt(c.downPct, hiPrice) : null;
 
   const series = Array.from({ length: 30 }, (_, i) => {
     const y = i + 1;
-    const m = Math.round(annuity(base.loan, rate, y * 12));
-    const row: Record<string, number | number[]> = {
-      y,
-      monthly: m,
-      overpay: Math.round(m * y * 12 - base.loan),
-    };
-    if (lo && hi) {
+    const row: Record<string, number | number[]> = { y };
+    downs.forEach((p, di) => {
+      row[`m${di}`] = Math.round(annuity(loanFor(price, p), rate, y * 12));
+    });
+    if (isAuction) {
       row.band = [
-        Math.round(annuity(lo.loan, rate, y * 12)),
-        Math.round(annuity(hi.loan, rate, y * 12)),
+        Math.round(annuity(loanFor(loPrice, c.downPct), rate, y * 12)),
+        Math.round(annuity(loanFor(hiPrice, c.downPct), rate, y * 12)),
       ];
     }
     return row;
@@ -103,16 +109,6 @@ export function MortgageWidget({
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1">
-            взнос
-            <NumberField
-              value={c.downPct}
-              max={95}
-              onChange={(n) => set({ downPct: n })}
-              className="h-7 w-14"
-            />
-            %
-          </span>
-          <span className="inline-flex items-center gap-1">
             срок
             <NumberField
               value={c.tableTerm}
@@ -140,25 +136,23 @@ export function MortgageWidget({
         </div>
 
         <div className="tnum text-lg font-semibold">
-          {lo && hi ? (
+          {isAuction && auLo && auHi ? (
             <>
-              {money(lo.monthly)} – {money(hi.monthly)}
+              {money(auLo)} – {money(auHi)}
             </>
           ) : (
-            money(base.monthly)
+            money(base)
           )}{" "}
           ₽<span className="text-sm font-normal">/мес</span>
+          <span className="ml-1 text-xs font-normal text-muted-foreground">
+            · взнос {Math.round(c.downPct)}%
+          </span>
         </div>
-        <div className="tnum text-xs text-muted-foreground">
-          {isAuction ? "по старту: " : ""}взнос {moneyShort(base.down)} · кредит{" "}
-          {moneyShort(base.loan)} · переплата {moneyShort(base.overpay)} ₽
-        </div>
-        {lo && hi && (
+        {isAuction && auLo && auHi && (
           <div className="tnum text-xs text-reserve">
-            аукцион обычно +{pct(AUCTION_UPLIFT_MIN)}…{pct(AUCTION_UPLIFT_MAX)} (
-            {moneyShort(lo.price)} – {moneyShort(hi.price)} ₽): платёж{" "}
-            {money(lo.monthly)}–{money(hi.monthly)} ₽/мес · переплата{" "}
-            {moneyShort(lo.overpay)}–{moneyShort(hi.overpay)} ₽
+            аукцион обычно +{pctLabel(AUCTION_UPLIFT_MIN)}…
+            {pctLabel(AUCTION_UPLIFT_MAX)} ({moneyShort(loPrice)} –{" "}
+            {moneyShort(hiPrice)} ₽); по старту {money(base)} ₽/мес
           </div>
         )}
 
@@ -175,9 +169,8 @@ export function MortgageWidget({
                 tickLine={false}
                 axisLine={false}
               />
-              <YAxis yAxisId="m" hide />
-              <YAxis yAxisId="o" hide />
-              <ReferenceLine yAxisId="m" x={c.tableTerm} stroke="var(--border)" />
+              <YAxis hide />
+              <ReferenceLine x={c.tableTerm} stroke="var(--border)" />
               <Tooltip
                 formatter={(v, n) =>
                   Array.isArray(v)
@@ -187,12 +180,11 @@ export function MortgageWidget({
                 labelFormatter={(l) => `срок ${l} лет`}
                 contentStyle={TIP}
               />
-              {lo && hi && (
+              {isAuction && (
                 <Area
-                  yAxisId="m"
                   type="monotone"
                   dataKey="band"
-                  name={`аукцион +${pct(AUCTION_UPLIFT_MIN)}…${pct(AUCTION_UPLIFT_MAX)}`}
+                  name={`аукцион +${pctLabel(AUCTION_UPLIFT_MIN)}…${pctLabel(AUCTION_UPLIFT_MAX)}`}
                   stroke="var(--reserve)"
                   strokeWidth={1}
                   strokeDasharray="4 3"
@@ -200,46 +192,39 @@ export function MortgageWidget({
                   fillOpacity={0.16}
                 />
               )}
-              <Line
-                yAxisId="m"
-                type="monotone"
-                dataKey="monthly"
-                name={isAuction ? "платёж (старт)" : "платёж/мес"}
-                stroke="var(--chart-1)"
-                strokeWidth={2}
-                dot={false}
-              />
-              {!isAuction && (
+              {downs.map((p, di) => (
                 <Line
-                  yAxisId="o"
+                  key={di}
                   type="monotone"
-                  dataKey="overpay"
-                  name="переплата"
-                  stroke="var(--chart-2)"
+                  dataKey={`m${di}`}
+                  name={`взнос ${Math.round(p)}%`}
+                  stroke={DOWN_COLORS[di % DOWN_COLORS.length]}
                   strokeWidth={2}
                   dot={false}
                 />
-              )}
+              ))}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-0.5 w-3 bg-[var(--chart-1)]" />
-            платёж{isAuction ? " (старт)" : ""}
-          </span>
-          {lo && hi ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+          {downs.map((p, di) => (
+            <span key={di} className="inline-flex items-center gap-1">
+              <span
+                className="inline-block h-0.5 w-3"
+                style={{ background: DOWN_COLORS[di % DOWN_COLORS.length] }}
+              />
+              взнос {Math.round(p)}%
+            </span>
+          ))}
+          {isAuction && (
             <span className="inline-flex items-center gap-1">
               <span className="inline-block h-2 w-3 bg-[var(--reserve)] opacity-30" />
-              +{pct(AUCTION_UPLIFT_MIN)}…{pct(AUCTION_UPLIFT_MAX)}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block h-0.5 w-3 bg-[var(--chart-2)]" />
-              переплата
+              +{pctLabel(AUCTION_UPLIFT_MIN)}…{pctLabel(AUCTION_UPLIFT_MAX)}
             </span>
           )}
         </div>
+
+        <MortgageDowns price={price} compact className="!bg-background/60" />
 
         <Link
           to="/mortgage"

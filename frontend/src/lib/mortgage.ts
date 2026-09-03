@@ -28,10 +28,18 @@ export const MORTGAGE_DEFAULT: MortgageCfg = {
 
 export function loadMortgageCfg(): MortgageCfg {
   try {
-    return {
+    const cfg = {
       ...MORTGAGE_DEFAULT,
       ...JSON.parse(localStorage.getItem(MORTGAGE_KEY) ?? "{}"),
     };
+    // heal junk from earlier builds: keep valid numbers, at most 3 extras
+    cfg.compareDowns = (
+      Array.isArray(cfg.compareDowns) ? cfg.compareDowns : []
+    )
+      .map((n: unknown) => Number(n))
+      .filter((n: number) => Number.isFinite(n) && n >= 0 && n <= 95)
+      .slice(0, 3);
+    return cfg;
   } catch {
     return { ...MORTGAGE_DEFAULT };
   }
@@ -64,4 +72,18 @@ export function monthlyFor(
 ): number {
   const loan = Math.max(0, price - (price * c.downPct) / 100);
   return annuity(loan, cfgRate(c, marketFallback), c.tableTerm * 12);
+}
+
+/** distinct colour per compared down payment, in list order */
+export const DOWN_COLORS = ["#4363d8", "#3cb44b", "#d98324", "#e6194b"];
+
+/** the ordered list of down-payment shares (%) every chart draws: current first, then saved extras */
+export function resolveDowns(c: MortgageCfg): number[] {
+  return [c.downPct, ...c.compareDowns]
+    .filter((p) => p >= 0 && p <= 95)
+    .slice(0, 4);
+}
+
+export function loanFor(price: number, downPct: number): number {
+  return Math.max(0, price - Math.round((price * downPct) / 100));
 }
