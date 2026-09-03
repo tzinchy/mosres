@@ -111,6 +111,13 @@ class ScatterPoint(BaseModel):
     price_m: float | None = None
 
 
+class SankeyRow(BaseModel):
+    district: str
+    rooms: str
+    bucket: str
+    count: int
+
+
 class DashboardChange(BaseModel):
     new_apart_id: int
     address: str | None = None

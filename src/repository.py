@@ -229,6 +229,12 @@ async def get_scatter(*, favorites_only: bool, session: AsyncSession):
     return result.mappings().all()
 
 
+async def get_sankey(*, favorites_only: bool, session: AsyncSession):
+    sql = await read_from_sql_folder("sankey")
+    result = await session.execute(text(sql), {"favorites_only": favorites_only})
+    return result.mappings().all()
+
+
 async def get_pivot_date(
     *, favorites_only: bool, date_from, date_to, session: AsyncSession
 ):

@@ -20,6 +20,7 @@ from src.schemas import (
     DashboardPoint,
     PivotPoint,
     ScatterPoint,
+    SankeyRow,
     FavoriteToggleResult,
     MetroStat,
     Notification,
@@ -227,6 +228,18 @@ async def get_dashboard_scatter(
     mosres_service: MosResService = Depends(get_mosres_service),
 ):
     return await mosres_service.get_scatter(favorites_only=favorites_only)
+
+
+@app.get(
+    "/dashboard/sankey",
+    tags=["dashboard"],
+    response_model=list[SankeyRow],
+)
+async def get_dashboard_sankey(
+    favorites_only: bool = False,
+    mosres_service: MosResService = Depends(get_mosres_service),
+):
+    return await mosres_service.get_sankey(favorites_only=favorites_only)
 
 
 @app.get("/buildings/stats", tags=["buildings"], response_model=list[BuildingStat])

@@ -207,6 +207,13 @@ export interface ScatterPoint {
   price_m: number | null;
 }
 
+export interface SankeyRow {
+  district: string;
+  rooms: string;
+  bucket: string;
+  count: number;
+}
+
 export type ChangeKind =
   | "price_drop"
   | "price_rise"

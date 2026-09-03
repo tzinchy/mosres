@@ -12,6 +12,7 @@ import type {
   PivotMetric,
   PivotPoint,
   PriceHistoryPoint,
+  SankeyRow,
   ScatterPoint,
   RefreshStatus,
 } from "@/lib/types";
@@ -69,6 +70,15 @@ export const useScatter = (favoritesOnly: boolean) =>
     queryKey: ["scatter", favoritesOnly],
     queryFn: () =>
       apiGet<ScatterPoint[]>("/dashboard/scatter", {
+        favorites_only: favoritesOnly,
+      }),
+  });
+
+export const useSankey = (favoritesOnly: boolean) =>
+  useQuery({
+    queryKey: ["sankey", favoritesOnly],
+    queryFn: () =>
+      apiGet<SankeyRow[]>("/dashboard/sankey", {
         favorites_only: favoritesOnly,
       }),
   });

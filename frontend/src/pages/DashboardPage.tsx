@@ -1,12 +1,14 @@
 import { AlertTriangle, Info } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Beeswarm } from "@/components/Beeswarm";
 import { DashboardBreakdowns } from "@/components/DashboardBreakdowns";
 import { DashboardChanges } from "@/components/DashboardChanges";
 import { DashboardChart } from "@/components/DashboardChart";
 import { MetroChart } from "@/components/MetroChart";
 import { PivotChart } from "@/components/PivotChart";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
+import { SankeyChart } from "@/components/SankeyChart";
 import { ScatterExplorer } from "@/components/ScatterExplorer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAparts } from "@/hooks/useAparts";
@@ -181,6 +183,20 @@ export function DashboardPage() {
               </div>
             </section>
           )}
+
+          <section>
+            <SectionTitle help="Поток квартир: округ → комнатность → ценовой диапазон. Толщина связи — число квартир.">
+              Округ → комнатность → цена
+            </SectionTitle>
+            <SankeyChart favOnly={favOnly} />
+          </section>
+
+          <section>
+            <SectionTitle help="Каждая точка — квартира, разбросана по вертикали внутри своего округа. Округа отсортированы по медиане. Видно форму распределения цены — где сгущения.">
+              Разброс цены по округам
+            </SectionTitle>
+            <Beeswarm favOnly={favOnly} />
+          </section>
 
           {all.data && all.data.length > 0 && (
             <section>

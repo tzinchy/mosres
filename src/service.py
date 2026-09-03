@@ -16,6 +16,7 @@ from src.schemas import (
     DashboardChange,
     PivotPoint,
     ScatterPoint,
+    SankeyRow,
     MetroStat,
     Notification,
     PriceHistoryPoint,
@@ -50,6 +51,7 @@ from src.repository import (
     get_pivot_date,
     get_pivot_category,
     get_scatter,
+    get_sankey,
     get_history_date_range,
     get_buildings_stats,
     get_notifications,
@@ -481,6 +483,15 @@ class MosResService:
                 favorites_only=favorites_only, session=session
             )
         return [ScatterPoint.model_validate(dict(r)) for r in rows]
+
+    async def get_sankey(
+        self, favorites_only: bool = False
+    ) -> list[SankeyRow]:
+        async with Session() as session:
+            rows = await get_sankey(
+                favorites_only=favorites_only, session=session
+            )
+        return [SankeyRow.model_validate(dict(r)) for r in rows]
 
     async def get_buildings_stats(self) -> list[BuildingStat]:
         async with Session() as session:
