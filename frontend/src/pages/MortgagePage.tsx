@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   Bar,
   BarChart,
@@ -8,6 +8,8 @@ import {
   LineChart,
   ReferenceLine,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
@@ -150,20 +152,41 @@ export function MortgagePage() {
 
   const split = yearlySplit(loan, rate, c.tableTerm);
 
-  // сравнение нескольких первоначальных взносов на одном графике
-  const [cmpPct, setCmpPct] = useState<number[]>([0, 15, 30]);
-  const [cmpMetric, setCmpMetric] = useState<"monthly" | "overpay">("monthly");
-  const cmpU = [...new Set(cmpPct.filter((p) => p >= 0 && p <= 95))];
-  const cmpData = TERMS.map((years) => {
+  // все графики строятся сразу для нескольких первоначальных взносов:
+  // текущий из настроек + добавленные для сравнения (тоже сохраняются)
+  const extraDowns = c.compareDowns;
+  const setExtraDowns = (fn: (a: number[]) => number[]) =>
+    set({ compareDowns: fn(c.compareDowns) });
+  const downs = [...new Set([Math.round(c.downPct), ...extraDowns])].filter(
+    (p) => p >= 0 && p <= 95,
+  );
+  const multi = downs.length > 1;
+  const downSeries = downs.map((p, i) => {
+    const dn = Math.round((c.price * p) / 100);
+    const ln = Math.max(0, c.price - dn);
+    return {
+      p,
+      color: CMP_COLORS[i % CMP_COLORS.length],
+      term: TERMS.map((years) => {
+        const m = annuity(ln, rate, years * 12);
+        return {
+          years,
+          monthly: Math.round(m),
+          overpay: Math.round(m * years * 12 - ln),
+        };
+      }),
+    };
+  });
+  const byTerm = TERMS.map((years, ti) => {
     const o: Record<string, number> = { years };
-    for (const p of cmpU) {
-      const dn = Math.round((c.price * p) / 100);
-      const ln = Math.max(0, c.price - dn);
-      const m = annuity(ln, rate, years * 12);
-      o[`p${p}`] = Math.round(cmpMetric === "monthly" ? m : m * years * 12 - ln);
-    }
+    downSeries.forEach((s, i) => {
+      o[`m${i}`] = s.term[ti].monthly;
+      o[`o${i}`] = s.term[ti].overpay;
+    });
     return o;
   });
+  const downLabel = (p: number) =>
+    `взнос ${p}% · ${moneyShort(Math.round((c.price * p) / 100))}`;
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6 p-5 md:p-8">
@@ -394,15 +417,82 @@ export function MortgagePage() {
         </div>
       </div>
 
-      {/* 1. платёж и переплата от срока */}
+      {/* управление сравнением взносов — общее для всех графиков ниже */}
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        <span className="mr-1 text-muted-foreground">
+          Взносы на графиках:
+        </span>
+        {downs.map((p, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5"
+          >
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ background: CMP_COLORS[i % CMP_COLORS.length] }}
+            />
+            {i === 0 ? (
+              <span title="Текущий взнос из настроек выше">
+                {p}% (текущий)
+              </span>
+            ) : (
+              <>
+                <NumberField
+                  value={p}
+                  min={0}
+                  max={95}
+                  inputMode="numeric"
+                  onChange={(n) =>
+                    setExtraDowns((a) =>
+                      a.map((x, j) => (j === i - 1 ? n : x)),
+                    )
+                  }
+                  className="h-5 w-9 border-0 bg-transparent px-0 text-right"
+                />
+                %
+                <button
+                  type="button"
+                  aria-label="убрать"
+                  onClick={() =>
+                    setExtraDowns((a) => a.filter((_, j) => j !== i - 1))
+                  }
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  ×
+                </button>
+              </>
+            )}
+            <span className="tnum text-muted-foreground">
+              {moneyShort(Math.round((c.price * p) / 100))}
+            </span>
+          </span>
+        ))}
+        {downs.length < 4 && (
+          <button
+            type="button"
+            onClick={() =>
+              setExtraDowns((a) => [
+                ...a,
+                Math.min(95, Math.round(c.downPct) + 15),
+              ])
+            }
+            className="rounded-full border border-dashed border-border px-2 py-0.5 text-muted-foreground hover:text-foreground"
+          >
+            + взнос
+          </button>
+        )}
+      </div>
+
+      {/* 1. платёж от срока */}
       <figure className="space-y-1">
         <figcaption className="text-xs text-muted-foreground">
-          Платёж и переплата в зависимости от срока. Линии — мин. срок в
-          бюджете и точка убывающей отдачи.
+          Платёж / мес в зависимости от срока
+          {multi ? " — линия на каждый взнос" : ""}.
+          {!multi && optimal ? ` Пунктир — мин. срок в бюджете (${optimal}).` : ""}
         </figcaption>
         <div className="h-72 w-full rounded-xl bg-panel p-4">
           <ResponsiveContainer>
-            <LineChart data={rows} margin={{ left: 8, right: 8, top: 8, bottom: 4 }}>
+            <LineChart data={byTerm} margin={{ left: 8, right: 8, top: 8, bottom: 4 }}>
               <CartesianGrid
                 stroke="var(--border)"
                 strokeDasharray="2 4"
@@ -415,16 +505,6 @@ export function MortgagePage() {
                 axisLine={{ stroke: "var(--border)" }}
               />
               <YAxis
-                yAxisId="m"
-                width={54}
-                tickFormatter={(v) => moneyShort(v)}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                yAxisId="o"
-                orientation="right"
                 width={54}
                 tickFormatter={(v) => moneyShort(v)}
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
@@ -433,7 +513,6 @@ export function MortgagePage() {
               />
               {c.comfort > 0 && (
                 <ReferenceLine
-                  yAxisId="m"
                   y={c.comfort}
                   stroke="var(--pos)"
                   strokeDasharray="4 4"
@@ -445,9 +524,8 @@ export function MortgagePage() {
                   }}
                 />
               )}
-              {optimal && (
+              {!multi && optimal && (
                 <ReferenceLine
-                  yAxisId="m"
                   x={optimal}
                   stroke="var(--primary)"
                   strokeDasharray="3 3"
@@ -459,45 +537,98 @@ export function MortgagePage() {
                 contentStyle={TIP}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line
-                yAxisId="m"
-                type="monotone"
-                dataKey="monthly"
-                name="Платёж / мес"
-                stroke="var(--chart-1)"
-                strokeWidth={2}
-                dot={false}
-              />
-              <Line
-                yAxisId="o"
-                type="monotone"
-                dataKey="overpay"
-                name="Переплата"
-                stroke="var(--chart-2)"
-                strokeWidth={2}
-                dot={false}
-              />
+              {downSeries.map((s, i) => (
+                <Line
+                  key={s.p}
+                  type="monotone"
+                  dataKey={`m${i}`}
+                  name={downLabel(s.p)}
+                  stroke={s.color}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         </div>
       </figure>
 
-      {/* 2. компромисс: платёж против переплаты */}
+      {/* 2. переплата от срока */}
       <figure className="space-y-1">
         <figcaption className="text-xs text-muted-foreground">
-          Компромисс: каждая точка — срок от 1 до 30 лет. Изгиб — там, где
-          удлинение срока почти перестаёт снижать платёж, а переплата всё растёт.
+          Переплата в зависимости от срока
+          {multi ? " — линия на каждый взнос" : ""}.
         </figcaption>
         <div className="h-72 w-full rounded-xl bg-panel p-4">
           <ResponsiveContainer>
-            <LineChart data={rows} margin={{ left: 8, right: 8, top: 8, bottom: 4 }}>
+            <LineChart data={byTerm} margin={{ left: 8, right: 8, top: 8, bottom: 4 }}>
               <CartesianGrid
                 stroke="var(--border)"
                 strokeDasharray="2 4"
+                vertical={false}
               />
               <XAxis
+                dataKey="years"
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={{ stroke: "var(--border)" }}
+              />
+              <YAxis
+                width={54}
+                tickFormatter={(v) => moneyShort(v)}
+                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                tickLine={false}
+                axisLine={false}
+              />
+              {!multi && knee && (
+                <ReferenceLine
+                  x={knee}
+                  stroke="var(--accent-foreground)"
+                  strokeDasharray="3 3"
+                  label={{
+                    value: "дальше невыгодно",
+                    fontSize: 10,
+                    fill: "var(--accent-foreground)",
+                    position: "insideTopLeft",
+                  }}
+                />
+              )}
+              <Tooltip
+                formatter={(v, n) => [`${money(Number(v))} ₽`, n]}
+                labelFormatter={(l) => `${l} ${yearWord(Number(l))}`}
+                contentStyle={TIP}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {downSeries.map((s, i) => (
+                <Line
+                  key={s.p}
+                  type="monotone"
+                  dataKey={`o${i}`}
+                  name={downLabel(s.p)}
+                  stroke={s.color}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </figure>
+
+      {/* 3. компромисс: платёж против переплаты */}
+      <figure className="space-y-1">
+        <figcaption className="text-xs text-muted-foreground">
+          Компромисс: каждая точка — срок от 1 до 30 лет. Изгиб линии — там,
+          где удлинение срока почти перестаёт снижать платёж, а переплата всё
+          растёт.
+        </figcaption>
+        <div className="h-72 w-full rounded-xl bg-panel p-4">
+          <ResponsiveContainer>
+            <ScatterChart margin={{ left: 8, right: 8, top: 8, bottom: 4 }}>
+              <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" />
+              <XAxis
                 type="number"
-                dataKey="monthly"
+                dataKey="x"
                 name="Платёж"
                 tickFormatter={(v) => moneyShort(v)}
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
@@ -505,7 +636,9 @@ export function MortgagePage() {
                 axisLine={{ stroke: "var(--border)" }}
               />
               <YAxis
-                dataKey="overpay"
+                type="number"
+                dataKey="y"
+                name="Переплата"
                 tickFormatter={(v) => moneyShort(v)}
                 width={54}
                 tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
@@ -527,58 +660,53 @@ export function MortgagePage() {
               )}
               <Tooltip
                 cursor={{ stroke: "var(--border)" }}
-                formatter={(v) => `${money(Number(v))} ₽`}
-                labelFormatter={() => ""}
                 contentStyle={TIP}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
-                  const p = payload[0].payload as (typeof rows)[number];
+                  const d = payload[0].payload as {
+                    x: number;
+                    y: number;
+                    years: number;
+                    p: number;
+                  };
                   return (
                     <div style={TIP as React.CSSProperties} className="px-2 py-1">
                       <div className="font-medium">
-                        {p.years} {yearWord(p.years)}
+                        {d.years} {yearWord(d.years)} · взнос {d.p}%
                       </div>
-                      <div>платёж {money(p.monthly)} ₽/мес</div>
-                      <div>переплата {money(p.overpay)} ₽</div>
+                      <div>платёж {money(d.x)} ₽/мес</div>
+                      <div>переплата {money(d.y)} ₽</div>
                     </div>
                   );
                 }}
               />
-              <Line
-                type="monotone"
-                dataKey="overpay"
-                stroke="var(--chart-2)"
-                strokeWidth={2}
-                dot={(props) => {
-                  const p = props.payload as (typeof rows)[number];
-                  const hit = p.years === optimal || p.years === knee;
-                  return (
-                    <circle
-                      key={p.years}
-                      cx={props.cx}
-                      cy={props.cy}
-                      r={hit ? 5 : 2.5}
-                      fill={
-                        p.years === optimal
-                          ? "var(--primary)"
-                          : p.years === knee
-                            ? "var(--accent-foreground)"
-                            : "var(--chart-2)"
-                      }
-                    />
-                  );
-                }}
-              />
-            </LineChart>
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {downSeries.map((s) => (
+                <Scatter
+                  key={s.p}
+                  name={downLabel(s.p)}
+                  data={s.term.map((t) => ({
+                    x: t.monthly,
+                    y: t.overpay,
+                    years: t.years,
+                    p: s.p,
+                  }))}
+                  fill={s.color}
+                  line={{ stroke: s.color, strokeWidth: 2 }}
+                  lineJointType="monotone"
+                />
+              ))}
+            </ScatterChart>
           </ResponsiveContainer>
         </div>
       </figure>
 
-      {/* 3. структура выплат по годам для выбранного срока */}
+      {/* 4. структура выплат по годам для выбранного срока и текущего взноса */}
       <figure className="space-y-1">
         <figcaption className="text-xs text-muted-foreground">
-          Куда уходят платежи при сроке {c.tableTerm} {yearWord(c.tableTerm)}:
-          первые годы — почти одни проценты.
+          Куда уходят платежи при сроке {c.tableTerm} {yearWord(c.tableTerm)} и
+          текущем взносе {Math.round(c.downPct)}%: первые годы — почти одни
+          проценты.
         </figcaption>
         <div className="h-72 w-full rounded-xl bg-panel p-4">
           <ResponsiveContainer>
@@ -624,129 +752,6 @@ export function MortgagePage() {
         </div>
       </figure>
 
-      {/* 4. сравнение первоначальных взносов */}
-      <figure className="space-y-1">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <figcaption className="text-xs text-muted-foreground">
-            Сравнение взносов —{" "}
-            {cmpMetric === "monthly" ? "платёж/мес" : "переплата"} по сроку
-          </figcaption>
-          <div className="flex h-7 rounded-md border border-input p-0.5 text-xs">
-            {(
-              [
-                ["monthly", "платёж"],
-                ["overpay", "переплата"],
-              ] as const
-            ).map(([k, l]) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setCmpMetric(k)}
-                className={cn(
-                  "rounded px-2 transition-colors",
-                  cmpMetric === k
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground",
-                )}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {cmpPct.map((p, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs"
-              >
-                <span
-                  className="inline-block h-2 w-2 rounded-full"
-                  style={{ background: CMP_COLORS[i % CMP_COLORS.length] }}
-                />
-                <NumberField
-                  value={p}
-                  min={0}
-                  max={95}
-                  inputMode="numeric"
-                  onChange={(n) =>
-                    setCmpPct((a) => a.map((x, j) => (j === i ? n : x)))
-                  }
-                  className="h-5 w-9 border-0 bg-transparent px-0 text-right"
-                />
-                %
-                <span className="tnum text-muted-foreground">
-                  {moneyShort(Math.round((c.price * p) / 100))}
-                </span>
-                {cmpPct.length > 1 && (
-                  <button
-                    type="button"
-                    aria-label="убрать"
-                    onClick={() =>
-                      setCmpPct((a) => a.filter((_, j) => j !== i))
-                    }
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    ×
-                  </button>
-                )}
-              </span>
-            ))}
-            {cmpPct.length < 4 && (
-              <button
-                type="button"
-                onClick={() => setCmpPct((a) => [...a, 50])}
-                className="rounded-full border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                + взнос
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="h-72 w-full rounded-xl bg-panel p-4">
-          <ResponsiveContainer>
-            <LineChart
-              data={cmpData}
-              margin={{ left: 8, right: 8, top: 8, bottom: 4 }}
-            >
-              <CartesianGrid
-                stroke="var(--border)"
-                strokeDasharray="2 4"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="years"
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={{ stroke: "var(--border)" }}
-              />
-              <YAxis
-                width={54}
-                tickFormatter={(v) => moneyShort(v)}
-                tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <Tooltip
-                formatter={(v, n) => [`${money(Number(v))} ₽`, n]}
-                labelFormatter={(l) => `${l} ${yearWord(Number(l))}`}
-                contentStyle={TIP}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              {cmpU.map((p) => (
-                <Line
-                  key={p}
-                  type="monotone"
-                  dataKey={`p${p}`}
-                  name={`взнос ${p}%`}
-                  stroke={CMP_COLORS[cmpPct.indexOf(p) % CMP_COLORS.length]}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </figure>
     </div>
   );
 }

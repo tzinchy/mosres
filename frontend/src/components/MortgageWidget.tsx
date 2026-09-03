@@ -12,11 +12,25 @@ import {
 import { NumberField } from "@/components/ui/number-field";
 import { useMortgageCfg } from "@/hooks/useMortgageCfg";
 import { useRates } from "@/hooks/useDashboard";
+import { auctionRange } from "@/lib/auction";
 import { money, moneyShort } from "@/lib/format";
 import { annuity, cfgRate, type Program } from "@/lib/mortgage";
 import { cn } from "@/lib/utils";
 
-export function MortgageWidget({ price }: { price: number | null }) {
+const TIP = {
+  background: "var(--popover)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  fontSize: 11,
+} as const;
+
+export function MortgageWidget({
+  price,
+  isAuction = false,
+}: {
+  price: number | null;
+  isAuction?: boolean;
+}) {
   const { data: rates } = useRates();
   const [c, set] = useMortgageCfg();
   useEffect(() => {
@@ -27,20 +41,28 @@ export function MortgageWidget({ price }: { price: number | null }) {
   if (!price) return null;
 
   const rate = cfgRate(c, rates?.market_rate ?? 20);
-  const down = Math.round((price * c.downPct) / 100);
-  const loan = Math.max(0, price - down);
   const months = c.tableTerm * 12;
-  const monthly = Math.round(annuity(loan, rate, months));
-  const overpay = Math.round(monthly * months - loan);
+  // для аукциона считаем и по стартовой цене, и по верхней оценке итоговой (+30%)
+  const hiPrice = isAuction ? auctionRange(price)[1] : null;
+
+  const calc = (p: number) => {
+    const dn = Math.round((p * c.downPct) / 100);
+    const ln = Math.max(0, p - dn);
+    const m = Math.round(annuity(ln, rate, months));
+    return { down: dn, loan: ln, monthly: m, overpay: Math.round(m * months - ln) };
+  };
+  const base = calc(price);
+  const hi = hiPrice ? calc(hiPrice) : null;
 
   const series = Array.from({ length: 30 }, (_, i) => {
     const y = i + 1;
-    const m = annuity(loan, rate, y * 12);
-    return {
+    const row: Record<string, number> = {
       y,
-      monthly: Math.round(m),
-      overpay: Math.round(m * y * 12 - loan),
+      monthly: Math.round(annuity(base.loan, rate, y * 12)),
+      overpay: Math.round(annuity(base.loan, rate, y * 12) * y * 12 - base.loan),
     };
+    if (hi) row.monthlyHi = Math.round(annuity(hi.loan, rate, y * 12));
+    return row;
   });
 
   return (
@@ -107,13 +129,27 @@ export function MortgageWidget({ price }: { price: number | null }) {
           )}
           {c.program !== "custom" && <span>ставка {rate}%</span>}
         </div>
+
         <div className="tnum text-lg font-semibold">
-          {money(monthly)} ₽<span className="text-sm font-normal">/мес</span>
+          {money(base.monthly)}
+          {hi && (
+            <>
+              {" – "}
+              {money(hi.monthly)}
+            </>
+          )}{" "}
+          ₽<span className="text-sm font-normal">/мес</span>
         </div>
         <div className="tnum text-xs text-muted-foreground">
-          взнос {moneyShort(down)} · кредит {moneyShort(loan)} · переплата{" "}
-          {moneyShort(overpay)} ₽
+          {isAuction ? "по старту: " : ""}взнос {moneyShort(base.down)} · кредит{" "}
+          {moneyShort(base.loan)} · переплата {moneyShort(base.overpay)} ₽
         </div>
+        {hi && (
+          <div className="tnum text-xs text-reserve">
+            если аукцион закроется на +30% ({moneyShort(hiPrice!)} ₽): платёж{" "}
+            {money(hi.monthly)} ₽/мес · переплата {moneyShort(hi.overpay)} ₽
+          </div>
+        )}
 
         <div className="h-36">
           <ResponsiveContainer>
@@ -130,51 +166,63 @@ export function MortgageWidget({ price }: { price: number | null }) {
               />
               <YAxis yAxisId="m" hide />
               <YAxis yAxisId="o" hide />
-              <ReferenceLine
-                yAxisId="m"
-                x={c.tableTerm}
-                stroke="var(--border)"
-              />
+              <ReferenceLine yAxisId="m" x={c.tableTerm} stroke="var(--border)" />
               <Tooltip
                 formatter={(v, n) => [`${money(Number(v))} ₽`, n]}
                 labelFormatter={(l) => `срок ${l} лет`}
-                contentStyle={{
-                  background: "var(--popover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 8,
-                  fontSize: 11,
-                }}
+                contentStyle={TIP}
               />
               <Line
                 yAxisId="m"
                 type="monotone"
                 dataKey="monthly"
-                name="платёж/мес"
+                name={isAuction ? "платёж (старт)" : "платёж/мес"}
                 stroke="var(--chart-1)"
                 strokeWidth={2}
                 dot={false}
               />
-              <Line
-                yAxisId="o"
-                type="monotone"
-                dataKey="overpay"
-                name="переплата"
-                stroke="var(--chart-2)"
-                strokeWidth={2}
-                dot={false}
-              />
+              {hi && (
+                <Line
+                  yAxisId="m"
+                  type="monotone"
+                  dataKey="monthlyHi"
+                  name="платёж (+30%)"
+                  stroke="var(--reserve)"
+                  strokeWidth={2}
+                  strokeDasharray="4 3"
+                  dot={false}
+                />
+              )}
+              {!isAuction && (
+                <Line
+                  yAxisId="o"
+                  type="monotone"
+                  dataKey="overpay"
+                  name="переплата"
+                  stroke="var(--chart-2)"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              )}
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-0.5 w-3 bg-[var(--chart-1)]" />
-            платёж
+            платёж{isAuction ? " (старт)" : ""}
           </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-0.5 w-3 bg-[var(--chart-2)]" />
-            переплата
-          </span>
+          {hi ? (
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block h-0.5 w-3 bg-[var(--reserve)]" />
+              платёж (+30%)
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block h-0.5 w-3 bg-[var(--chart-2)]" />
+              переплата
+            </span>
+          )}
         </div>
 
         <Link

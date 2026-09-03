@@ -11,6 +11,7 @@ export interface MortgageCfg {
   customRate: number;
   comfort: number;
   tableTerm: number; // срок для оценки платежа в таблице квартир, лет
+  compareDowns: number[]; // доп. доли взноса (%) для сравнения на графиках
 }
 
 export const MORTGAGE_DEFAULT: MortgageCfg = {
@@ -22,6 +23,7 @@ export const MORTGAGE_DEFAULT: MortgageCfg = {
   customRate: 20,
   comfort: 150_000,
   tableTerm: 20,
+  compareDowns: [],
 };
 
 export function loadMortgageCfg(): MortgageCfg {

@@ -298,7 +298,7 @@ export function ApartSheet({
                 )}
               </div>
 
-              <MortgageWidget price={apart.price} />
+              <MortgageWidget price={apart.price} isAuction={apart.is_auction} />
 
               <CommentsSection apartId={apart.new_apart_id} />
 
