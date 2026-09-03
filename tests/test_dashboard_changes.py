@@ -77,10 +77,9 @@ async def test_changes_empty_for_a_day_with_no_history(client, db):
     assert r.json() == []
 
 
-async def test_timeseries_counts_became_family_and_ignores_noise(client, db):
+async def test_timeseries_state_reflects_latest_version(client, db):
     await _seed_transitions(db)
-    pts = (await client.get("/dashboard/timeseries")).json()
-    today = pts[-1]
-    assert today["became_family"] == 1
-    assert today["changes"] == 3  # drop + family + reserve, not the plan churn
-    assert today["drops"] == 1
+    today = (await client.get("/dashboard/timeseries")).json()[-1]
+    assert today["total"] == 4
+    assert today["reserved"] == 1  # apart 3 went to reserve
+    assert today["family"] == 1  # apart 2 became family-eligible

@@ -11,11 +11,10 @@ import {
 import type { DashboardPoint } from "@/lib/types";
 
 const SERIES = [
-  { key: "drops", label: "Подешевели", color: "var(--pos)" },
-  { key: "rises", label: "Подорожали", color: "var(--neg)" },
-  { key: "new_discounts", label: "Новые скидки", color: "var(--chart-3)" },
-  { key: "became_family", label: "Стали по семейной", color: "var(--chart-5)" },
-  { key: "new_aparts", label: "Новые", color: "var(--chart-1)" },
+  { key: "total", label: "Всего", color: "var(--chart-4)" },
+  { key: "discounted", label: "Со скидкой", color: "var(--pos)" },
+  { key: "reserved", label: "В резерве", color: "var(--reserve)" },
+  { key: "family", label: "По семейной ипотеке", color: "var(--chart-3)" },
 ] as const;
 
 export function DashboardChart({ points }: { points: DashboardPoint[] }) {

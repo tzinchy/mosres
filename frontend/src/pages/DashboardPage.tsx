@@ -19,10 +19,9 @@ import { money, pct, relTime, shortDate, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const CHART_HELP =
-  "Каждая точка — события за один день по всему списку (или по избранному). " +
-  "Считаются реальные переходы между версиями квартиры: подешевела, подорожала, " +
-  "появилась скидка, стала доступна по семейной ипотеке, добавилась новая. " +
-  "Смена служебных полей (ссылка на картинку планировки и т.п.) не считается.";
+  "Состояние списка на каждую дату: для каждой квартиры берётся её версия, " +
+  "актуальная на тот день, и считается, сколько всего / в резерве / со скидкой / " +
+  "по семейной ипотеке. Линии держат уровень и двигаются относительно соседних дат.";
 
 const dateInputCls =
   "tnum rounded-md border border-border bg-card px-2 py-1 text-xs";
@@ -170,7 +169,7 @@ export function DashboardPage() {
 
           <section>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <SectionTitle help={CHART_HELP}>Динамика изменений</SectionTitle>
+              <SectionTitle help={CHART_HELP}>Состояние списка по датам</SectionTitle>
               <div className="flex items-center gap-1.5">
                 <input
                   type="date"
@@ -192,13 +191,13 @@ export function DashboardPage() {
               </div>
             </div>
             {ts.isLoading && <Skeleton className="h-72 w-full" />}
-            {ts.data && ts.data.every((p) => p.changes + p.new_aparts === 0) && (
+            {ts.data && ts.data.every((p) => p.total === 0) && (
               <p className="rounded-lg border border-border bg-card px-4 py-6 text-sm text-muted-foreground">
-                Пока нет истории изменений — она накапливается с каждым обновлением
-                данных (каждые {status?.interval_minutes ?? 30} мин).
+                Пока нет истории — она накапливается с каждым обновлением данных
+                (каждые {status?.interval_minutes ?? 30} мин).
               </p>
             )}
-            {ts.data && ts.data.some((p) => p.changes + p.new_aparts > 0) && (
+            {ts.data && ts.data.some((p) => p.total > 0) && (
               <DashboardChart points={ts.data} />
             )}
           </section>

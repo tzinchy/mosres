@@ -85,14 +85,10 @@ class DashboardMetrics(BaseModel):
 
 class DashboardPoint(BaseModel):
     day: datetime.date
-    new_aparts: int
-    changes: int
-    drops: int
-    rises: int
-    new_discounts: int
+    total: int
     reserved: int
-    became_family: int
-    avg_change_pct: float | None = None
+    discounted: int
+    family: int
 
 
 class DashboardChange(BaseModel):

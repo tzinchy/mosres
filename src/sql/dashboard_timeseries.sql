@@ -1,45 +1,9 @@
+-- State of the tracked list on each day in [:date_from, :date_to]: for every
+-- apartment take its latest version as of that day, then count how many are in
+-- reserve / discounted / family-mortgage eligible. Levels, not per-day events —
+-- so the line holds and moves relative to neighbouring dates instead of spiking.
 WITH fav AS (
     SELECT new_apart_id FROM favorites
-),
-h AS (
-    SELECT
-        nah.new_apart_id,
-        nah.version,
-        nah.updated_at::date AS d,
-        NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric AS price_num,
-        (
-            NULLIF(regexp_replace(COALESCE(nah.price_with_discount, ''), '\D', '', 'g'), '')::numeric > 0
-            AND NULLIF(regexp_replace(COALESCE(nah.price_with_discount, ''), '\D', '', 'g'), '')::numeric
-                < NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric
-        ) AS has_disc,
-        COALESCE(nah.reserve, 0) AS reserve,
-        (COALESCE(nah.property, '') ILIKE '%семейн%') AS fam,
-        lag(NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric)
-            OVER w AS prev_price,
-        lag(
-            NULLIF(regexp_replace(COALESCE(nah.price_with_discount, ''), '\D', '', 'g'), '')::numeric > 0
-            AND NULLIF(regexp_replace(COALESCE(nah.price_with_discount, ''), '\D', '', 'g'), '')::numeric
-                < NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric
-        ) OVER w AS prev_disc,
-        lag(COALESCE(nah.reserve, 0)) OVER w AS prev_reserve,
-        lag(COALESCE(nah.property, '') ILIKE '%семейн%') OVER w AS prev_fam
-    FROM new_aparts_history nah
-    WHERE NOT CAST(:favorites_only AS boolean)
-       OR nah.new_apart_id IN (SELECT new_apart_id FROM fav)
-    WINDOW w AS (PARTITION BY nah.new_apart_id ORDER BY nah.version)
-),
-hx AS (
-    SELECT
-        *,
-        (
-            version > 1 AND (
-                (prev_price IS NOT NULL AND price_num IS DISTINCT FROM prev_price)
-                OR has_disc IS DISTINCT FROM COALESCE(prev_disc, FALSE)
-                OR reserve IS DISTINCT FROM COALESCE(prev_reserve, 0)
-                OR fam IS DISTINCT FROM COALESCE(prev_fam, FALSE)
-            )
-        ) AS is_change
-    FROM h
 ),
 days AS (
     SELECT generate_series(
@@ -47,27 +11,37 @@ days AS (
         CAST(:date_to AS date),
         interval '1 day'
     )::date AS d
+),
+-- ponytail: O(days × history_rows) join. Fine at this scale (a few thousand
+-- aparts, ~1-2 versions each). If history grows huge, precompute a daily snapshot.
+latest AS (
+    SELECT
+        days.d,
+        nah.new_apart_id,
+        COALESCE(nah.reserve, 0) AS reserve,
+        (
+            NULLIF(regexp_replace(COALESCE(nah.price_with_discount, ''), '\D', '', 'g'), '')::numeric > 0
+            AND NULLIF(regexp_replace(COALESCE(nah.price_with_discount, ''), '\D', '', 'g'), '')::numeric
+                < NULLIF(regexp_replace(nah.price, '\D', '', 'g'), '')::numeric
+        ) AS disc,
+        (COALESCE(nah.property, '') ILIKE '%семейн%') AS fam,
+        row_number() OVER (
+            PARTITION BY days.d, nah.new_apart_id ORDER BY nah.version DESC
+        ) AS rn
+    FROM days
+    LEFT JOIN new_aparts_history nah
+        ON nah.updated_at::date <= days.d
+       AND (
+            NOT CAST(:favorites_only AS boolean)
+            OR nah.new_apart_id IN (SELECT new_apart_id FROM fav)
+       )
 )
 SELECT
-    days.d AS day,
-    count(hx.*) FILTER (WHERE hx.version = 1)                        AS new_aparts,
-    count(hx.*) FILTER (WHERE hx.is_change)                          AS changes,
-    count(hx.*) FILTER (WHERE hx.is_change AND hx.price_num < hx.prev_price)
-                                                                    AS drops,
-    count(hx.*) FILTER (WHERE hx.is_change AND hx.price_num > hx.prev_price)
-                                                                    AS rises,
-    count(hx.*) FILTER (WHERE hx.has_disc AND hx.prev_disc IS NOT TRUE AND hx.version > 1)
-                                                                    AS new_discounts,
-    count(hx.*) FILTER (WHERE hx.reserve = 1 AND hx.prev_reserve = 0 AND hx.version > 1)
-                                                                    AS reserved,
-    count(hx.*) FILTER (WHERE hx.fam AND hx.prev_fam IS NOT TRUE AND hx.version > 1)
-                                                                    AS became_family,
-    round(
-        avg((hx.price_num - hx.prev_price) / hx.prev_price * 100)
-        FILTER (WHERE hx.prev_price > 0 AND hx.price_num IS DISTINCT FROM hx.prev_price),
-        2
-    )                                                               AS avg_change_pct
-FROM days
-LEFT JOIN hx ON hx.d = days.d
-GROUP BY days.d
-ORDER BY days.d;
+    d AS day,
+    count(new_apart_id) FILTER (WHERE rn = 1)                  AS total,
+    count(new_apart_id) FILTER (WHERE rn = 1 AND reserve = 1)  AS reserved,
+    count(new_apart_id) FILTER (WHERE rn = 1 AND disc)         AS discounted,
+    count(new_apart_id) FILTER (WHERE rn = 1 AND fam)          AS family
+FROM latest
+GROUP BY d
+ORDER BY d;

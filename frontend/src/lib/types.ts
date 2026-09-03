@@ -166,14 +166,10 @@ export interface MetroStat {
 
 export interface DashboardPoint {
   day: string;
-  new_aparts: number;
-  changes: number;
-  drops: number;
-  rises: number;
-  new_discounts: number;
+  total: number;
   reserved: number;
-  became_family: number;
-  avg_change_pct: number | null;
+  discounted: number;
+  family: number;
 }
 
 export type ChangeKind =

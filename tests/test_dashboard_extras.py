@@ -17,7 +17,8 @@ async def test_timeseries_returns_a_row_per_day(client, db):
     assert r.status_code == 200
     pts = r.json()
     assert len(pts) == 7
-    assert pts[-1]["new_aparts"] >= 1  # seeded today
+    assert pts[-1]["total"] >= 1  # apartment exists as of today
+    assert pts[0]["total"] == 0  # did not exist a week ago
 
 
 async def test_buildings_stats(client, db):
