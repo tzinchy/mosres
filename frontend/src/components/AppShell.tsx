@@ -1,6 +1,7 @@
 import {
   Bell,
   Building2,
+  Calculator,
   LayoutDashboard,
   Map as MapIcon,
   Table2,
@@ -17,6 +18,7 @@ const nav = [
   { to: "/aparts", label: "Квартиры", icon: Table2, end: false },
   { to: "/buildings", label: "Дома", icon: Building2, end: true },
   { to: "/map", label: "Карта", icon: MapIcon, end: false },
+  { to: "/mortgage", label: "Ипотека", icon: Calculator, end: false },
 ];
 
 function BellItem({ onNavigate }: { onNavigate?: () => void }) {
