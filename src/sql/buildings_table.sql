@@ -39,7 +39,8 @@ LEFT JOIN LATERAL (
     SELECT count(*) AS cnt
     FROM favorites f
     JOIN new_aparts na2 ON na2.new_apart_id = f.new_apart_id
-    WHERE na2.building_id ~ '^\d+$' AND (na2.building_id)::int = b.building_id
+    WHERE f.user_id = :user_id
+      AND na2.building_id ~ '^\d+$' AND (na2.building_id)::int = b.building_id
 ) ff ON true
 LEFT JOIN LATERAL (
     SELECT jsonb_agg(

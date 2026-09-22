@@ -65,6 +65,23 @@ class Comment(BaseModel):
     new_apart_id: int
     body: str
     created_at: datetime.datetime
+    author: str
+    is_mine: bool
+
+
+class LoginIn(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=256)
+
+
+class TokenOut(BaseModel):
+    token: str
+    username: str
+
+
+class Me(BaseModel):
+    id: int
+    username: str
 
 
 class DashboardMetrics(BaseModel):

@@ -1,3 +1,4 @@
+import { clearSession, getUsername } from "@/lib/auth";
 import {
   Bell,
   Building2,
@@ -105,6 +106,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="flex flex-col gap-3 border-t border-border pt-3">
           <LastUpdated />
+          <button
+            type="button"
+            onClick={clearSession}
+            className="px-2.5 text-left text-xs text-muted-foreground hover:text-foreground"
+          >
+            {getUsername() ?? "вход"} · выйти
+          </button>
         </div>
       </aside>
 

@@ -45,6 +45,8 @@ from src.repository import (
     list_comments,
     add_comment,
     delete_comment,
+    get_user,
+    get_user_by_username,
     refresh_building_price_stats,
     get_building_price_dynamics,
     get_dashboard_metrics,
@@ -330,6 +332,7 @@ class MosResService:
     async def get_aparts_table(
         self,
         *,
+        apart_id: int | None = None,
         building_id: int | None = None,
         building_ids: str | None = None,
         favorites_only: bool = False,
@@ -349,6 +352,7 @@ class MosResService:
     ) -> list[ApartRow]:
         async with Session() as session:
             rows = await get_aparts_table(
+                apart_id=apart_id,
                 building_id=building_id,
                 building_ids=building_ids,
                 favorites_only=favorites_only,
@@ -586,7 +590,16 @@ class MosResService:
                 )
         return Comment.model_validate(dict(row))
 
-    async def delete_comment(self, comment_id: int) -> None:
+    async def delete_comment(self, comment_id: int) -> int:
+        """Число удалённых строк: 0 — комментария нет или он чужой."""
         async with Session() as session:
             async with session.begin():
-                await delete_comment(comment_id=comment_id, session=session)
+                return await delete_comment(comment_id=comment_id, session=session)
+
+    async def get_user_by_username(self, username: str):
+        async with Session() as session:
+            return await get_user_by_username(username=username, session=session)
+
+    async def get_user(self, user_id: int):
+        async with Session() as session:
+            return await get_user(user_id=user_id, session=session)

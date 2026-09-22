@@ -1,7 +1,7 @@
 -- Historical state per day: for each apartment take its latest version as of the
 -- day, then aggregate every pivot metric. One row per day in [:date_from, :date_to].
 WITH fav AS (
-    SELECT new_apart_id FROM favorites
+    SELECT new_apart_id FROM favorites WHERE user_id = :user_id
 ),
 days AS (
     SELECT generate_series(

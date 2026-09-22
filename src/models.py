@@ -79,11 +79,25 @@ class NewApartTemp(Base, NewApartMixing):
     new_apart_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True)
+    username: saorm.Mapped[str] = saorm.mapped_column(
+        sa.String(64), nullable=False, unique=True
+    )
+    # формат см. src/auth.py: "scrypt$соль$хеш"
+    password_hash: saorm.Mapped[str] = saorm.mapped_column(sa.Text, nullable=False)
+
+
 class Favorite(Base):
     __tablename__ = "favorites"
 
     new_apart_id: saorm.Mapped[int] = saorm.mapped_column(
         sa.ForeignKey("new_aparts.new_apart_id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: saorm.Mapped[int] = saorm.mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
     )
 
 
@@ -93,6 +107,9 @@ class Comment(Base):
     id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True)
     new_apart_id: saorm.Mapped[int] = saorm.mapped_column(
         sa.ForeignKey("new_aparts.new_apart_id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: saorm.Mapped[int] = saorm.mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     body: saorm.Mapped[str] = saorm.mapped_column(sa.Text, nullable=False)
 

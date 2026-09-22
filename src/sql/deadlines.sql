@@ -8,7 +8,7 @@ FROM new_aparts na
 WHERE na.term_of_application ~ '^\d{2}\.\d{2}\.\d{4}$'
   AND (
         NOT CAST(:favorites_only AS boolean)
-        OR na.new_apart_id IN (SELECT new_apart_id FROM favorites)
+        OR na.new_apart_id IN (SELECT new_apart_id FROM favorites WHERE user_id = :user_id)
       )
 GROUP BY 1, 2
 ORDER BY 1;

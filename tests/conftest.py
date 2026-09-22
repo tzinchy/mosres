@@ -100,9 +100,26 @@ async def client(engine, monkeypatch) -> AsyncIterator[AsyncClient]:
     monkeypatch.setattr(src.service, "Session", test_session, raising=False)
 
     from src.api import app
+    from src.auth import hash_password, make_token
+
+    # Все эндпоинты за авторизацией — тестовый клиент ходит под пользователем
+    # tester (он же владелец избранного и комментариев в тестах).
+    async with test_session() as session, session.begin():
+        user_id = await session.scalar(
+            text(
+                "INSERT INTO users (username, password_hash) VALUES ('tester', :h) "
+                "ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash "
+                "RETURNING id"
+            ),
+            {"h": hash_password("secret")},
+        )
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": f"Bearer {make_token(user_id)}"},
+    ) as c:
         yield c
 
 

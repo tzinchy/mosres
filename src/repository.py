@@ -1,5 +1,6 @@
 from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.auth import current_user_id
 from src.utils import (
     create_insert_query_for_table,
     create_insert_query_for_table_with_except_from_temp,
@@ -8,6 +9,12 @@ from src.utils import (
 )
 from src.models import NewApartHistory, BuildingHistory, NewApart
 from sqlalchemy import select, text
+
+
+def _p(**params: Any) -> dict[str, Any]:
+    """Параметры запроса + id текущего пользователя: избранное у каждого своё,
+    и все отчёты считают его по :user_id (см. src/sql/*.sql)."""
+    return {**params, "user_id": current_user_id()}
 
 
 async def upsert_with_except_from_temp_table(
@@ -69,7 +76,7 @@ async def get_new_aparts_history(*, new_apart_id: int, session: AsyncSession):
 
 async def get_buildings_table(*, session: AsyncSession):
     sql = await read_from_sql_folder("buildings_table")
-    result = await session.execute(text(sql))
+    result = await session.execute(text(sql), _p())
     return result.mappings().all()
 
 
@@ -96,6 +103,7 @@ async def get_data_for_excel_file(sql: str, session: AsyncSession):
 
 async def get_aparts_table(
     *,
+    apart_id: int | None = None,
     building_id: int | None,
     building_ids: str | None,
     favorites_only: bool,
@@ -117,7 +125,8 @@ async def get_aparts_table(
     sql = await read_from_sql_folder("aparts_table")
     result = await session.execute(
         text(sql),
-        {
+        _p(**{
+            "apart_id": apart_id,
             "building_id": building_id,
             "building_ids": building_ids or None,
             "favorites_only": favorites_only,
@@ -135,18 +144,21 @@ async def get_aparts_table(
             "min_discount": min_discount,
             "q": q,
             "q_like": f"%{q}%" if q else None,
-        },
+        }),
     )
     return result.mappings().all()
 
 
 async def list_comments(*, new_apart_id: int, session: AsyncSession):
+    """Комментарии видны всем — с именем автора; удалять можно только свои."""
     result = await session.execute(
         text(
-            "SELECT id, new_apart_id, body, created_at FROM comments "
-            "WHERE new_apart_id = :i ORDER BY created_at"
+            "SELECT c.id, c.new_apart_id, c.body, c.created_at, u.username AS author, "
+            "       c.user_id = :u AS is_mine "
+            "FROM comments c JOIN users u ON u.id = c.user_id "
+            "WHERE c.new_apart_id = :i ORDER BY c.created_at"
         ),
-        {"i": new_apart_id},
+        {"i": new_apart_id, "u": current_user_id()},
     )
     return result.mappings().all()
 
@@ -154,38 +166,66 @@ async def list_comments(*, new_apart_id: int, session: AsyncSession):
 async def add_comment(*, new_apart_id: int, body: str, session: AsyncSession):
     result = await session.execute(
         text(
-            "INSERT INTO comments (new_apart_id, body) VALUES (:i, :b) "
-            "RETURNING id, new_apart_id, body, created_at"
+            "INSERT INTO comments (new_apart_id, user_id, body) VALUES (:i, :u, :b) "
+            "RETURNING id, new_apart_id, body, created_at, "
+            "          (SELECT username FROM users WHERE id = :u) AS author, "
+            "          true AS is_mine"
         ),
-        {"i": new_apart_id, "b": body},
+        {"i": new_apart_id, "u": current_user_id(), "b": body},
     )
     return result.mappings().one()
 
 
-async def delete_comment(*, comment_id: int, session: AsyncSession) -> None:
-    await session.execute(
-        text("DELETE FROM comments WHERE id = :i"), {"i": comment_id}
+async def delete_comment(*, comment_id: int, session: AsyncSession) -> int:
+    """Возвращает число удалённых строк: чужой комментарий не трогаем."""
+    result = await session.execute(
+        text("DELETE FROM comments WHERE id = :i AND user_id = :u"),
+        {"i": comment_id, "u": current_user_id()},
     )
+    return result.rowcount
 
 
 async def add_favorite(*, new_apart_id: int, session: AsyncSession) -> None:
     await session.execute(
-        text("INSERT INTO favorites (new_apart_id) VALUES (:i) ON CONFLICT DO NOTHING"),
-        {"i": new_apart_id},
+        text(
+            "INSERT INTO favorites (new_apart_id, user_id) VALUES (:i, :u) "
+            "ON CONFLICT DO NOTHING"
+        ),
+        {"i": new_apart_id, "u": current_user_id()},
     )
 
 
 async def remove_favorite(*, new_apart_id: int, session: AsyncSession) -> None:
     await session.execute(
-        text("DELETE FROM favorites WHERE new_apart_id = :i"), {"i": new_apart_id}
+        text("DELETE FROM favorites WHERE new_apart_id = :i AND user_id = :u"),
+        {"i": new_apart_id, "u": current_user_id()},
     )
 
 
 async def list_favorites(*, session: AsyncSession) -> list[int]:
     result = await session.execute(
-        text("SELECT new_apart_id FROM favorites ORDER BY new_apart_id")
+        text(
+            "SELECT new_apart_id FROM favorites WHERE user_id = :u "
+            "ORDER BY new_apart_id"
+        ),
+        {"u": current_user_id()},
     )
     return [row[0] for row in result.all()]
+
+
+async def get_user_by_username(*, username: str, session: AsyncSession):
+    result = await session.execute(
+        text("SELECT id, username, password_hash FROM users WHERE username = :n"),
+        {"n": username},
+    )
+    return result.mappings().one_or_none()
+
+
+async def get_user(*, user_id: int, session: AsyncSession):
+    result = await session.execute(
+        text("SELECT id, username FROM users WHERE id = :i"), {"i": user_id}
+    )
+    return result.mappings().one_or_none()
 
 
 async def refresh_building_price_stats(*, session: AsyncSession) -> int:
@@ -196,7 +236,7 @@ async def refresh_building_price_stats(*, session: AsyncSession) -> int:
 
 async def get_dashboard_metrics(*, favorites_only: bool, session: AsyncSession):
     sql = await read_from_sql_folder("dashboard")
-    result = await session.execute(text(sql), {"favorites_only": favorites_only})
+    result = await session.execute(text(sql), _p(favorites_only=favorites_only))
     return result.mappings().one()
 
 
@@ -206,11 +246,7 @@ async def get_dashboard_timeseries(
     sql = await read_from_sql_folder("dashboard_timeseries")
     result = await session.execute(
         text(sql),
-        {
-            "favorites_only": favorites_only,
-            "date_from": date_from,
-            "date_to": date_to,
-        },
+        _p(favorites_only=favorites_only, date_from=date_from, date_to=date_to),
     )
     return result.mappings().all()
 
@@ -220,26 +256,26 @@ async def get_dashboard_changes(
 ):
     sql = await read_from_sql_folder("dashboard_changes")
     result = await session.execute(
-        text(sql), {"favorites_only": favorites_only, "date": date}
+        text(sql), _p(favorites_only=favorites_only, date=date)
     )
     return result.mappings().all()
 
 
 async def get_scatter(*, favorites_only: bool, session: AsyncSession):
     sql = await read_from_sql_folder("scatter")
-    result = await session.execute(text(sql), {"favorites_only": favorites_only})
+    result = await session.execute(text(sql), _p(favorites_only=favorites_only))
     return result.mappings().all()
 
 
 async def get_sankey(*, favorites_only: bool, session: AsyncSession):
     sql = await read_from_sql_folder("sankey")
-    result = await session.execute(text(sql), {"favorites_only": favorites_only})
+    result = await session.execute(text(sql), _p(favorites_only=favorites_only))
     return result.mappings().all()
 
 
 async def get_deadlines(*, favorites_only: bool, session: AsyncSession):
     sql = await read_from_sql_folder("deadlines")
-    result = await session.execute(text(sql), {"favorites_only": favorites_only})
+    result = await session.execute(text(sql), _p(favorites_only=favorites_only))
     return result.mappings().all()
 
 
@@ -249,12 +285,12 @@ async def get_pivot_date(
     sql = await read_from_sql_folder("pivot_date")
     result = await session.execute(
         text(sql),
-        {
-            "favorites_only": favorites_only,
-            "date_from": date_from,
-            "date_to": date_to,
-            "district": district,
-        },
+        _p(
+            favorites_only=favorites_only,
+            date_from=date_from,
+            date_to=date_to,
+            district=district,
+        ),
     )
     return result.mappings().all()
 
@@ -265,7 +301,7 @@ async def get_pivot_category(
     template = await read_from_sql_folder("pivot_category")
     sql = template.replace("{key}", key_expr)
     result = await session.execute(
-        text(sql), {"favorites_only": favorites_only, "district": district}
+        text(sql), _p(favorites_only=favorites_only, district=district)
     )
     return result.mappings().all()
 
@@ -282,19 +318,19 @@ async def get_history_date_range(*, session: AsyncSession):
 
 async def get_buildings_stats(*, session: AsyncSession):
     sql = await read_from_sql_folder("buildings_stats")
-    result = await session.execute(text(sql))
+    result = await session.execute(text(sql), _p())
     return result.mappings().all()
 
 
 async def get_notifications(*, days: int, session: AsyncSession):
     sql = await read_from_sql_folder("notifications")
-    result = await session.execute(text(sql), {"days": days})
+    result = await session.execute(text(sql), _p(days=days))
     return result.mappings().all()
 
 
 async def get_metro_stats(*, session: AsyncSession):
     sql = await read_from_sql_folder("metro_stats")
-    result = await session.execute(text(sql))
+    result = await session.execute(text(sql), _p())
     return result.mappings().all()
 
 

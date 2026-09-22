@@ -128,11 +128,15 @@ LEFT JOIN LATERAL (
     SELECT max(hp.price_num) AS price_max
     FROM hp WHERE hp.new_apart_id = na.new_apart_id
 ) mx ON true
-LEFT JOIN favorites fav ON fav.new_apart_id = na.new_apart_id
+LEFT JOIN favorites fav ON fav.new_apart_id = na.new_apart_id AND fav.user_id = :user_id
 LEFT JOIN LATERAL (
     SELECT c.new_apart_id FROM comments c WHERE c.new_apart_id = na.new_apart_id LIMIT 1
 ) cmt ON true
 WHERE (
+        CAST(:apart_id AS integer) IS NULL
+        OR na.new_apart_id = CAST(:apart_id AS integer)
+      )
+  AND (
         CAST(:building_id AS integer) IS NULL
         OR (na.building_id ~ '^\d+$' AND (na.building_id)::int = CAST(:building_id AS integer))
       )

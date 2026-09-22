@@ -2,11 +2,19 @@ import datetime
 from contextlib import asynccontextmanager
 from typing import Literal
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 from src.rates import get_key_rate
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from src.auth import (
+    current_user_id,
+    make_token,
+    parse_token,
+    set_current_user_id,
+    verify_password,
+)
 from src.config import settings
 from src.depends import get_mosres_service, MosResService
 from src.scheduler import build_scheduler
@@ -17,6 +25,9 @@ from src.schemas import (
     BuildingStat,
     Comment,
     CommentIn,
+    LoginIn,
+    Me,
+    TokenOut,
     DashboardChange,
     DashboardMetrics,
     DashboardPoint,
@@ -61,6 +72,44 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
+
+
+# Открытые пути: всё остальное требует заголовок Authorization: Bearer <token>.
+PUBLIC_PATHS = {"/", "/auth/login", "/docs", "/redoc", "/openapi.json"}
+
+
+@app.middleware("http")
+async def require_auth(request: Request, call_next):
+    if request.method == "OPTIONS" or request.url.path in PUBLIC_PATHS:
+        return await call_next(request)
+
+    user_id = parse_token(request.headers.get("Authorization"))
+    if user_id is None:
+        return JSONResponse({"detail": "Требуется авторизация"}, status_code=401)
+
+    set_current_user_id(user_id)
+    try:
+        return await call_next(request)
+    finally:
+        set_current_user_id(None)
+
+
+@app.post("/auth/login", tags=["auth"], response_model=TokenOut)
+async def login(
+    payload: LoginIn, mosres_service: MosResService = Depends(get_mosres_service)
+):
+    user = await mosres_service.get_user_by_username(payload.username)
+    if user is None or not verify_password(payload.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+    return TokenOut(token=make_token(user["id"]), username=user["username"])
+
+
+@app.get("/auth/me", tags=["auth"], response_model=Me)
+async def me(mosres_service: MosResService = Depends(get_mosres_service)):
+    user = await mosres_service.get_user(current_user_id())
+    if user is None:
+        raise HTTPException(status_code=401, detail="Требуется авторизация")
+    return Me(id=user["id"], username=user["username"])
 
 
 @app.get("/", include_in_schema=False)
@@ -153,7 +202,8 @@ async def post_apart_comment(
 async def delete_apart_comment(
     comment_id: int, mosres_service: MosResService = Depends(get_mosres_service)
 ):
-    await mosres_service.delete_comment(comment_id)
+    if not await mosres_service.delete_comment(comment_id):
+        raise HTTPException(status_code=404, detail="Комментарий не найден")
 
 
 @app.get("/rates", tags=["dashboard"], response_model=RatesInfo)
@@ -324,6 +374,16 @@ async def get_price_history(
 @app.get("/status", tags=["dashboard"], response_model=RefreshStatus)
 async def get_status(mosres_service: MosResService = Depends(get_mosres_service)):
     return await mosres_service.get_refresh_status()
+
+
+@app.get("/aparts/{new_apart_id}", tags=["aparts"], response_model=ApartRow)
+async def get_apart(
+    new_apart_id: int, mosres_service: MosResService = Depends(get_mosres_service)
+):
+    rows = await mosres_service.get_aparts_table(apart_id=new_apart_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Квартира не найдена")
+    return rows[0]
 
 
 @app.get("/aparts/{new_apart_id}/versions", tags=["aparts"])

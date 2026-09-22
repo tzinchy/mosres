@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# built APK (see scripts/apk.sh)
+mosres.apk

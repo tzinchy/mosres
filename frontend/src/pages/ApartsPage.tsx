@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { ApartSheet } from "@/components/ApartSheet";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { ApartsTable } from "@/components/ApartsTable";
 import { ApartsToolbar } from "@/components/ApartsToolbar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,7 +14,6 @@ import { useToggleFavorite } from "@/hooks/useFavorites";
 import { useMortgageCfg } from "@/hooks/useMortgageCfg";
 import { useRates } from "@/hooks/useDashboard";
 import { monthlyFor } from "@/lib/mortgage";
-import type { ApartRow } from "@/lib/types";
 
 const BOOL_KEYS: (keyof ApartFilters)[] = [
   "favorites_only",
@@ -30,6 +28,7 @@ const BOOL_KEYS: (keyof ApartFilters)[] = [
 ];
 
 export function ApartsPage() {
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const [filters, setFilters] = useState<ApartFilters>(() => {
     const f: ApartFilters = {};
@@ -41,7 +40,6 @@ export function ApartsPage() {
     if (fin === "FULL" || fin === "NO" || fin === "STD") f.finishing = fin;
     return f;
   });
-  const [selected, setSelected] = useState<ApartRow | null>(null);
   const cols = useApartCols();
   const q = useDebouncedValue(filters.q, 300);
   const [mtgCfg] = useMortgageCfg();
@@ -98,16 +96,11 @@ export function ApartsPage() {
         <ApartsTable
           rows={rows}
           cols={cols}
-          selectedId={selected?.new_apart_id}
           onToggleFavorite={(id, next) => toggle.mutate({ id, next })}
-          onSelect={setSelected}
+          onSelect={(row) => navigate(`/aparts/${row.new_apart_id}`)}
         />
       )}
 
-      <ApartSheet
-        apart={selected}
-        onOpenChange={(open) => !open && setSelected(null)}
-      />
     </div>
   );
 }

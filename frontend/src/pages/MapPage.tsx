@@ -10,15 +10,14 @@ import {
   TileLayer,
   useMapEvents,
 } from "react-leaflet";
-import { Link } from "react-router-dom";
-import { ApartSheet } from "@/components/ApartSheet";
+import { Link, useNavigate } from "react-router-dom";
 import { ApartsTable } from "@/components/ApartsTable";
 import { Button } from "@/components/ui/button";
 import { useAparts } from "@/hooks/useAparts";
 import { useBuildings } from "@/hooks/useBuildings";
 import { useToggleFavorite } from "@/hooks/useFavorites";
 import { pointInPolygon, type LatLng } from "@/lib/geo";
-import type { ApartRow, BuildingRow } from "@/lib/types";
+import type { BuildingRow } from "@/lib/types";
 
 const MOSCOW: LatLng = [55.751, 37.618];
 
@@ -48,13 +47,13 @@ function DrawLayer({
 }
 
 export function MapPage() {
+  const navigate = useNavigate();
   const { data: buildings } = useBuildings();
   const toggle = useToggleFavorite();
 
   const [drawing, setDrawing] = useState(false);
   const [points, setPoints] = useState<LatLng[]>([]);
   const [applied, setApplied] = useState<LatLng[] | null>(null);
-  const [selected, setSelected] = useState<ApartRow | null>(null);
 
   const withCoords = useMemo(
     () =>
@@ -180,9 +179,8 @@ export function MapPage() {
         {applied && aparts.data && aparts.data.length > 0 && (
           <ApartsTable
             rows={aparts.data}
-            selectedId={selected?.new_apart_id}
             onToggleFavorite={(id, next) => toggle.mutate({ id, next })}
-            onSelect={setSelected}
+            onSelect={(row) => navigate(`/aparts/${row.new_apart_id}`)}
           />
         )}
         {applied && inZone?.length === 0 && (
@@ -192,10 +190,6 @@ export function MapPage() {
         )}
       </div>
 
-      <ApartSheet
-        apart={selected}
-        onOpenChange={(open) => !open && setSelected(null)}
-      />
     </div>
   );
 }

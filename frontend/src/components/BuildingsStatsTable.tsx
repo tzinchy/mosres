@@ -1,3 +1,4 @@
+import { RemoteImg } from "@/components/RemoteImg";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { moneyShort } from "@/lib/format";
@@ -58,16 +59,10 @@ export function BuildingsStatsTable({ rows }: { rows: BuildingStat[] }) {
                   to={`/buildings/${b.building_id}`}
                   className="flex items-center gap-2.5 hover:underline"
                 >
-                  {b.img_url ? (
-                    <img
-                      src={b.img_url}
-                      alt=""
-                      loading="lazy"
-                      className="size-8 shrink-0 rounded border border-border object-cover"
-                    />
-                  ) : (
-                    <span className="size-8 shrink-0 rounded border border-border bg-secondary" />
-                  )}
+                  <RemoteImg
+                    src={b.img_url ?? undefined}
+                    className="block size-8 shrink-0 rounded border border-border bg-secondary object-cover"
+                  />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">
                       {b.address ?? `Дом ${b.building_id}`}

@@ -22,6 +22,7 @@ import {
   PriceDelta,
   ReserveTag,
 } from "@/components/cells";
+import { RemoteImg } from "@/components/RemoteImg";
 import { ColumnsMenu } from "@/components/ColumnsMenu";
 import { MetroList } from "@/components/MetroList";
 import { Badge } from "@/components/ui/badge";
@@ -254,11 +255,9 @@ export function ApartsTable({
       enableResizing: false,
       cell: (c) =>
         c.row.original.plan_url ? (
-          <img
+          <RemoteImg
             src={c.row.original.plan_url}
-            alt=""
-            loading="lazy"
-            className="size-10 rounded border border-border bg-secondary object-cover"
+            className="block size-10 rounded border border-border bg-secondary object-cover"
           />
         ) : null,
     }),

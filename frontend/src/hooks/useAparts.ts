@@ -35,3 +35,12 @@ export function useAparts(filters: ApartFilters, enabled = true) {
     enabled,
   });
 }
+
+/** Одна квартира для страницы /aparts/:id. */
+export function useApart(id: number) {
+  return useQuery({
+    queryKey: ["apart", id],
+    queryFn: () => apiGet<ApartRow>(`/aparts/${id}`),
+    enabled: Number.isFinite(id),
+  });
+}

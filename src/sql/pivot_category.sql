@@ -19,7 +19,7 @@ LEFT JOIN buildings b ON b.building_id = na.building_id::int
 LEFT JOIN districts d ON d.district_id = b.county
 WHERE (
         NOT CAST(:favorites_only AS boolean)
-        OR na.new_apart_id IN (SELECT new_apart_id FROM favorites)
+        OR na.new_apart_id IN (SELECT new_apart_id FROM favorites WHERE user_id = :user_id)
       )
   AND (CAST(:district AS text) IS NULL OR d.name = CAST(:district AS text))
 GROUP BY 1

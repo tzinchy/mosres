@@ -1,5 +1,5 @@
 WITH fav AS (
-    SELECT new_apart_id FROM favorites
+    SELECT new_apart_id FROM favorites WHERE user_id = :user_id
 ),
 h AS (
     SELECT

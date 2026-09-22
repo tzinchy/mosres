@@ -1,3 +1,5 @@
+import secrets
+
 from pydantic import PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import pathlib
@@ -10,6 +12,10 @@ class Settings(BaseSettings):
     DB: PostgresDsn = PostgresDsn(
         "postgresql+asyncpg://postgres:password@localhost:5432"
     )
+    # Подпись токенов. В проде обязательно задать в .env — иначе все выданные
+    # токены слетят при следующем рестарте (ключ генерируется заново).
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    TOKEN_TTL_HOURS: int = 24 * 30
     SCHEDULER_ENABLED: bool = True
     REFRESH_INTERVAL_MINUTES: int = 30
     # рыночная ипотека ≈ ключевая ставка ЦБ + столько процентных пунктов

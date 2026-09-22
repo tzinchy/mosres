@@ -81,6 +81,8 @@ export interface Comment {
   new_apart_id: number;
   body: string;
   created_at: string;
+  author: string;
+  is_mine: boolean;
 }
 
 export interface BuildingPricePoint {

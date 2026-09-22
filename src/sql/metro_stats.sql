@@ -12,7 +12,7 @@ JOIN buildings b
     ON na.building_id ~ '^\d+$' AND (na.building_id)::int = b.building_id
 CROSS JOIN LATERAL unnest(COALESCE(b.metro, ARRAY[]::text[])) AS mid(id)
 JOIN metros m ON mid.id ~ '^\d+$' AND m.metro_id = mid.id::int
-LEFT JOIN favorites fav ON fav.new_apart_id = na.new_apart_id
+LEFT JOIN favorites fav ON fav.new_apart_id = na.new_apart_id AND fav.user_id = :user_id
 CROSS JOIN LATERAL (
     SELECT
         NULLIF(regexp_replace(na.price_m, '\D', '', 'g'), '')::numeric AS pm,

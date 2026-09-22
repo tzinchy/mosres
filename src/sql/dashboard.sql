@@ -1,5 +1,5 @@
 WITH fav AS (
-    SELECT new_apart_id FROM favorites
+    SELECT new_apart_id FROM favorites WHERE user_id = :user_id
 ),
 scope AS (
     SELECT
@@ -92,7 +92,7 @@ SELECT
     count(*) FILTER (WHERE reserve = 0 AND prev_reserve = 1)       AS unreserved_today,
     (
         SELECT count(*) FROM new_aparts na
-        JOIN favorites f ON f.new_apart_id = na.new_apart_id
+        JOIN favorites f ON f.new_apart_id = na.new_apart_id AND f.user_id = :user_id
         WHERE COALESCE(na.reserve, 0) = 1
     )                                                             AS favorites_reserved,
     (

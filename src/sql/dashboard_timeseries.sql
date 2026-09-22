@@ -3,7 +3,7 @@
 -- reserve / discounted / family-mortgage eligible. Levels, not per-day events —
 -- so the line holds and moves relative to neighbouring dates instead of spiking.
 WITH fav AS (
-    SELECT new_apart_id FROM favorites
+    SELECT new_apart_id FROM favorites WHERE user_id = :user_id
 ),
 days AS (
     SELECT generate_series(

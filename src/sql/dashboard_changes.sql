@@ -2,7 +2,7 @@
 -- on a given calendar day (:date). One input row per history version, exploded
 -- into one output row per kind of change it introduced.
 WITH fav AS (
-    SELECT new_apart_id FROM favorites
+    SELECT new_apart_id FROM favorites WHERE user_id = :user_id
 ),
 h AS (
     SELECT

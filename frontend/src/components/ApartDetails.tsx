@@ -13,12 +13,12 @@ import {
   FinishingBadge,
   ReserveTag,
 } from "@/components/cells";
+import { RemoteImg } from "@/components/RemoteImg";
 import { MetroList } from "@/components/MetroList";
 import { MortgageWidget } from "@/components/MortgageWidget";
 import { auctionRange } from "@/lib/auction";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApartVersions } from "@/hooks/useDashboard";
 import { useAddComment, useComments, useDeleteComment } from "@/hooks/useComments";
@@ -136,16 +136,9 @@ function diffLabel(a: ApartVersion, b: ApartVersion): Change[] {
   return out.length ? out : [{ text: "Изменений в отслеживаемых полях нет" }];
 }
 
-export function ApartSheet({
-  apart,
-  onOpenChange,
-}: {
-  apart: ApartRow | null;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const { data: versions, isLoading } = useApartVersions(
-    apart?.new_apart_id ?? null,
-  );
+/** Карточка квартиры: шапка + всё содержимое. Живёт на странице /aparts/:id. */
+export function ApartDetails({ apart }: { apart: ApartRow }) {
+  const { data: versions, isLoading } = useApartVersions(apart.new_apart_id);
 
   const series =
     versions?.map((v) => ({
@@ -155,14 +148,9 @@ export function ApartSheet({
     })) ?? [];
 
   return (
-    <Sheet open={apart !== null} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-[460px]">
-        {apart && (
-          <>
-            <SheetHeader className="border-b border-border px-5 py-4">
-              <SheetTitle className="text-base leading-tight">
-                {apart.address}
-              </SheetTitle>
+    <div className="mx-auto w-full max-w-[560px] overflow-hidden rounded-xl border border-border bg-card">
+      <div className="space-y-2 border-b border-border px-5 py-4">
+        <h1 className="text-base font-medium leading-tight">{apart.address}</h1>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                 <span className="tnum">кв. {apart.number}</span>
                 <span>· {apart.type_label ?? "квартира"}</span>
@@ -196,16 +184,16 @@ export function ApartSheet({
                 )}
                 <ReserveTag reserve={apart.reserve} />
                 <DiscountCell row={apart} />
-              </div>
-            </SheetHeader>
+        </div>
+      </div>
 
-            <div className="space-y-6 px-5 py-5">
+      <div className="space-y-6 px-5 py-5">
               {apart.plan_url && (
                 <a href={apart.plan_url} target="_blank" rel="noreferrer" className="block">
-                  <img
+                  <RemoteImg
                     src={apart.plan_url}
                     alt="Планировка"
-                    className="mx-auto max-h-80 w-full rounded-lg border border-border bg-secondary object-contain p-2"
+                    className="mx-auto block h-80 w-full rounded-lg border border-border bg-secondary object-contain p-2"
                   />
                 </a>
               )}
@@ -346,11 +334,8 @@ export function ApartSheet({
                   </ol>
                 )}
               </div>
-            </div>
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
 }
 
@@ -378,17 +363,20 @@ function CommentsSection({ apartId }: { apartId: number }) {
             <div className="min-w-0">
               <div className="whitespace-pre-wrap break-words">{c.body}</div>
               <div className="tnum mt-1 text-xs text-muted-foreground">
-                {shortDate(c.created_at)}
+                {c.author} · {shortDate(c.created_at)}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => del.mutate(c.id)}
-              className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-neg group-hover:opacity-100"
-              aria-label="Удалить комментарий"
-            >
-              <Trash2 size={14} />
-            </button>
+            {/* чужие комментарии видно, но удалять их нельзя — бэкенд тоже это проверяет */}
+            {c.is_mine && (
+              <button
+                type="button"
+                onClick={() => del.mutate(c.id)}
+                className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-neg group-hover:opacity-100"
+                aria-label="Удалить комментарий"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
           </div>
         ))}
         {comments && comments.length === 0 && (

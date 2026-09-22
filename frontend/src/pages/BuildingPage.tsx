@@ -1,7 +1,6 @@
 import { ArrowLeft } from "lucide-react";
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ApartSheet } from "@/components/ApartSheet";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { RemoteImg } from "@/components/RemoteImg";
 import { ApartsTable } from "@/components/ApartsTable";
 import { BuildingPriceChart } from "@/components/BuildingPriceChart";
 import { MetroList } from "@/components/MetroList";
@@ -10,15 +9,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAparts } from "@/hooks/useAparts";
 import { useBuilding, useBuildingPriceDynamics } from "@/hooks/useBuilding";
 import { useToggleFavorite } from "@/hooks/useFavorites";
-import type { ApartRow } from "@/lib/types";
 
 export function BuildingPage() {
+  const navigate = useNavigate();
   const id = Number(useParams().id);
   const { data: b } = useBuilding(id);
   const dynamics = useBuildingPriceDynamics(id);
   const aparts = useAparts({ building_id: id });
   const toggle = useToggleFavorite();
-  const [selected, setSelected] = useState<ApartRow | null>(null);
 
   return (
     <div className="space-y-6 p-5 md:p-8">
@@ -31,10 +29,9 @@ export function BuildingPage() {
 
       <header className="flex flex-col gap-4 sm:flex-row">
         {b?.img_url && (
-          <img
+          <RemoteImg
             src={b.img_url}
-            alt=""
-            className="h-40 w-full rounded-lg border border-border object-cover sm:w-64"
+            className="block h-40 w-full rounded-lg border border-border bg-secondary object-cover sm:w-64"
           />
         )}
         <div className="min-w-0 space-y-2">
@@ -69,11 +66,9 @@ export function BuildingPage() {
         <div className="flex gap-2 overflow-x-auto pb-1">
           {b.gallery_urls.map((src) => (
             <a key={src} href={src} target="_blank" rel="noreferrer">
-              <img
+              <RemoteImg
                 src={src}
-                alt=""
-                loading="lazy"
-                className="h-28 w-44 shrink-0 rounded-md border border-border object-cover"
+                className="block h-28 w-44 shrink-0 rounded-md border border-border bg-secondary object-cover"
               />
             </a>
           ))}
@@ -101,17 +96,12 @@ export function BuildingPage() {
         {aparts.data && (
           <ApartsTable
             rows={aparts.data}
-            selectedId={selected?.new_apart_id}
             onToggleFavorite={(aid, next) => toggle.mutate({ id: aid, next })}
-            onSelect={setSelected}
+            onSelect={(row) => navigate(`/aparts/${row.new_apart_id}`)}
           />
         )}
       </section>
 
-      <ApartSheet
-        apart={selected}
-        onOpenChange={(open) => !open && setSelected(null)}
-      />
     </div>
   );
 }

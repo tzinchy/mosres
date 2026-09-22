@@ -40,7 +40,7 @@ SELECT
     count(DISTINCT f.new_apart_id)                        AS favorites_count
 FROM buildings b
 LEFT JOIN a ON a.bid = b.building_id
-LEFT JOIN favorites f ON f.new_apart_id IN (
+LEFT JOIN favorites f ON f.user_id = :user_id AND f.new_apart_id IN (
     SELECT na3.new_apart_id FROM new_aparts na3
     WHERE na3.building_id ~ '^\d+$' AND (na3.building_id)::int = b.building_id
 )
