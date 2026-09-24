@@ -37,7 +37,7 @@ uv run python -m src.users ensure [<логин> <пароль>]   # создат
 | ORM / миграции | SQLAlchemy (async) + Alembic + alembic-utils |
 | HTTP-клиент | aiohttp + aiohttp-retry |
 | Валидация | Pydantic v2 |
-| Выгрузка | pandas + openpyxl |
+| Выгрузка | polars + xlsxwriter |
 | Пакетный менеджер | uv |
 | Контейнеризация | Docker Compose |
 

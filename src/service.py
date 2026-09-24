@@ -2,7 +2,7 @@ import datetime
 
 from src.config import EXCEL_FOLDER, settings
 from loguru import logger
-import pandas as pd
+import polars as pl
 from aiohttp_retry import ExponentialRetry, RetryClient
 from src.database import Session
 from src.schemas import (
@@ -300,16 +300,21 @@ class MosResService:
         rows = await self.get_aparts_table(
             favorites_only=favorites_only, building_id=building_id
         )
-        frame = pd.DataFrame([r.model_dump() for r in rows])
-        if not frame.empty:
-            frame = frame.reindex(columns=list(self.EXPORT_COLUMNS)).rename(
-                columns=self.EXPORT_COLUMNS
-            )
+        # Только колонки из EXPORT_COLUMNS и сразу под русскими заголовками:
+        # у ApartRow есть поля со вложенными структурами (metro), которые в
+        # Excel не нужны и ломают вывод типов.
+        frame = pl.DataFrame(
+            [
+                {title: getattr(row, field) for field, title in self.EXPORT_COLUMNS.items()}
+                for row in rows
+            ],
+            schema=list(self.EXPORT_COLUMNS.values()),
+        )
 
         suffix = "-favorites" if favorites_only else ""
         file_name = f"{datetime.date.today():%Y-%m-%d}{suffix}.xlsx"
         file_path = EXCEL_FOLDER.joinpath(file_name)
-        frame.to_excel(file_path, index=False)
+        frame.write_excel(file_path)
         return str(file_path), file_name
     
     async def get_buildings_apartments(self, building_id: int):

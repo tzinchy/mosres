@@ -1,7 +1,6 @@
 import io
 
-import pandas as pd
-from sqlalchemy import text
+from openpyxl import load_workbook
 
 from tests.conftest import seed_apart, seed_building
 
@@ -79,5 +78,7 @@ async def test_excel_export_favorites_only(client, db):
     r = await client.get("/file", params={"favorites_only": "true"})
     assert r.status_code == 200
     assert "favorites" in r.headers["content-disposition"]
-    frame = pd.read_excel(io.BytesIO(r.content))
-    assert list(frame["ID"]) == [1]
+    # читаем обратно openpyxl: polars.read_excel тянет fastexcel, его нет в зависимостях
+    sheet = load_workbook(io.BytesIO(r.content)).active
+    header, *body = ([c.value for c in row] for row in sheet.iter_rows())
+    assert [row[header.index("ID")] for row in body] == [1]
