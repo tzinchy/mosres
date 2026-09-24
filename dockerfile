@@ -18,10 +18,12 @@ COPY src/ src/
 VOLUME [ "/app/src/excel" ]
 
 EXPOSE 5433
-# Migrations are NOT run automatically — apply them against your database with
-#   make upgrade      (or: uv run alembic upgrade head)
+# On every start: migrate the schema, then make sure the default user exists,
+# then serve. Both steps are idempotent, so a restart is safe; `&&` means the
+# container dies loudly if a migration fails instead of serving a stale schema.
+# Compose waits for the db healthcheck, so there is no wait-for-it loop here.
 #
 # One process on purpose (uvicorn default): the app is fully async and runs an
 # in-process APScheduler (periodic refresh). Do NOT add --workers — each worker
 # starts its own scheduler and its own pool_size DB connections.
-CMD ["uv", "run", "uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "5433"]
+CMD ["sh", "-c", "uv run alembic upgrade head && uv run python -m src.users ensure && exec uv run uvicorn src.api:app --host 0.0.0.0 --port 5433"]

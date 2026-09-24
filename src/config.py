@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     # токены слетят при следующем рестарте (ключ генерируется заново).
     SECRET_KEY: str = secrets.token_urlsafe(32)
     TOKEN_TTL_HOURS: int = 24 * 30
+    # Пользователь, которого контейнер заводит при старте (после миграций).
+    # Создаётся только если такого логина ещё нет — пароль существующего не
+    # перезаписывается. Пустой DEFAULT_PASSWORD выключает создание.
+    DEFAULT_USER: str = "admin"
+    DEFAULT_PASSWORD: str = "admin"
     SCHEDULER_ENABLED: bool = True
     REFRESH_INTERVAL_MINUTES: int = 30
     # рыночная ипотека ≈ ключевая ставка ЦБ + столько процентных пунктов

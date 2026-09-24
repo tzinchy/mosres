@@ -1,14 +1,14 @@
 .PHONY: all up down logs ps rebuild test rev upgrade run get
 
-# Bring up api + web via docker compose. The database is external — set DB in .env
-# (use host.docker.internal as the host for a DB running on this machine).
-# Apply migrations once with `make upgrade` before the first `make all`.
+# Bring up db + api + web via docker compose. Migrations and the default user are
+# applied by the api container itself on every start — no `make upgrade` needed
+# here. `make upgrade` below is for running the app WITHOUT containers.
 all: up
 
 up:
 	docker compose up -d --build
 	@echo ""
-	@echo "  web   http://localhost:$${WEB_PORT:-8080}"
+	@echo "  web   http://localhost:$${WEB_PORT:-8080}   (вход: admin / admin)"
 	@echo "  api   http://127.0.0.1:5433/docs   (loopback only; web proxies /api/)"
 	@echo "  logs: make logs   |   stop: make down"
 

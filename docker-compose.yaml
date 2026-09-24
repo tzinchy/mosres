@@ -11,6 +11,13 @@ services:
       - "127.0.0.1:5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # api waits for this before running `alembic upgrade head` on start.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mosres -d mosres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
     restart: unless-stopped
 
   api:
@@ -21,17 +28,21 @@ services:
     # Bound to loopback on the host for /docs and debugging.
     ports:
       - "127.0.0.1:5433:5433"
-    # DB connection lives outside compose. Set DB (and optionally SCHEDULER_ENABLED,
-    # REFRESH_INTERVAL_MINUTES) in .env. For a database running on the host machine,
-    # use host.docker.internal as the host, e.g.
+    # Settings (SECRET_KEY, DEFAULT_USER/DEFAULT_PASSWORD, SCHEDULER_ENABLED,
+    # REFRESH_INTERVAL_MINUTES) come from .env. DB from .env is ignored here —
+    # see the override below. To use a database on the host machine instead of
+    # the `db` service, drop the override and set in .env:
     #   DB=postgresql+asyncpg://postgres:password@host.docker.internal:5432/postgres
     env_file:
       - .env
     # Overrides DB from .env: inside the compose network the database is db:5432.
     environment:
       DB: postgresql+asyncpg://mosres:mosres@db:5432/mosres
+    # The api container runs `alembic upgrade head` at start, so it must not
+    # boot before postgres accepts connections.
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

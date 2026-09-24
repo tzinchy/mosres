@@ -14,12 +14,15 @@
 (`{"username": ..., "password": ...}`), живёт `TOKEN_TTL_HOURS` (по умолчанию 30
 дней) и подписан `SECRET_KEY` из `.env` — смена ключа разлогинивает всех.
 
-Пользователи заводятся из командной строки:
+Пользователь по умолчанию (`DEFAULT_USER`/`DEFAULT_PASSWORD`, по умолчанию
+`admin`/`admin`) создаётся контейнером при старте. Остальные — из командной
+строки:
 
 ```bash
 uv run python -m src.users add <логин> <пароль>
 uv run python -m src.users passwd <логин> <новый пароль>
 uv run python -m src.users list
+uv run python -m src.users ensure [<логин> <пароль>]   # создать, если нет (идемпотентно)
 ```
 
 Избранное у каждого пользователя своё; комментарии видны всем, но удалить можно
@@ -42,36 +45,61 @@ uv run python -m src.users list
 
 ## Быстрый старт (Docker Compose)
 
-База данных **внешняя** — compose поднимает только `api` и `web`.
+Нужен только Docker (движок + compose v2). Postgres поднимается тем же compose.
 
 ```bash
-cp .env.example .env
-# в .env указать DB. Для базы на этой же машине хост — host.docker.internal:
-#   DB=postgresql+asyncpg://postgres:password@host.docker.internal:5432/postgres
-
-make upgrade                   # применить миграции к своей БД
-make all                       # docker compose up -d --build (пересобирает api и web)
+cp .env.example .env     # можно не править — значения по умолчанию рабочие
+make all                 # docker compose up -d --build
 ```
 
-`make all` каждый раз пересобирает образы — после `git pull` этого достаточно, чтобы
-подтянулись изменения фронта и бэка. Схему обновляет `make upgrade` отдельно.
+Всё остальное контейнер делает сам при каждом старте:
+
+1. ждёт готовности БД (healthcheck `pg_isready`);
+2. накатывает миграции — `alembic upgrade head`;
+3. заводит пользователя по умолчанию, если такого логина ещё нет —
+   `python -m src.users ensure`;
+4. запускает uvicorn.
+
+Шаги идемпотентны, поэтому `make all` после `git pull` — единственное, что нужно
+для обновления: образы пересобираются, схема догоняется сама. Если миграция
+упала, контейнер падает вместе с ней (а не отдаёт API на старой схеме) — смотреть
+`make logs`.
+
+**Вход по умолчанию:** `admin` / `admin` (переопределяется `DEFAULT_USER` и
+`DEFAULT_PASSWORD` в `.env` **до** первого запуска). Пароль уже существующего
+пользователя `ensure` не трогает — менять через
+`uv run python -m src.users passwd admin <новый пароль>`.
+Смените дефолтный пароль, если сервис доступен не только с localhost.
 
 | Сервис | URL | Порт |
 |---|---|---|
-| API | http://localhost:5437 (`/docs`) | `5437` |
-| Frontend | http://localhost:5173 | `5173` (nginx :80 внутри) |
+| Frontend | http://localhost:8080 | `WEB_PORT`, по умолчанию `8080` |
+| API | http://127.0.0.1:5433/docs | `5433`, только loopback |
+| Postgres | `localhost:5434` | `5434` (внутри сети — `db:5432`) |
 
 Команды: `make all` / `make down` / `make logs` / `make ps` / `make rebuild`.
 
-Фронт собирается с `VITE_API_URL` (build arg, по умолчанию `http://localhost:5437`);
-переопределить — `VITE_API_URL=... make all`.
+Фронт собирается с `VITE_API_URL` (build arg, по умолчанию `/api` — nginx
+проксирует на `api:5433`); переопределить — `VITE_API_URL=... make all`.
+
+Внешняя БД вместо контейнерной: убрать блок `environment: DB:` у сервиса `api`
+в `docker-compose.yaml` и задать `DB` в `.env` (для базы на этой же машине хост —
+`host.docker.internal`).
+
+Гипервизор, платформенные особенности (macOS / Windows+WSL2 / Linux) и разбор
+типовых ошибок — **[docs/deploy.md](docs/deploy.md)**.
+
+---
 
 ## Запуск без контейнеров
 
+Здесь миграции и пользователь — руками (автоматика живёт в контейнере):
+
 ```bash
 uv sync
-cp .env.example .env
-uv run alembic upgrade head
+cp .env.example .env                         # DB должен смотреть на живой Postgres
+uv run alembic upgrade head                  # = make upgrade
+uv run python -m src.users ensure            # admin/admin из .env, если его ещё нет
 uv run uvicorn src.api:app --reload          # API на :8000
 cd frontend && npm install && npm run dev    # фронт на :5173
 ```
@@ -101,7 +129,7 @@ cd frontend && npm install && npm run dev    # фронт на :5173
 
 ### Избранное
 
-Single-user, без авторизации. Хранится в таблице `favorites`.
+У каждого пользователя своё: таблица `favorites`, ключ `(new_apart_id, user_id)`.
 
 | Метод | Эндпоинт | Описание |
 |---|---|---|
@@ -186,7 +214,7 @@ mosres/
 ├── alembic/
 │   └── versions/
 ├── sql/                 # Сырые SQL-запросы
-├── docker-compose.yml
+├── docker-compose.yaml
 ├── pyproject.toml
 └── .env.example
 ```
