@@ -303,7 +303,7 @@ OPS = {
 def main() -> None:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else (
         Path(__file__).resolve().parents[2]
-        / "Курсовая работа ОП.07 Экономика отрасли (mosres).docx"
+        / "Курсовая 1 ОП.07 Экономика отрасли (mosres, Android-клиент).docx"
     )
     b = Builder()
     for op, *args in DOC:
