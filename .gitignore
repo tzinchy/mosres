@@ -24,3 +24,4 @@ user_action_log_202605191511.csv
 graphify-out/
 .run/
 ~$*.docx
+*.docx
