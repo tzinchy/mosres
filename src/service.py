@@ -226,7 +226,7 @@ class MosResService:
                     return buildings, new_aparts
                 else:
                     logger.error(f"Error {request.status}: {await request.text()}")
-                    raise HttpBadRequest()
+                    raise HttpBadRequest(f"москварталы: корпуса {request.status}")
 
     async def get_metro_district_municipal_district(self):
         retry_options = ExponentialRetry(attempts=3)
@@ -265,7 +265,7 @@ class MosResService:
                     return metro, districts, municipal_districts
                 else:
                     logger.error(f"Error {request.status}: {await request.text()}")
-                    raise HttpBadRequest()
+                    raise HttpBadRequest(f"москварталы: метро и районы {request.status}")
 
     EXPORT_COLUMNS = {
         "new_apart_id": "ID",

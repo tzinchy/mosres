@@ -259,7 +259,7 @@ class TorgiService:
                         logger.error(
                             f"torgi list {response.status}: {await response.text()}"
                         )
-                        raise HttpBadRequest()
+                        raise HttpBadRequest(f"torgi list {response.status}")
                     page = await response.json()
                 total = page.get("totalCount") or 0
                 entities = page.get("entities") or []
