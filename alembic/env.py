@@ -6,9 +6,16 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from src.models import Base, Building, NewApart, District, MunicipalDistrict
+from src.models import Base, Building, NewApart, District, MunicipalDistrict, TorgiLot
 from src.config import settings
-from src.pg_definitions import buildings_history_trigger, insert_buildings_history_func, insert_new_apart_history_func, new_apart_trigger
+from src.pg_definitions import (
+    buildings_history_trigger,
+    insert_buildings_history_func,
+    insert_new_apart_history_func,
+    insert_torgi_lots_history_func,
+    new_apart_trigger,
+    torgi_lots_history_trigger,
+)
 from alembic_utils.replaceable_entity import register_entities
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -18,8 +25,16 @@ config = context.config
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-register_entities([insert_buildings_history_func, insert_new_apart_history_func])
-register_entities([buildings_history_trigger, new_apart_trigger])
+register_entities(
+    [
+        insert_buildings_history_func,
+        insert_new_apart_history_func,
+        insert_torgi_lots_history_func,
+    ]
+)
+register_entities(
+    [buildings_history_trigger, new_apart_trigger, torgi_lots_history_trigger]
+)
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel

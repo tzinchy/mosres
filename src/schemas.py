@@ -1,4 +1,6 @@
 import datetime
+import re
+from decimal import Decimal, InvalidOperation
 
 from pydantic import AliasChoices, AliasPath, BaseModel, ConfigDict, Field, TypeAdapter, field_validator
 
@@ -380,3 +382,440 @@ class MetroSchemaForInsert(MetroSchemaBase):
 
 DistrictAdapter = TypeAdapter(dict[str, DistrictSchemaForTypeAdapter])
 MetroAdapter = TypeAdapter(dict[str, MetroSchemaBase])
+
+
+# --- torgi.mos.ru (транспорт) ------------------------------------------------
+
+
+def _digits(value) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    digits = re.sub(r"\D", "", str(value))
+    return int(digits) if digits else None
+
+
+def _money(value) -> Decimal | None:
+    """«612 000,00 руб.» / 612000.0 -> Decimal. Разряды пробелами, дробь запятой."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float, Decimal)):
+        return Decimal(str(value))
+    text = str(value).replace("\xa0", " ")
+    match = re.search(r"-?\d[\d ]*(?:,\d+)?", text)
+    if not match:
+        return None
+    try:
+        return Decimal(match.group(0).replace(" ", "").replace(",", "."))
+    except InvalidOperation:
+        return None
+
+
+def naive_utc(value) -> datetime.datetime | None:
+    """Даты портала приходят как 2026-09-23T17:00:00.0000000Z — 7 знаков в
+    дробной части, fromisoformat такое не ест, а колонки в БД наивные."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime.datetime):
+        parsed = value
+    else:
+        text = str(value).strip().replace("Z", "+00:00")
+        text = re.sub(r"\.(\d{6})\d+", r".\1", text)
+        try:
+            parsed = datetime.datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
+class TorgiLotSchema(BaseModel):
+    """Строка для вставки в torgi_lots: собирается из списочного эндпоинта
+    портала и карточки лота (см. src/torgi.py)."""
+
+    model_config = ConfigDict(extra="ignore", coerce_numbers_to_str=True)
+
+    lot_id: int
+    name: str | None = None
+    url: str | None = None
+    status_text: str | None = None
+    transport_category: str | None = None
+    brand: str | None = None
+    model: str | None = None
+    year: int | None = None
+    plate: str | None = None
+    # разбор номера считает src/plates.py при загрузке, а не выражение в SQL:
+    # история версий хранит ровно то, что видел портал в тот прогон
+    plate_norm: str | None = None
+    plate_region: str | None = None
+    plate_valid: bool = False
+    vin: str | None = None
+    pts: str | None = None
+    color: str | None = None
+    body: str | None = None
+    eco_class: str | None = None
+    power: str | None = None
+    engine_volume: str | None = None
+    drive: str | None = None
+    transmission: str | None = None
+    mileage: int | None = None
+    start_price: Decimal | None = None
+    deposit: Decimal | None = None
+    auction_step: Decimal | None = None
+    final_price: Decimal | None = None
+    request_start_date: datetime.datetime | None = None
+    request_end_date: datetime.datetime | None = None
+    tender_date: datetime.datetime | None = None
+    final_date: datetime.datetime | None = None
+    platform_link: str | None = None
+    torgi_gov_link: str | None = None
+    video_link: str | None = None
+    latitude: str | None = None
+    longitude: str | None = None
+    photos: list[str] | None = None
+    portal_views: int | None = None
+    source_updated_at: datetime.datetime | None = None
+
+    @field_validator("year", "mileage", "portal_views", mode="before")
+    @classmethod
+    def _parse_int(cls, value):
+        return _digits(value)
+
+    @field_validator(
+        "start_price", "deposit", "auction_step", "final_price", mode="before"
+    )
+    @classmethod
+    def _parse_money(cls, value):
+        return _money(value)
+
+    @field_validator(
+        "request_start_date",
+        "request_end_date",
+        "tender_date",
+        "final_date",
+        "source_updated_at",
+        mode="before",
+    )
+    @classmethod
+    def _parse_dt(cls, value):
+        return naive_utc(value)
+
+    @field_validator(
+        "name", "brand", "model", "plate", "plate_norm", "plate_region",
+        "vin", "pts", "color", "body",
+        "eco_class", "power", "engine_volume", "drive", "transmission",
+        "transport_category", "status_text", mode="before",
+    )
+    @classmethod
+    def _blank_to_none(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+
+class TorgiLotRow(BaseModel):
+    """Ответ /torgi/lots — поля считает src/sql/torgi_lots.sql."""
+
+    lot_id: int
+    name: str | None = None
+    status_text: str | None = None
+    is_open: bool = False
+    transport_category: str | None = None
+    brand: str | None = None
+    model: str | None = None
+    year: int | None = None
+    plate: str | None = None
+    plate_norm: str | None = None
+    plate_region: str | None = None
+    plate_valid: bool = False
+    vin: str | None = None
+    pts: str | None = None
+    color: str | None = None
+    body: str | None = None
+    eco_class: str | None = None
+    power: str | None = None
+    engine_volume: str | None = None
+    drive: str | None = None
+    transmission: str | None = None
+    mileage: int | None = None
+    start_price: float | None = None
+    deposit: float | None = None
+    auction_step: float | None = None
+    final_price: float | None = None
+    start_price_prev: float | None = None
+    start_price_delta_pct: float | None = None
+    final_price_delta_pct: float | None = None
+    request_start_date: datetime.datetime | None = None
+    request_end_date: datetime.datetime | None = None
+    tender_date: datetime.datetime | None = None
+    final_date: datetime.datetime | None = None
+    days_left: int | None = None
+    platform_link: str | None = None
+    torgi_gov_link: str | None = None
+    video_link: str | None = None
+    latitude: str | None = None
+    longitude: str | None = None
+    photos: list[str] = []
+    photos_count: int = 0
+    portal_views: int | None = None
+    torgi_url: str
+    is_favorite: bool = False
+    matched_masks: list[str] = []  # маски/лейблы паттернов, под которые подошёл номер
+    is_new: bool = False
+    version: int
+    updated_at: datetime.datetime
+
+
+class TorgiLotVersion(BaseModel):
+    """Строка истории версий лота — /torgi/lots/{lot_id}/versions.
+    Числа отдаём числами: на фронте по ним строится график начальной цены."""
+
+    lot_id: int
+    version: int
+    updated_at: datetime.datetime
+    name: str | None = None
+    status_text: str | None = None
+    start_price: float | None = None
+    final_price: float | None = None
+    deposit: float | None = None
+    auction_step: float | None = None
+    mileage: int | None = None
+    plate: str | None = None
+    plate_norm: str | None = None
+    plate_region: str | None = None
+    plate_valid: bool = False
+    request_end_date: datetime.datetime | None = None
+    tender_date: datetime.datetime | None = None
+
+
+class TorgiCategoryStat(BaseModel):
+    category: str
+    lots: int
+    open_lots: int
+    sold_lots: int
+    avg_start_price: float | None = None
+    min_start_price: float | None = None
+    avg_final_price: float | None = None
+    avg_mileage: float | None = None
+    with_plate: int
+
+
+class TorgiFavoriteToggleResult(BaseModel):
+    lot_id: int
+    is_favorite: bool
+
+
+class PlateWatchIn(BaseModel):
+    """Либо маска языка масок, либо label готового пресета из PRESETS."""
+
+    mask: str | None = Field(default=None, max_length=12)
+    preset: str | None = Field(default=None, max_length=64)
+    label: str | None = Field(default=None, max_length=64)
+
+
+class PlateWatch(BaseModel):
+    id: int
+    mask: str | None = None  # NULL у пресета
+    label: str | None = None
+    regex: str
+    matched_now: int
+    created_at: datetime.datetime
+
+
+class PlatePreset(BaseModel):
+    preset: str
+    label: str
+
+
+class TorgiNotification(BaseModel):
+    kind: str  # plate_match | lot_change
+    lot_id: int
+    name: str | None = None
+    plate_norm: str | None = None
+    matched_masks: list[str] = []
+    version: int
+    updated_at: datetime.datetime
+    status_text: str | None = None
+    start_price: float | None = None
+    prev_start_price: float | None = None
+    final_price: float | None = None
+    price_down: bool = False
+    price_up: bool = False
+    status_changed: bool = False
+    sold: bool = False
+
+
+class TorgiKpi(BaseModel):
+    lots: int
+    open_lots: int
+    sold_lots: int
+    avg_start_price: float | None = None
+    sum_start_price: float | None = None
+    sum_final_price: float | None = None
+    median_final_delta_pct: float | None = None
+    with_plate: int
+    interesting_plates: int
+    watch_matches: int
+    avg_days_request_to_tender: float | None = None
+    photos_coverage_pct: float | None = None
+    changed_24h: int
+
+
+class TorgiBrandStat(BaseModel):
+    brand: str
+    lots: int
+    avg_start_price: float | None = None
+    avg_delta_pct: float | None = None
+
+
+class TorgiFunnelStage(BaseModel):
+    status: str
+    lots: int
+
+
+class TorgiTimePoint(BaseModel):
+    month: datetime.date
+    lots: int
+    sum_final_price: float | None = None
+    avg_delta_pct: float | None = None
+
+
+class TorgiSeasonPoint(BaseModel):
+    month_of_year: int  # 1..12
+    lots: int
+
+
+class TorgiDeadlineRow(BaseModel):
+    lot_id: int
+    name: str | None = None
+    status_text: str | None = None
+    request_end_date: datetime.datetime
+    days_left: int
+    start_price: float | None = None
+
+
+class TorgiChange(BaseModel):
+    lot_id: int
+    name: str | None = None
+    version: int
+    updated_at: datetime.datetime
+    status_text: str | None = None
+    prev_status_text: str | None = None
+    start_price: float | None = None
+    prev_start_price: float | None = None
+    final_price: float | None = None
+    delta_pct: float | None = None
+    price_down: bool = False
+    price_up: bool = False
+    status_changed: bool = False
+    sold: bool = False
+
+
+class TorgiHistBin(BaseModel):
+    bucket: str
+    lots: int
+
+
+class TorgiTopLot(BaseModel):
+    lot_id: int
+    name: str | None = None
+    brand: str | None = None
+    model: str | None = None
+    year: int | None = None
+    start_price: float | None = None
+    prev_start_price: float | None = None
+    final_price: float | None = None
+    delta_pct: float | None = None
+    portal_views: int | None = None
+
+
+class TorgiDataQuality(BaseModel):
+    """Заполненность полей процентами 0–100 (не долями)."""
+
+    lots: int
+    plate: float | None = None
+    vin: float | None = None
+    pts: float | None = None
+    photos: float | None = None
+    video: float | None = None
+    coords: float | None = None
+
+
+class TorgiPlateFlavor(BaseModel):
+    preset: str
+    lots: int
+
+
+class TorgiVersionBin(BaseModel):
+    bucket: str  # число версий лота
+    lots: int
+
+
+class TorgiVersionDay(BaseModel):
+    day: datetime.date
+    changes: int
+
+
+class TorgiVersionActivity(BaseModel):
+    versions: list[TorgiVersionBin] = []
+    changes_by_day: list[TorgiVersionDay] = []
+
+
+class TorgiDashboard(BaseModel):
+    last_refresh: datetime.datetime | None = None
+    kpi: TorgiKpi
+    categories: list[TorgiCategoryStat] = []
+    brands: list[TorgiBrandStat] = []
+    funnel: list[TorgiFunnelStage] = []
+    timeseries: list[TorgiTimePoint] = []
+    seasonality: list[TorgiSeasonPoint] = []
+    deadlines: list[TorgiDeadlineRow] = []
+    changes: list[TorgiChange] = []
+    discount_hist: list[TorgiHistBin] = []
+    year_hist: list[TorgiHistBin] = []
+    mileage_hist: list[TorgiHistBin] = []
+    top_drop: list[TorgiTopLot] = []
+    top_premium: list[TorgiTopLot] = []
+    top_views: list[TorgiTopLot] = []
+    data_quality: TorgiDataQuality
+    plate_flavors: list[TorgiPlateFlavor] = []
+    version_activity: TorgiVersionActivity
+
+
+class TorgiPivotRow(BaseModel):
+    key: str
+    lots: int
+    open_lots: int
+    sold_lots: int
+    avg_start: float | None = None
+    median_start: float | None = None
+    avg_final: float | None = None
+    avg_delta_pct: float | None = None
+    avg_mileage: float | None = None
+    avg_power: float | None = None
+    rub_per_hp: float | None = None
+
+
+class TorgiPoint(BaseModel):
+    lot_id: int
+    name: str | None = None
+    brand: str | None = None
+    model: str | None = None
+    year: int | None = None
+    category: str
+    status_text: str | None = None
+    is_open: bool = False
+    mileage: int | None = None
+    power_hp: float | None = None
+    engine_volume: float | None = None
+    start_price: float | None = None
+    final_price: float | None = None
+    delta_pct: float | None = None
+    portal_views: int | None = None
+    plate_norm: str | None = None
+    plate_region: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None

@@ -7,7 +7,7 @@ from src.utils import (
     create_truncate_query,
     read_from_sql_folder,
 )
-from src.models import NewApartHistory, BuildingHistory, NewApart
+from src.models import NewApartHistory, BuildingHistory, NewApart, TorgiLotHistory
 from sqlalchemy import select, text
 
 
@@ -361,4 +361,162 @@ async def get_building_price_dynamics(*, building_id: int, session: AsyncSession
         ),
         {"b": building_id},
     )
+    return result.mappings().all()
+
+
+async def get_torgi_lots(
+    *,
+    lot_id: int | None,
+    open_only: bool,
+    status: str | None,
+    category: str | None,
+    brand: str | None,
+    year_min: int | None,
+    year_max: int | None,
+    min_price: float | None,
+    max_price: float | None,
+    max_mileage: int | None,
+    price_drop_only: bool,
+    with_plate_only: bool,
+    fav_only: bool,
+    watch_only: bool,
+    valid_plate_only: bool,
+    plate_region: str | None,
+    q: str | None,
+    session: AsyncSession,
+):
+    sql = await read_from_sql_folder("torgi_lots")
+    result = await session.execute(
+        text(sql),
+        _p(**{
+            "lot_id": lot_id,
+            "open_only": open_only,
+            "status": status or None,
+            "category": category or None,
+            "brand": f"%{brand}%" if brand else None,
+            "year_min": year_min,
+            "year_max": year_max,
+            "min_price": min_price,
+            "max_price": max_price,
+            "max_mileage": max_mileage,
+            "price_drop_only": price_drop_only,
+            "with_plate_only": with_plate_only,
+            "fav_only": fav_only,
+            "watch_only": watch_only,
+            "valid_plate_only": valid_plate_only,
+            "plate_region": plate_region or None,
+            "q": q,
+            "q_like": f"%{q}%" if q else None,
+        }),
+    )
+    return result.mappings().all()
+
+
+async def get_torgi_lot_history(*, lot_id: int, session: AsyncSession):
+    result = await session.execute(
+        select(TorgiLotHistory.__table__)
+        .where(TorgiLotHistory.lot_id == lot_id)
+        .order_by(TorgiLotHistory.version)
+    )
+    return result.mappings().all()
+
+
+async def get_torgi_stats(*, session: AsyncSession):
+    sql = await read_from_sql_folder("torgi_stats")
+    result = await session.execute(text(sql))
+    return result.mappings().all()
+
+
+# --- торги: избранное, паттерны номеров, отчёты ------------------------------
+
+# Строка паттерна для ответа: matched_now считается на чтение, таблицы
+# «доставленного» нет (см. спеку, раздел 4).
+_WATCH_ROW = (
+    "SELECT w.id, w.mask, w.label, w.regex, w.created_at, "
+    "       (SELECT count(*) FROM torgi_lots tl WHERE tl.plate_norm ~ w.regex) "
+    "           AS matched_now "
+    "FROM plate_watches w WHERE w.user_id = :u"
+)
+
+
+async def add_torgi_favorite(*, lot_id: int, session: AsyncSession) -> None:
+    await session.execute(
+        text(
+            "INSERT INTO torgi_favorites (lot_id, user_id) VALUES (:i, :u) "
+            "ON CONFLICT DO NOTHING"
+        ),
+        {"i": lot_id, "u": current_user_id()},
+    )
+
+
+async def remove_torgi_favorite(*, lot_id: int, session: AsyncSession) -> None:
+    await session.execute(
+        text("DELETE FROM torgi_favorites WHERE lot_id = :i AND user_id = :u"),
+        {"i": lot_id, "u": current_user_id()},
+    )
+
+
+async def list_torgi_favorites(*, session: AsyncSession) -> list[int]:
+    result = await session.execute(
+        text(
+            "SELECT lot_id FROM torgi_favorites WHERE user_id = :u ORDER BY lot_id"
+        ),
+        {"u": current_user_id()},
+    )
+    return [row[0] for row in result.all()]
+
+
+async def list_plate_watches(*, session: AsyncSession):
+    result = await session.execute(
+        text(f"{_WATCH_ROW} ORDER BY w.id"), {"u": current_user_id()}
+    )
+    return result.mappings().all()
+
+
+async def get_plate_watch(*, watch_id: int, session: AsyncSession):
+    result = await session.execute(
+        text(f"{_WATCH_ROW} AND w.id = :i"),
+        {"u": current_user_id(), "i": watch_id},
+    )
+    return result.mappings().one_or_none()
+
+
+async def add_plate_watch(
+    *, mask: str | None, regex: str, label: str | None, session: AsyncSession
+) -> int:
+    """Дубликат (user_id, regex) идемпотентен: возвращается id существующего
+    паттерна, а переданный label его переименовывает."""
+    result = await session.execute(
+        text(
+            "INSERT INTO plate_watches (user_id, mask, regex, label) "
+            "VALUES (:u, :m, :r, :l) "
+            "ON CONFLICT (user_id, regex) DO UPDATE "
+            "    SET label = COALESCE(EXCLUDED.label, plate_watches.label) "
+            "RETURNING id"
+        ),
+        {"u": current_user_id(), "m": mask, "r": regex, "l": label},
+    )
+    return result.scalar_one()
+
+
+async def delete_plate_watch(*, watch_id: int, session: AsyncSession) -> int:
+    """Возвращает число удалённых строк: чужой паттерн не трогаем."""
+    result = await session.execute(
+        text("DELETE FROM plate_watches WHERE id = :i AND user_id = :u"),
+        {"i": watch_id, "u": current_user_id()},
+    )
+    return result.rowcount
+
+
+async def get_torgi_block(name: str, *, session: AsyncSession, **params):
+    """Блок отчётов по торгам: один файл в src/sql/ — один запрос. name всегда
+    литерал из сервиса, весь пользовательский ввод идёт bind-параметрами."""
+    sql = await read_from_sql_folder(name)
+    result = await session.execute(text(sql), _p(**params))
+    return result.mappings().all()
+
+
+async def get_torgi_pivot(*, key_expr: str, session: AsyncSession):
+    template = await read_from_sql_folder("torgi_pivot")
+    result = await session.execute(text(template.replace("{key}", key_expr)), _p())
     return result.mappings().all()

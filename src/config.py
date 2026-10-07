@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     DEFAULT_PASSWORD: str = "admin"
     SCHEDULER_ENABLED: bool = True
     REFRESH_INTERVAL_MINUTES: int = 30
+    # Лоты torgi.mos.ru (транспорт). Прогон почти бесплатный: карточки
+    # тянутся только у лотов с изменившимся updateDate (см. src/torgi.py),
+    # поэтому опрашиваем часто — номера разбирают по горячим следам.
+    TORGI_ENABLED: bool = True
+    TORGI_REFRESH_INTERVAL_MINUTES: int = 15
     # рыночная ипотека ≈ ключевая ставка ЦБ + столько процентных пунктов
     MARKET_RATE_DELTA: float = 4.0
     # льготная (семейная) ипотека — фиксирована госпрограммой

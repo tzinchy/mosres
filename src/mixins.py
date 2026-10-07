@@ -1,3 +1,6 @@
+import datetime
+from decimal import Decimal
+
 import sqlalchemy as sa
 import sqlalchemy.orm as saorm
 import sqlalchemy.dialects.postgresql as sapg
@@ -69,3 +72,58 @@ class NewApartMixing:
     plan: saorm.Mapped[str | None] = saorm.mapped_column(default=None, nullable=True)
     plan_s: saorm.Mapped[str | None] = saorm.mapped_column(default=None, nullable=True)
     tour_3d: saorm.Mapped[str | None] = saorm.mapped_column(default=None, nullable=True)
+
+
+class TorgiLotMixing:
+    """Лот с torgi.mos.ru (раздел «Транспортные средства»).
+
+    Часть полей приходит из списочного эндпоинта, часть — только из карточки
+    лота (госномер, VIN, статус, задаток, итоговая цена), поэтому обновление
+    всегда ходит в оба эндпоинта.
+    """
+
+    name: saorm.Mapped[str | None]
+    url: saorm.Mapped[str | None]
+    status_text: saorm.Mapped[str | None]
+    transport_category: saorm.Mapped[str | None]
+    brand: saorm.Mapped[str | None]
+    model: saorm.Mapped[str | None]
+    year: saorm.Mapped[int | None]
+    plate: saorm.Mapped[str | None]
+    # разобранный номер (см. src/plates.py): считается при загрузке лота, чтобы
+    # история хранила ровно то, что видел портал в тот прогон
+    plate_norm: saorm.Mapped[str | None]
+    plate_region: saorm.Mapped[str | None]
+    plate_valid: saorm.Mapped[bool] = saorm.mapped_column(
+        nullable=False, server_default=sa.false()
+    )
+    vin: saorm.Mapped[str | None]
+    pts: saorm.Mapped[str | None]
+    color: saorm.Mapped[str | None]
+    body: saorm.Mapped[str | None]
+    eco_class: saorm.Mapped[str | None]
+    power: saorm.Mapped[str | None]
+    engine_volume: saorm.Mapped[str | None]
+    drive: saorm.Mapped[str | None]
+    transmission: saorm.Mapped[str | None]
+    mileage: saorm.Mapped[int | None]
+    start_price: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    deposit: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    auction_step: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    final_price: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    request_start_date: saorm.Mapped[datetime.datetime | None]
+    request_end_date: saorm.Mapped[datetime.datetime | None]
+    tender_date: saorm.Mapped[datetime.datetime | None]
+    final_date: saorm.Mapped[datetime.datetime | None]
+    platform_link: saorm.Mapped[str | None]
+    torgi_gov_link: saorm.Mapped[str | None]
+    video_link: saorm.Mapped[str | None]
+    latitude: saorm.Mapped[str | None]
+    longitude: saorm.Mapped[str | None]
+    photos: saorm.Mapped[list[str] | None] = saorm.mapped_column(
+        sapg.ARRAY(sa.String), default=None
+    )
+    # портал крутит счётчик просмотров на каждом обновлении — в сравнении
+    # версий не участвует, иначе история пухнет на каждый прогон
+    portal_views: saorm.Mapped[int | None]
+    source_updated_at: saorm.Mapped[datetime.datetime | None]

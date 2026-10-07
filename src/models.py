@@ -5,7 +5,7 @@ import sqlalchemy as sa
 import sqlalchemy.orm as saorm
 import sqlalchemy.dialects.postgresql as sapg
 from src.database import Base
-from src.mixins import NewApartMixing, BuildingMixing
+from src.mixins import NewApartMixing, BuildingMixing, TorgiLotMixing
 
 
 class Building(Base, BuildingMixing):
@@ -137,3 +137,52 @@ class BuildingPriceStat(Base):
     min_price_m: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
     median_price_m: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
     apart_count: saorm.Mapped[int] = saorm.mapped_column(nullable=False)
+
+
+class TorgiLot(Base, TorgiLotMixing):
+    __tablename__ = "torgi_lots"
+
+    lot_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
+    version: saorm.Mapped[int] = saorm.mapped_column(nullable=False, server_default="0")
+
+
+class TorgiLotHistory(Base, TorgiLotMixing):
+    __tablename__ = "torgi_lots_history"
+
+    torgi_lot_history_id: saorm.Mapped[int] = saorm.mapped_column(
+        primary_key=True, autoincrement=True
+    )
+    lot_id: saorm.Mapped[int]
+    version: saorm.Mapped[int] = saorm.mapped_column(nullable=False)
+
+
+class TorgiLotTemp(Base, TorgiLotMixing):
+    __tablename__ = "torgi_lots_temp"
+
+    lot_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
+
+
+class PlateWatch(Base):
+    """Паттерн номера пользователя: маска или пресет (тогда mask = NULL)."""
+
+    __tablename__ = "plate_watches"
+    __table_args__ = (sa.UniqueConstraint("user_id", "regex"),)
+
+    id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True)
+    user_id: saorm.Mapped[int] = saorm.mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    mask: saorm.Mapped[str | None] = saorm.mapped_column(sa.Text)
+    regex: saorm.Mapped[str] = saorm.mapped_column(sa.Text, nullable=False)
+    label: saorm.Mapped[str | None] = saorm.mapped_column(sa.Text)
+
+
+class TorgiFavorite(Base):
+    __tablename__ = "torgi_favorites"
+
+    lot_id: saorm.Mapped[int] = saorm.mapped_column(
+        sa.ForeignKey("torgi_lots.lot_id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: saorm.Mapped[int] = saorm.mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )

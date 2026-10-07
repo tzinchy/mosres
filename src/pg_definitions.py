@@ -167,3 +167,89 @@ new_apart_trigger = PGTrigger(
         EXECUTE FUNCTION insert_new_aparts_history()
     """,
 )
+
+
+# Лоты torgi.mos.ru — та же схема версионирования, что у квартир и корпусов.
+# portal_views / source_updated_at исключены из сравнения: портал крутит их на
+# каждом обновлении, из-за чего версия бы росла на каждом прогоне без реальных
+# изменений по лоту.
+TORGI_COMPARED_COLUMNS = (
+    "name", "url", "status_text", "transport_category", "brand", "model", "year",
+    "plate", "vin", "pts", "color", "body", "eco_class", "power", "engine_volume",
+    "drive", "transmission", "mileage", "start_price", "deposit", "auction_step",
+    "final_price", "request_start_date", "request_end_date", "tender_date",
+    "final_date", "platform_link", "torgi_gov_link", "video_link", "latitude",
+    "longitude", "photos", "plate_norm", "plate_region", "plate_valid",
+)
+
+TORGI_HISTORY_COLUMNS = (
+    "lot_id", "version", "created_at", "updated_at", "notes", "portal_views",
+    "source_updated_at", *TORGI_COMPARED_COLUMNS,
+)
+
+
+def _row(prefix: str, columns) -> str:
+    return ", ".join(f'{prefix}."{c}"' for c in columns)
+
+
+def torgi_history_func(compared: tuple[str, ...]) -> PGFunction:
+    """Функция-триггер истории под заданный список сравниваемых колонок.
+
+    Параметризована, чтобы downgrade миграции мог вернуть предыдущую версию,
+    не копируя plpgsql.
+    """
+    history = (
+        "lot_id", "version", "created_at", "updated_at", "notes", "portal_views",
+        "source_updated_at", *compared,
+    )
+    return PGFunction(
+        schema="public",
+        signature="insert_torgi_lots_history()",
+        definition=f"""
+            RETURNS trigger
+            LANGUAGE plpgsql
+            AS $function$
+            BEGIN
+                IF TG_OP = 'INSERT'
+                   AND EXISTS (SELECT 1 FROM torgi_lots WHERE lot_id = NEW.lot_id) THEN
+                    RETURN NEW;
+                END IF;
+
+                IF TG_OP = 'UPDATE' THEN
+                    IF ROW({_row("OLD", compared)})
+                       IS NOT DISTINCT FROM
+                       ROW({_row("NEW", compared)}) THEN
+                        RETURN NULL;
+                    END IF;
+                    NEW.updated_at := now();
+                END IF;
+
+                NEW."version" := COALESCE(OLD."version", 0) + 1;
+
+                INSERT INTO torgi_lots_history (
+                    {", ".join(f'"{c}"' for c in history)}
+                ) VALUES (
+                    {_row("NEW", history)}
+                );
+
+                RETURN NEW;
+            END;
+            $function$
+        """,
+    )
+
+
+insert_torgi_lots_history_func = torgi_history_func(TORGI_COMPARED_COLUMNS)
+
+torgi_lots_history_trigger = PGTrigger(
+    schema="public",
+    signature="torgi_lots_history_trigger",
+    on_entity="public.torgi_lots",
+    is_constraint=False,
+    definition="""
+        BEFORE INSERT OR UPDATE
+        ON public.torgi_lots
+        FOR EACH ROW
+        EXECUTE FUNCTION public.insert_torgi_lots_history()
+    """,
+)

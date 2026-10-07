@@ -6,6 +6,7 @@ from loguru import logger
 
 from src.config import settings
 from src.service import MosResService
+from src.torgi import TorgiService
 
 
 async def _run_refresh() -> None:
@@ -16,6 +17,17 @@ async def _run_refresh() -> None:
     except Exception:
         # never let a failed refresh kill the job — it retries next interval
         logger.exception("scheduled refresh_all failed")
+
+
+async def _run_torgi_refresh() -> None:
+    """Лоты torgi.mos.ru — отдельная джоба: падение одного источника не должно
+    останавливать обновление другого."""
+    logger.info("scheduled torgi refresh start")
+    try:
+        await TorgiService().update_all_data()
+        logger.info("scheduled torgi refresh done")
+    except Exception:
+        logger.exception("scheduled torgi refresh failed")
 
 
 def build_scheduler() -> AsyncIOScheduler:
@@ -32,4 +44,17 @@ def build_scheduler() -> AsyncIOScheduler:
         # whole interval, then keep the fixed cadence
         next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=10),
     )
+    if settings.TORGI_ENABLED:
+        scheduler.add_job(
+            _run_torgi_refresh,
+            trigger=IntervalTrigger(minutes=settings.TORGI_REFRESH_INTERVAL_MINUTES),
+            id="periodic-torgi-refresh",
+            coalesce=True,
+            max_instances=1,
+            misfire_grace_time=600,
+            replace_existing=True,
+            # на минуту позже первой джобы, чтобы два источника не стартовали
+            # одновременно на холодном старте
+            next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=70),
+        )
     return scheduler

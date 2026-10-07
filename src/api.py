@@ -1,5 +1,6 @@
 import datetime
 from contextlib import asynccontextmanager
+from dataclasses import asdict, dataclass
 from typing import Literal
 
 from fastapi import FastAPI, Depends, HTTPException, Request
@@ -16,7 +17,8 @@ from src.auth import (
     verify_password,
 )
 from src.config import settings
-from src.depends import get_mosres_service, MosResService
+from src.depends import get_mosres_service, get_torgi_service, MosResService
+from src.torgi import TorgiService
 from src.scheduler import build_scheduler
 from src.schemas import (
     ApartRow,
@@ -42,6 +44,17 @@ from src.schemas import (
     Notification,
     PriceHistoryPoint,
     RefreshStatus,
+    PlatePreset,
+    PlateWatch,
+    PlateWatchIn,
+    TorgiCategoryStat,
+    TorgiDashboard,
+    TorgiFavoriteToggleResult,
+    TorgiLotRow,
+    TorgiLotVersion,
+    TorgiNotification,
+    TorgiPivotRow,
+    TorgiPoint,
 )
 
 
@@ -61,7 +74,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title="mosres-api",
     version="0.1.0",
-    description="Удобное api для получения информации с https://xn--80aae5aibotfo5h.xn--p1ai/. По умолчанию собирает данные по жилой недвижомсти",
+    description="Удобное api для получения информации с https://xn--80aae5aibotfo5h.xn--p1ai/. По умолчанию собирает данные по жилой недвижомсти. Раздел /torgi — транспортные лоты с torgi.mos.ru",
     lifespan=lifespan,
 )
 
@@ -437,3 +450,192 @@ async def get_building_versions(
     building_id: int, mosres_service: MosResService = Depends(get_mosres_service)
 ):
     return await mosres_service.get_buildings_history(building_id)
+
+
+@dataclass
+class TorgiLotFilters:
+    """Фильтры таблицы лотов: один список параметров на /torgi/lots и
+    /torgi/file, иначе выгрузка расходится с тем, что видно в таблице."""
+
+    open_only: bool = False
+    status: str | None = None
+    category: str | None = None
+    brand: str | None = None
+    year_min: int | None = None
+    year_max: int | None = None
+    min_price: float | None = None
+    max_price: float | None = None
+    max_mileage: int | None = None
+    price_drop_only: bool = False
+    with_plate_only: bool = False
+    fav_only: bool = False
+    watch_only: bool = False
+    valid_plate_only: bool = False
+    plate_region: str | None = None
+    q: str | None = None
+
+
+@app.get("/torgi/lots", tags=["torgi"], response_model=list[TorgiLotRow])
+async def get_torgi_lots(
+    filters: TorgiLotFilters = Depends(),
+    torgi_service: TorgiService = Depends(get_torgi_service),
+):
+    """Лоты torgi.mos.ru по транспорту. По умолчанию — весь архив;
+    `open_only=true` оставляет только те, где идёт приём заявок;
+    `watch_only=true` — только подошедшие под паттерны номера пользователя."""
+    return await torgi_service.get_lots_table(**asdict(filters))
+
+
+@app.get("/torgi/stats", tags=["torgi"], response_model=list[TorgiCategoryStat])
+async def get_torgi_stats(torgi_service: TorgiService = Depends(get_torgi_service)):
+    return await torgi_service.get_stats()
+
+
+@app.get("/torgi/file", tags=["torgi"], description="Выгрузка лотов в Excel")
+async def get_torgi_excel_file(
+    filters: TorgiLotFilters = Depends(),
+    torgi_service: TorgiService = Depends(get_torgi_service),
+):
+    path, filename = await torgi_service.get_excel_file(**asdict(filters))
+    return FileResponse(
+        path=path,
+        filename=filename,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.get("/torgi/update_data", tags=["torgi"])
+async def update_torgi_data(torgi_service: TorgiService = Depends(get_torgi_service)):
+    return await torgi_service.update_all_data()
+
+
+@app.get("/torgi/favorites", tags=["torgi"], response_model=list[int])
+async def get_torgi_favorites(
+    torgi_service: TorgiService = Depends(get_torgi_service),
+):
+    return await torgi_service.list_favorites()
+
+
+@app.post(
+    "/torgi/favorites/{lot_id}",
+    tags=["torgi"],
+    response_model=TorgiFavoriteToggleResult,
+)
+async def add_torgi_favorite_route(
+    lot_id: int, torgi_service: TorgiService = Depends(get_torgi_service)
+):
+    return await torgi_service.add_favorite(lot_id)
+
+
+@app.delete(
+    "/torgi/favorites/{lot_id}",
+    tags=["torgi"],
+    response_model=TorgiFavoriteToggleResult,
+)
+async def remove_torgi_favorite_route(
+    lot_id: int, torgi_service: TorgiService = Depends(get_torgi_service)
+):
+    return await torgi_service.remove_favorite(lot_id)
+
+
+@app.get("/torgi/presets", tags=["torgi"], response_model=list[PlatePreset])
+async def get_plate_presets(
+    torgi_service: TorgiService = Depends(get_torgi_service),
+):
+    """Готовые паттерны номеров: `preset` отправляется в POST /torgi/watches."""
+    return torgi_service.list_presets()
+
+
+@app.get("/torgi/watches", tags=["torgi"], response_model=list[PlateWatch])
+async def get_plate_watches(
+    torgi_service: TorgiService = Depends(get_torgi_service),
+):
+    return await torgi_service.list_watches()
+
+
+@app.post("/torgi/watches", tags=["torgi"], response_model=PlateWatch)
+async def add_plate_watch_route(
+    payload: PlateWatchIn,
+    torgi_service: TorgiService = Depends(get_torgi_service),
+):
+    """Маска языка масок либо `preset` из /torgi/presets. Кривая маска — 422.
+    Повторный такой же паттерн идемпотентен: вернётся существующий."""
+    try:
+        return await torgi_service.add_watch(
+            mask=payload.mask, preset=payload.preset, label=payload.label
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+
+
+@app.delete("/torgi/watches/{watch_id}", tags=["torgi"], status_code=204)
+async def delete_plate_watch_route(
+    watch_id: int, torgi_service: TorgiService = Depends(get_torgi_service)
+):
+    if not await torgi_service.delete_watch(watch_id):
+        raise HTTPException(status_code=404, detail="Паттерн не найден")
+
+
+@app.get(
+    "/torgi/notifications", tags=["torgi"], response_model=list[TorgiNotification]
+)
+async def get_torgi_notifications(
+    days: int = 30, torgi_service: TorgiService = Depends(get_torgi_service)
+):
+    """Одна лента: `kind=plate_match` — номер подошёл под паттерн,
+    `kind=lot_change` — изменился избранный лот."""
+    return await torgi_service.get_notifications(days=days)
+
+
+@app.get("/torgi/dashboard", tags=["torgi"], response_model=TorgiDashboard)
+async def get_torgi_dashboard(
+    torgi_service: TorgiService = Depends(get_torgi_service),
+):
+    return await torgi_service.get_dashboard()
+
+
+@app.get("/torgi/pivot", tags=["torgi"], response_model=list[TorgiPivotRow])
+async def get_torgi_pivot_route(
+    dimension: str,
+    torgi_service: TorgiService = Depends(get_torgi_service),
+):
+    """Разбивка лотов по одному измерению из белого списка
+    TorgiService.PIVOT_DIMS; всё остальное — 422."""
+    if dimension not in TorgiService.PIVOT_DIMS:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Неизвестное измерение: {dimension}. "
+                f"Доступны: {', '.join(TorgiService.PIVOT_DIMS)}"
+            ),
+        )
+    return await torgi_service.get_pivot(dimension)
+
+
+@app.get("/torgi/points", tags=["torgi"], response_model=list[TorgiPoint])
+async def get_torgi_points(
+    torgi_service: TorgiService = Depends(get_torgi_service),
+):
+    """Тонкий массив под scatter, карту и гистограмму регионов номеров."""
+    return await torgi_service.get_points()
+
+
+@app.get("/torgi/lots/{lot_id}", tags=["torgi"], response_model=TorgiLotRow)
+async def get_torgi_lot(
+    lot_id: int, torgi_service: TorgiService = Depends(get_torgi_service)
+):
+    rows = await torgi_service.get_lots_table(lot_id=lot_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Лот не найден")
+    return rows[0]
+
+
+@app.get(
+    "/torgi/lots/{lot_id}/versions",
+    tags=["torgi"],
+    response_model=list[TorgiLotVersion],
+)
+async def get_torgi_lot_versions(
+    lot_id: int, torgi_service: TorgiService = Depends(get_torgi_service)
+):
+    return await torgi_service.get_lot_history(lot_id)

@@ -4,6 +4,8 @@
 
 Сохраняет историю изменений по каждому объекту и корпусу — можно отслеживать динамику цен, статусов и доступности квартир.
 
+Второй источник — [torgi.mos.ru](https://torgi.mos.ru/transport/prodazha/transportnye-sredstva/): транспортные лоты города (раздел `/torgi` в API). Для них ведётся та же история версий — видно смену статуса торгов, изменение начальной цены и итоговую цену продажи.
+
 ---
 
 
@@ -127,6 +129,29 @@ cd frontend && npm install && npm run dev    # фронт на :5173
 | `GET` | `/buildings/stats` | По домам: квартир, средняя/мин цена, цена м², резерв, скидки, семейная, новых за неделю, в избранном |
 | `GET` | `/status` | Время последнего обновления данных + интервал планировщика |
 
+### Транспорт (torgi.mos.ru)
+
+| Метод | Эндпоинт | Описание |
+|---|---|---|
+| `GET` | `/torgi/lots` | Таблица лотов: `status_text`, `is_open`, `transport_category`, `brand`, `model`, `year`, `plate`, `vin`, `pts`, `mileage`, `power`, `engine_volume`, `start_price`, `deposit`, `auction_step`, `final_price`, `start_price_prev/delta_pct`, `final_price_delta_pct`, `days_left`, `photos`, `platform_link`, `torgi_url`. Query: `open_only`, `status`, `category`, `brand`, `year_min`, `year_max`, `min_price`, `max_price`, `max_mileage`, `price_drop_only`, `with_plate_only`, `q` (имя/марка/модель/госномер/VIN) |
+| `GET` | `/torgi/lots/{lot_id}` | Один лот |
+| `GET` | `/torgi/lots/{lot_id}/versions` | История изменений лота (`torgi_lots_history`) |
+| `GET` | `/torgi/stats` | Сводка по категориям транспорта: лотов, из них в приёме заявок и проданных, средняя/мин цена, средний пробег |
+| `GET` | `/torgi/file` | Выгрузка лотов в Excel. Query: `open_only`, `category`, `q` |
+| `GET` | `/torgi/update_data` | Забрать свежие лоты с torgi.mos.ru и сохранить в БД |
+
+#### Номера и паттерны
+
+Госномер лота разбирается при загрузке (`src/plates.py`): `plate_norm` — номер без пробелов
+и латинских гомоглифов, `plate_region` — код региона, `plate_valid` — разобрался ли номер в
+один из форматов (легковой, такси, прицеп, мото). Колонки версионируются вместе с лотом,
+поэтому в истории видно, когда у лота появился или сменился номер.
+
+Паттерны пользователя (`plate_watches`) — либо маска, либо готовый пресет из `PRESETS`
+(три одинаковые цифры, зеркальные, малые 001–009, блатные серии). В маске `?` — любая буква
+номера, `#` — цифра, `=` — повтор предыдущего символа, `*` — любой остаток: `?#==??*` — это
+три одинаковые цифры. Маска компилируется в regex, матчинг идёт в SQL (`plate_norm ~ regex`).
+
 ### Избранное
 
 У каждого пользователя своё: таблица `favorites`, ключ `(new_apart_id, user_id)`.
@@ -156,7 +181,12 @@ APScheduler (`AsyncIOScheduler`) запускает `refresh_all()` каждые
 | Переменная | По умолчанию | Описание |
 |---|---|---|
 | `SCHEDULER_ENABLED` | `true` | Включить планировщик при старте приложения |
-| `REFRESH_INTERVAL_MINUTES` | `30` | Интервал обновления данных |
+| `REFRESH_INTERVAL_MINUTES` | `30` | Интервал обновления данных москварталы.рф |
+| `TORGI_ENABLED` | `true` | Включить обновление лотов torgi.mos.ru |
+| `TORGI_REFRESH_INTERVAL_MINUTES` | `15` | Интервал обновления лотов torgi.mos.ru |
+
+Лоты torgi.mos.ru обновляет отдельная джоба (`periodic-torgi-refresh`) — падение одного
+источника не останавливает второй.
 
 ---
 
@@ -195,6 +225,28 @@ https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php
 
 По умолчанию сервис собирает только жилую недвижимость (`type[]=R`).
 
+### torgi.mos.ru (транспорт)
+
+Два открытых эндпоинта портала (ни авторизации, ни кук):
+
+```
+POST https://api.torgi.mos.ru/investmoscow/tender/v2/filtered-tenders/searchungroupedtenderobjects
+GET  https://api.torgi.mos.ru/investmoscow/tender/v1/object-info/gettenderobjectinformation?tenderId=
+```
+
+Фильтр — `objectTypes: ["nsi:41:99021071"]` («Транспортное средство»), это
+единственный тип объекта портала, под которым лежит транспорт.
+
+Важно: сам сайт показывает только лоты с открытым приёмом заявок (**66**), потому что
+подставляет ещё и фильтр `tenderStatus`. Мы его не ставим и получаем **весь архив
+(~1600 лотов)** со статусами «Прием заявок», «Прием заявок завершен», «Признаны
+состоявшимися/несостоявшимися», «Единственный участник», «Отменены».
+
+Карточка лота (госномер, VIN, ПТС, задаток, шаг аукциона, итоговая цена, статус)
+есть только во втором эндпоинте, поэтому она запрашивается — но лишь для новых лотов
+и тех, у которых портал сдвинул `updateDate`. На установившемся архиве повторный
+прогон не делает ни одного запроса к карточкам.
+
 ---
 
 ## Структура проекта
@@ -203,7 +255,8 @@ https://xn--80aae5aibotfo5h.xn--p1ai/pokupka-nedvizhimosti-dlya-vseh/ajax.php
 mosres/
 ├── src/
 │   ├── client.py        # HTTP-клиент (москварталы.рф)
-│   ├── service.py       # Бизнес-логика
+│   ├── service.py       # Бизнес-логика (москварталы.рф)
+│   ├── torgi.py         # Сбор и чтение лотов torgi.mos.ru
 │   ├── repository.py    # Запросы к БД
 │   ├── schemas.py       # Pydantic-схемы
 │   ├── models.py        # SQLAlchemy-модели

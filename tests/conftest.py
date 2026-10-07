@@ -11,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 from testcontainers.postgres import PostgresContainer
 
+from src.plates import parse_plate
+
 _CLEAN_TABLES = (
     "new_aparts_history",
     "new_aparts",
@@ -20,6 +22,11 @@ _CLEAN_TABLES = (
     "comments",
     "building_price_stats",
     "refresh_runs",
+    "torgi_lots_history",
+    "torgi_favorites",
+    "torgi_lots",
+    "torgi_lots_temp",
+    "plate_watches",
     "districts",
     "municipal_districts",
     "metros",
@@ -99,6 +106,10 @@ async def client(engine, monkeypatch) -> AsyncIterator[AsyncClient]:
 
     monkeypatch.setattr(src.service, "Session", test_session, raising=False)
 
+    import src.torgi
+
+    monkeypatch.setattr(src.torgi, "Session", test_session, raising=False)
+
     from src.api import app
     from src.auth import hash_password, make_token
 
@@ -162,3 +173,32 @@ async def seed_apart(db: AsyncSession, **overrides) -> int:
     vals = ", ".join(f":{k}" for k in row)
     await db.execute(text(f"INSERT INTO new_aparts ({cols}) VALUES ({vals})"), row)
     return row["new_apart_id"]
+
+
+async def seed_torgi_lot(db: AsyncSession, **overrides) -> int:
+    """Разбор номера считается тем же parse_plate, что и при загрузке, —
+    иначе plate_norm в тестах расходился бы с продом."""
+    row = {
+        "lot_id": 20200446,
+        "name": "Легковой автомобиль на продажу, UAZ PATRIOT, 2013",
+        "url": "https://torgi.mos.ru/tender/20200446",
+        "status_text": "Прием заявок",
+        "transport_category": "Легковые автомобили",
+        "brand": "UAZ",
+        "model": "PATRIOT",
+        "year": 2013,
+        "plate": "А001АА77",
+        "vin": "XTT316300D1000000",
+        "mileage": 272579,
+        "start_price": 92397,
+        "version": 1,
+    }
+    row.update(overrides)
+    parts = parse_plate(row.get("plate"))
+    row.setdefault("plate_norm", parts.plate_norm)
+    row.setdefault("plate_region", parts.plate_region)
+    row.setdefault("plate_valid", parts.plate_valid)
+    cols = ", ".join(f'"{k}"' for k in row)
+    vals = ", ".join(f":{k}" for k in row)
+    await db.execute(text(f"INSERT INTO torgi_lots ({cols}) VALUES ({vals})"), row)
+    return row["lot_id"]
