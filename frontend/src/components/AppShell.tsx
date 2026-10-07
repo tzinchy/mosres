@@ -3,6 +3,9 @@ import {
   Bell,
   Building2,
   Calculator,
+  Car,
+  Gavel,
+  Hash,
   LayoutDashboard,
   Map as MapIcon,
   Table2,
@@ -14,13 +17,28 @@ import { useNotifSeen } from "@/hooks/useNotifSeen";
 import { relTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const nav = [
-  { to: "/", label: "Сводка", icon: LayoutDashboard, end: true },
-  { to: "/aparts", label: "Квартиры", icon: Table2, end: false },
-  { to: "/buildings", label: "Дома", icon: Building2, end: true },
-  { to: "/map", label: "Карта", icon: MapIcon, end: false },
-  { to: "/mortgage", label: "Ипотека", icon: Calculator, end: false },
+/** Навигация сгруппирована по источнику данных: москварталы и torgi.mos.ru. */
+const groups = [
+  {
+    title: "mosres",
+    items: [
+      { to: "/", label: "Сводка", icon: LayoutDashboard, end: true },
+      { to: "/aparts", label: "Квартиры", icon: Table2, end: false },
+      { to: "/buildings", label: "Дома", icon: Building2, end: true },
+      { to: "/map", label: "Карта", icon: MapIcon, end: false },
+      { to: "/mortgage", label: "Ипотека", icon: Calculator, end: false },
+    ],
+  },
+  {
+    title: "торги",
+    items: [
+      { to: "/torgi", label: "Сводка торгов", icon: Gavel, end: true },
+      { to: "/torgi/cars", label: "Машины", icon: Car, end: false },
+      { to: "/torgi/plates", label: "Номера", icon: Hash, end: false },
+    ],
+  },
 ];
+const nav = groups.flatMap((g) => g.items);
 
 function BellItem({ onNavigate }: { onNavigate?: () => void }) {
   const { data } = useNotifications();
@@ -49,6 +67,34 @@ function BellItem({ onNavigate }: { onNavigate?: () => void }) {
       </span>
       Уведомления
     </NavLink>
+  );
+}
+
+const linkCls = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+    isActive
+      ? "bg-primary/10 font-medium text-primary"
+      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+  );
+
+export function NavGroups({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <>
+      {groups.map((group, i) => (
+        <div key={group.title} className={cn(i > 0 && "mt-3")}>
+          <div className="px-2.5 pb-1 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
+            {group.title}
+          </div>
+          {group.items.map(({ to, label, icon: Icon, end }) => (
+            <NavLink key={to} to={to} end={end} onClick={onNavigate} className={linkCls}>
+              <Icon size={16} strokeWidth={2} />
+              {label}
+            </NavLink>
+          ))}
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -102,7 +148,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </span>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5">
-          <NavItems />
+          <NavGroups />
+          <div className="mt-3">
+            <BellItem />
+          </div>
         </nav>
         <div className="flex flex-col gap-3 border-t border-border pt-3">
           <LastUpdated />

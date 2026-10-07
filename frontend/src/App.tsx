@@ -13,6 +13,10 @@ import { MapPage } from "@/pages/MapPage";
 import { MortgagePage } from "@/pages/MortgagePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotificationsPage } from "@/pages/NotificationsPage";
+import { PlateWatchesPage } from "@/pages/PlateWatchesPage";
+import { TorgiCarsPage } from "@/pages/TorgiCarsPage";
+import { TorgiDashboardPage } from "@/pages/TorgiDashboardPage";
+import { TorgiLotPage } from "@/pages/TorgiLotPage";
 import { getToken } from "@/lib/auth";
 
 const qc = new QueryClient({
@@ -48,6 +52,10 @@ export default function App() {
               <Route path="/map" element={<MapPage />} />
               <Route path="/mortgage" element={<MortgagePage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/torgi" element={<TorgiDashboardPage />} />
+              <Route path="/torgi/cars" element={<TorgiCarsPage />} />
+              <Route path="/torgi/cars/:lotId" element={<TorgiLotPage />} />
+              <Route path="/torgi/plates" element={<PlateWatchesPage />} />
             </Routes>
           </AppShell>
         </BrowserRouter>
