@@ -18,11 +18,14 @@ export function ColumnsMenu({
   onChange,
   className,
   align = "start",
+  labels = APART_COL_LABELS,
 }: {
   value: VisibilityState;
   onChange: (v: VisibilityState) => void;
   className?: string;
   align?: "start" | "end";
+  /** id колонки → подпись; по умолчанию — колонки таблицы квартир */
+  labels?: Record<string, string>;
 }) {
   return (
     <DropdownMenu>
@@ -40,7 +43,7 @@ export function ColumnsMenu({
         <DropdownMenuGroup>
           <DropdownMenuLabel>Показывать колонки</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {Object.entries(APART_COL_LABELS).map(([id, label]) => (
+          {Object.entries(labels).map(([id, label]) => (
             <DropdownMenuCheckboxItem
               key={id}
               checked={value[id] !== false}

@@ -286,3 +286,112 @@ export interface RefreshStatus {
   history_from: string | null;
   history_to: string | null;
 }
+
+/** Лот torgi.mos.ru (транспорт) — /torgi/lots, поля считает src/sql/torgi_lots.sql. */
+export interface TorgiLotRow {
+  lot_id: number;
+  name: string | null;
+  status_text: string | null;
+  is_open: boolean;
+  transport_category: string | null;
+  brand: string | null;
+  model: string | null;
+  year: number | null;
+  plate: string | null;
+  plate_norm: string | null;
+  plate_region: string | null;
+  plate_valid: boolean;
+  vin: string | null;
+  pts: string | null;
+  color: string | null;
+  body: string | null;
+  eco_class: string | null;
+  power: string | null;
+  engine_volume: string | null;
+  drive: string | null;
+  transmission: string | null;
+  mileage: number | null;
+  start_price: number | null;
+  deposit: number | null;
+  auction_step: number | null;
+  final_price: number | null;
+  start_price_prev: number | null;
+  start_price_delta_pct: number | null;
+  final_price_delta_pct: number | null;
+  request_start_date: string | null;
+  request_end_date: string | null;
+  tender_date: string | null;
+  final_date: string | null;
+  days_left: number | null;
+  platform_link: string | null;
+  torgi_gov_link: string | null;
+  video_link: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  photos: string[];
+  photos_count: number;
+  portal_views: number | null;
+  torgi_url: string;
+  version: number;
+  updated_at: string;
+  is_favorite: boolean;
+  /** маски/лейблы паттернов пользователя, под которые подошёл номер */
+  matched_masks: string[];
+  is_new: boolean;
+}
+
+/** Снимок лота из torgi_lots_history — /torgi/lots/{id}/versions. */
+export interface TorgiLotVersion {
+  lot_id: number;
+  version: number;
+  updated_at: string;
+  name?: string | null;
+  status_text: string | null;
+  start_price: number | null;
+  final_price: number | null;
+  deposit: number | null;
+  auction_step: number | null;
+  plate: string | null;
+  plate_norm?: string | null;
+  plate_region?: string | null;
+  plate_valid?: boolean | null;
+  mileage: number | null;
+  request_end_date: string | null;
+  tender_date: string | null;
+}
+
+/** Паттерн номера пользователя — /torgi/watches. mask = null у пресета. */
+export interface TorgiWatch {
+  id: number;
+  mask: string | null;
+  label: string | null;
+  regex: string;
+  matched_now: number;
+  created_at: string;
+}
+
+/** Готовое правило номера — /torgi/presets. */
+export interface TorgiPreset {
+  preset: string;
+  label: string;
+}
+
+export type TorgiNotifKind = "plate_match" | "lot_change";
+
+export interface TorgiNotification {
+  kind: TorgiNotifKind;
+  lot_id: number;
+  name: string | null;
+  plate_norm: string | null;
+  matched_masks: string[];
+  version: number;
+  updated_at: string;
+  status_text: string | null;
+  start_price: number | null;
+  prev_start_price: number | null;
+  final_price: number | null;
+  price_down: boolean;
+  price_up: boolean;
+  status_changed: boolean;
+  sold: boolean;
+}

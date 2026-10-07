@@ -13,6 +13,25 @@ function qs(params?: Record<string, unknown>): string {
   return s ? `?${s}` : "";
 }
 
+async function errorText(res: Response): Promise<string> {
+  const fallback = `${res.status} ${res.statusText}`;
+  try {
+    const body = (await res.json()) as { detail?: unknown };
+    const d = body?.detail;
+    if (typeof d === "string" && d) return d;
+    if (Array.isArray(d) && d.length) {
+      const msgs = d
+        .map((e) => (e as { msg?: string })?.msg)
+        .filter(Boolean)
+        .join("; ");
+      if (msgs) return msgs;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
@@ -28,7 +47,9 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     clearSession();
     throw new Error("401 Unauthorized");
   }
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  // Текст ошибки нужен на экране (кривая маска номера — 422 с объяснением),
+  // поэтому вытаскиваем `detail` из тела, а не показываем сухой статус.
+  if (!res.ok) throw new Error(await errorText(res));
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }
 

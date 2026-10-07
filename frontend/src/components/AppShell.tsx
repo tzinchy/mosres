@@ -13,6 +13,7 @@ import {
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useNotifications, useStatus } from "@/hooks/useDashboard";
+import { useTorgiNotifications } from "@/hooks/useTorgi";
 import { useNotifSeen } from "@/hooks/useNotifSeen";
 import { relTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -42,8 +43,12 @@ const nav = groups.flatMap((g) => g.items);
 
 function BellItem({ onNavigate }: { onNavigate?: () => void }) {
   const { data } = useNotifications();
+  const torgi = useTorgiNotifications();
   const { lastSeen } = useNotifSeen();
-  const unread = (data ?? []).filter((n) => n.updated_at > lastSeen).length;
+  // один колокольчик на два источника — счётчик суммирует обе ленты
+  const unread =
+    (data ?? []).filter((n) => n.updated_at > lastSeen).length +
+    (torgi.data ?? []).filter((n) => n.updated_at > lastSeen).length;
   return (
     <NavLink
       to="/notifications"
