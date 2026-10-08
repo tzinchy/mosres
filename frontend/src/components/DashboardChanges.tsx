@@ -14,15 +14,15 @@ const GROUPS: {
   to: string;
 }[] = [
   { kind: "price_drop", title: "Подешевели", tone: "pos", to: "/aparts?price_drop_only=1" },
-  { kind: "price_rise", title: "Подорожали", tone: "neg", to: "/aparts" },
+  { kind: "price_rise", title: "Подорожали", tone: "neg", to: "/aparts?price_rise_only=1" },
   { kind: "discount_new", title: "Появилась скидка", tone: "pos", to: "/aparts?discount_only=1" },
-  { kind: "discount_gone", title: "Снята скидка", tone: "neg", to: "/aparts" },
+  { kind: "discount_gone", title: "Снята скидка", tone: "neg", to: "/aparts?changed_only=1" },
   { kind: "family_on", title: "Стали по семейной ипотеке", tone: "pos", to: "/aparts?family_only=1" },
-  { kind: "family_off", title: "Перестали по семейной ипотеке", tone: "neg", to: "/aparts" },
+  { kind: "family_off", title: "Перестали по семейной ипотеке", tone: "neg", to: "/aparts?changed_only=1" },
   { kind: "reserved", title: "Ушли в резерв", tone: "reserve", to: "/aparts?reserved_only=1" },
   { kind: "unreserved", title: "Вышли из резерва", tone: "pos", to: "/aparts?available_only=1" },
   { kind: "auction_on", title: "Перешли на аукцион", tone: "reserve", to: "/aparts?auction_only=1" },
-  { kind: "auction_off", title: "Убраны с аукциона", tone: "pos", to: "/aparts" },
+  { kind: "auction_off", title: "Убраны с аукциона", tone: "pos", to: "/aparts?changed_only=1" },
 ];
 
 function priceLine(c: DashboardChange): string | null {
@@ -81,21 +81,29 @@ function Group({
         : "text-reserve";
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 px-4 py-2.5 text-sm hover:bg-secondary/60"
-      >
-        <ChevronDown
-          size={14}
-          className={cn(
-            "shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-180",
-          )}
-        />
-        <span className={cn("font-medium", toneCls)}>{g.title}</span>
-        <span className="tnum text-xs text-muted-foreground">{items.length}</span>
-      </button>
+      <div className="flex items-center">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-w-0 flex-1 items-center gap-2 px-4 py-2.5 text-sm hover:bg-secondary/60"
+        >
+          <ChevronDown
+            size={14}
+            className={cn(
+              "shrink-0 text-muted-foreground transition-transform",
+              open && "rotate-180",
+            )}
+          />
+          <span className={cn("truncate font-medium", toneCls)}>{g.title}</span>
+          <span className="tnum text-xs text-muted-foreground">{items.length}</span>
+        </button>
+        <Link
+          to={g.to}
+          className="shrink-0 px-4 py-2.5 text-xs text-muted-foreground hover:text-primary hover:underline"
+        >
+          в таблицу
+        </Link>
+      </div>
       {open && (
         <div className="divide-y divide-border border-t border-border">
           {items.map((c) => {
@@ -103,7 +111,7 @@ function Group({
             return (
               <Link
                 key={`${c.new_apart_id}-${c.kind}`}
-                to={g.to}
+                to={`/aparts/${c.new_apart_id}`}
                 className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-secondary/60"
               >
                 <span className="min-w-0 truncate">

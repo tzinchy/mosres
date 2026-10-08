@@ -40,6 +40,32 @@ async def test_login_issues_working_token(client, db):
     assert me.json()["username"] == "tester"
 
 
+async def test_register_issues_token_and_rejects_duplicate(client, db):
+    anon = AsyncClient(transport=client._transport, base_url="http://test")
+    body = {"username": "новичок", "password": "parol123"}
+
+    ok = await anon.post("/auth/register", json=body)
+    assert ok.status_code == 200, ok.text
+    token = ok.json()["token"]
+
+    me = await anon.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.json()["username"] == "новичок"
+
+    again = await anon.post("/auth/register", json=body)
+    assert again.status_code == 409
+
+    # границы из RegisterIn: короткий пароль и короткий логин не проходят
+    assert (
+        await anon.post("/auth/register", json={"username": "ab", "password": "parol123"})
+    ).status_code == 422
+    assert (
+        await anon.post("/auth/register", json={"username": "кто-то", "password": "123"})
+    ).status_code == 422
+
+    await db.execute(text("DELETE FROM users WHERE username = 'новичок'"))
+    await db.commit()
+
+
 async def test_favorites_are_per_user(client, db):
     await seed_building(db)
     apart_id = await seed_apart(db)

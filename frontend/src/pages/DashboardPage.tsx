@@ -141,10 +141,10 @@ export function DashboardPage() {
               Сегодня
             </SectionTitle>
             <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 lg:grid-cols-6">
-              <Metric label="Новых" value={m.new_today} to="/aparts" />
-              <Metric label="Изменений" value={m.changed_today} to={`/?date=${todayISO()}`} />
+              <Metric label="Новых" value={m.new_today} to="/aparts?new_only=1" />
+              <Metric label="Изменений" value={m.changed_today} to="/aparts?changed_only=1" />
               <Metric label="Подешевели" value={m.price_drops_today} tone="pos" to="/aparts?price_drop_only=1" />
-              <Metric label="Подорожали" value={m.price_rises_today} tone="neg" to="/aparts" />
+              <Metric label="Подорожали" value={m.price_rises_today} tone="neg" to="/aparts?price_rise_only=1" />
               <Metric label="Новых скидок" value={m.discounts_appeared_today} tone="pos" to="/aparts?discount_only=1" />
               <Metric label="Ушло в резерв" value={m.reserved_today} tone="reserve" to="/aparts?reserved_only=1" />
             </div>

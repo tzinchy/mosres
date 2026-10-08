@@ -5,7 +5,12 @@ import sqlalchemy as sa
 import sqlalchemy.orm as saorm
 import sqlalchemy.dialects.postgresql as sapg
 from src.database import Base
-from src.mixins import NewApartMixing, BuildingMixing, TorgiLotMixing
+from src.mixins import (
+    NewApartMixing,
+    BuildingMixing,
+    TorgiLotMixing,
+    TorgiObjectMixing,
+)
 
 
 class Building(Base, BuildingMixing):
@@ -103,6 +108,7 @@ class Favorite(Base):
 
 class Comment(Base):
     __tablename__ = "comments"
+    __table_args__ = (sa.Index("ix_comments_new_apart_id", "new_apart_id"),)
 
     id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True)
     new_apart_id: saorm.Mapped[int] = saorm.mapped_column(
@@ -141,6 +147,12 @@ class BuildingPriceStat(Base):
 
 class TorgiLot(Base, TorgiLotMixing):
     __tablename__ = "torgi_lots"
+    __table_args__ = (
+        sa.Index("ix_torgi_lots_plate", "plate"),
+        sa.Index("ix_torgi_lots_plate_norm", "plate_norm"),
+        sa.Index("ix_torgi_lots_plate_region", "plate_region"),
+        sa.Index("ix_torgi_lots_status_text", "status_text"),
+    )
 
     lot_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
     version: saorm.Mapped[int] = saorm.mapped_column(nullable=False, server_default="0")
@@ -148,6 +160,9 @@ class TorgiLot(Base, TorgiLotMixing):
 
 class TorgiLotHistory(Base, TorgiLotMixing):
     __tablename__ = "torgi_lots_history"
+    __table_args__ = (
+        sa.Index("ix_torgi_lots_history_lot_id_version", "lot_id", "version"),
+    )
 
     torgi_lot_history_id: saorm.Mapped[int] = saorm.mapped_column(
         primary_key=True, autoincrement=True
@@ -166,7 +181,10 @@ class PlateWatch(Base):
     """Паттерн номера пользователя: маска или пресет (тогда mask = NULL)."""
 
     __tablename__ = "plate_watches"
-    __table_args__ = (sa.UniqueConstraint("user_id", "regex"),)
+    __table_args__ = (
+        sa.UniqueConstraint("user_id", "regex"),
+        sa.Index("ix_plate_watches_user_id", "user_id"),
+    )
 
     id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True, autoincrement=True)
     user_id: saorm.Mapped[int] = saorm.mapped_column(
@@ -182,6 +200,49 @@ class TorgiFavorite(Base):
 
     lot_id: saorm.Mapped[int] = saorm.mapped_column(
         sa.ForeignKey("torgi_lots.lot_id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: saorm.Mapped[int] = saorm.mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+
+
+class TorgiObject(Base, TorgiObjectMixing):
+    __tablename__ = "torgi_objects"
+    __table_args__ = (
+        sa.Index("ix_torgi_objects_object_type_code", "object_type_code"),
+        sa.Index("ix_torgi_objects_status_text", "status_text"),
+        sa.Index("ix_torgi_objects_district_name", "district_name"),
+        sa.Index("ix_torgi_objects_request_end_date", "request_end_date"),
+    )
+
+    lot_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
+    version: saorm.Mapped[int] = saorm.mapped_column(nullable=False, server_default="0")
+
+
+class TorgiObjectHistory(Base, TorgiObjectMixing):
+    __tablename__ = "torgi_objects_history"
+    __table_args__ = (
+        sa.Index("ix_torgi_objects_history_lot_id_version", "lot_id", "version"),
+    )
+
+    torgi_object_history_id: saorm.Mapped[int] = saorm.mapped_column(
+        primary_key=True, autoincrement=True
+    )
+    lot_id: saorm.Mapped[int]
+    version: saorm.Mapped[int] = saorm.mapped_column(nullable=False)
+
+
+class TorgiObjectTemp(Base, TorgiObjectMixing):
+    __tablename__ = "torgi_objects_temp"
+
+    lot_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
+
+
+class TorgiObjectFavorite(Base):
+    __tablename__ = "torgi_object_favorites"
+
+    lot_id: saorm.Mapped[int] = saorm.mapped_column(
+        sa.ForeignKey("torgi_objects.lot_id", ondelete="CASCADE"), primary_key=True
     )
     user_id: saorm.Mapped[int] = saorm.mapped_column(
         sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True

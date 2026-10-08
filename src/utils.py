@@ -52,7 +52,11 @@ def create_insert_query_for_table(
 
 @response_format(satext=True)
 def create_insert_query_for_table_with_except_from_temp(
-    table: str, temp_table: str, columns: str, on_conflict_column: str
+    table: str,
+    temp_table: str,
+    columns: str,
+    on_conflict_column: str,
+    coalesce_columns: tuple[str, ...] = (),
 ) -> str:
     """Upsert every scraped row from the temp table into the target.
 
@@ -60,9 +64,18 @@ def create_insert_query_for_table_with_except_from_temp(
     is the single source of truth: it cancels no-op updates (RETURN NULL) and only
     then bumps ``version`` / writes a history row. ``updated_at`` is set by the
     trigger on a real change, so it is intentionally left out of the SET list.
+
+    ``coalesce_columns`` — колонки, которые приходят не из каждого прогона
+    (поля карточки лота, когда карточку не читали): для них NULL в новой строке
+    означает «нет данных в этом прогоне», а не «затереть». Иначе пришлось бы
+    вычитывать прежние значения в память — на архиве это сотни тысяч строк.
     """
-    _, _, excluded_columns = create_placeholders_with_excluded(
-        columns=[c for c in columns if c != on_conflict_column]
+    updatable = [c for c in columns if c != on_conflict_column]
+    excluded_columns = ", ".join(
+        f"{c} = COALESCE(EXCLUDED.{c}, {table}.{c})"
+        if c in coalesce_columns
+        else f"{c} = EXCLUDED.{c}"
+        for c in updatable
     )
     all_columns, _ = create_placeholders(columns)
     return f"""

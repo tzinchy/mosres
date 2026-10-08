@@ -47,6 +47,7 @@ from src.repository import (
     delete_comment,
     get_user,
     get_user_by_username,
+    create_user,
     refresh_building_price_stats,
     get_building_price_dynamics,
     get_dashboard_metrics,
@@ -343,6 +344,9 @@ class MosResService:
         favorites_only: bool = False,
         discount_only: bool = False,
         price_drop_only: bool = False,
+        price_rise_only: bool = False,
+        new_only: bool = False,
+        changed_only: bool = False,
         reserved_only: bool = False,
         available_only: bool = False,
         family_only: bool = False,
@@ -363,6 +367,9 @@ class MosResService:
                 favorites_only=favorites_only,
                 discount_only=discount_only,
                 price_drop_only=price_drop_only,
+                price_rise_only=price_rise_only,
+                new_only=new_only,
+                changed_only=changed_only,
                 reserved_only=reserved_only,
                 available_only=available_only,
                 family_only=family_only,
@@ -600,6 +607,12 @@ class MosResService:
         async with Session() as session:
             async with session.begin():
                 return await delete_comment(comment_id=comment_id, session=session)
+
+    async def create_user(self, username: str, password_hash: str):
+        async with Session() as session, session.begin():
+            return await create_user(
+                username=username, password_hash=password_hash, session=session
+            )
 
     async def get_user_by_username(self, username: str):
         async with Session() as session:

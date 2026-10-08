@@ -60,6 +60,13 @@ export const login = (username: string, password: string) =>
     body: JSON.stringify({ username, password }),
   });
 
+export const register = (username: string, password: string) =>
+  req<{ token: string; username: string }>("/auth/register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+
 export const apiGet = <T>(path: string, params?: Record<string, unknown>) =>
   req<T>(`${path}${qs(params)}`);
 export const apiPost = <T>(path: string, body?: unknown) =>

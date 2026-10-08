@@ -153,6 +153,21 @@ WHERE (
         NOT CAST(:price_drop_only AS boolean)
         OR (prev.price_num IS NOT NULL AND cur.price_num < prev.price_num)
       )
+  AND (
+        NOT CAST(:price_rise_only AS boolean)
+        OR (prev.price_num IS NOT NULL AND cur.price_num > prev.price_num)
+      )
+  AND (
+        NOT CAST(:new_only AS boolean)
+        OR (na."version" = 1 AND na.updated_at::date = now()::date)
+      )
+  -- Изменённые за сегодня: любая новая версия, появившаяся сегодня. Дашборд
+  -- считает changed_today строже (сверяет цену/скидку/резерв/семейную/аукцион
+  -- с прошлой версией), поэтому здесь счётчик может быть чуть шире.
+  AND (
+        NOT CAST(:changed_only AS boolean)
+        OR (na."version" > 1 AND na.updated_at::date = now()::date)
+      )
   AND (NOT CAST(:reserved_only AS boolean) OR na.reserve = 1)
   AND (NOT CAST(:available_only AS boolean) OR COALESCE(na.reserve, 0) = 0)
   AND (NOT CAST(:family_only AS boolean) OR COALESCE(na.property, '') ILIKE '%семейн%')

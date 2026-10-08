@@ -1,3 +1,4 @@
+import datetime
 import os
 
 os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
@@ -26,6 +27,10 @@ _CLEAN_TABLES = (
     "torgi_favorites",
     "torgi_lots",
     "torgi_lots_temp",
+    "torgi_objects_history",
+    "torgi_object_favorites",
+    "torgi_objects",
+    "torgi_objects_temp",
     "plate_watches",
     "districts",
     "municipal_districts",
@@ -109,6 +114,10 @@ async def client(engine, monkeypatch) -> AsyncIterator[AsyncClient]:
     import src.torgi
 
     monkeypatch.setattr(src.torgi, "Session", test_session, raising=False)
+
+    import src.torgi_objects
+
+    monkeypatch.setattr(src.torgi_objects, "Session", test_session, raising=False)
 
     from src.api import app
     from src.auth import hash_password, make_token
@@ -201,4 +210,33 @@ async def seed_torgi_lot(db: AsyncSession, **overrides) -> int:
     cols = ", ".join(f'"{k}"' for k in row)
     vals = ", ".join(f":{k}" for k in row)
     await db.execute(text(f"INSERT INTO torgi_lots ({cols}) VALUES ({vals})"), row)
+    return row["lot_id"]
+
+
+async def seed_torgi_object(db: AsyncSession, **overrides) -> int:
+    """Лот недвижимости. По умолчанию — живая квартира: приём заявок открыт."""
+    row = {
+        "lot_id": 18397774,
+        "object_type_code": "nsi:41:30011568",
+        "object_type_name": "Квартира",
+        "tender_type_code": "nsi:tender_type_portal:13",
+        "name": "2-комн. квартира на продажу, 50,70 м²",
+        "url": "https://torgi.mos.ru/tender/18397774",
+        "address": "город Москва, Бескудниковский бульвар, дом 13, кв. 442",
+        "region_name": "Северный административный округ",
+        "district_name": "Бескудниковский",
+        "object_area": 50.7,
+        "rooms_count": 2,
+        "room_floor": 5,
+        "floors": 18,
+        "start_price": 10600000,
+        "price_per_square": 209072.98,
+        "request_end_date": datetime.datetime.now() + datetime.timedelta(days=7),
+        "tender_date": datetime.datetime.now() + datetime.timedelta(days=14),
+        "version": 1,
+    }
+    row.update(overrides)
+    cols = ", ".join(f'"{k}"' for k in row)
+    vals = ", ".join(f":{k}" for k in row)
+    await db.execute(text(f"INSERT INTO torgi_objects ({cols}) VALUES ({vals})"), row)
     return row["lot_id"]

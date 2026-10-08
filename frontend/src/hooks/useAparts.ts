@@ -8,6 +8,9 @@ export interface ApartFilters {
   favorites_only?: boolean;
   discount_only?: boolean;
   price_drop_only?: boolean;
+  price_rise_only?: boolean;
+  new_only?: boolean;
+  changed_only?: boolean;
   reserved_only?: boolean;
   available_only?: boolean;
   family_only?: boolean;

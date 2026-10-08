@@ -2,16 +2,18 @@ import { clearSession, getUsername } from "@/lib/auth";
 import {
   Bell,
   Building2,
+  ChevronRight,
   Calculator,
   Car,
   Gavel,
   Hash,
+  Home,
   LayoutDashboard,
   Map as MapIcon,
   Table2,
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState, type ReactNode } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { useNotifications, useStatus } from "@/hooks/useDashboard";
 import { useTorgiNotifications } from "@/hooks/useTorgi";
 import { useNotifSeen } from "@/hooks/useNotifSeen";
@@ -21,21 +23,34 @@ import { cn } from "@/lib/utils";
 /** Навигация сгруппирована по источнику данных: москварталы и torgi.mos.ru. */
 const groups = [
   {
-    title: "mosres",
+    // дашборды всех источников в одной раскрывающейся группе: по одному
+    // экрану на тему, чтобы разнородные сводки не сваливались в одну страницу
+    title: "дашборды",
+    defaultOpen: true,
     items: [
-      { to: "/", label: "Сводка", icon: LayoutDashboard, end: true },
-      { to: "/aparts", label: "Квартиры", icon: Table2, end: false },
-      { to: "/buildings", label: "Дома", icon: Building2, end: true },
-      { to: "/map", label: "Карта", icon: MapIcon, end: false },
-      { to: "/mortgage", label: "Ипотека", icon: Calculator, end: false },
+      { to: "/", label: "Торги: транспорт", icon: Gavel, end: true },
+      { to: "/dash/objects", label: "Торги: недвижимость", icon: Home, end: true },
+      { to: "/mosres", label: "Москварталы", icon: LayoutDashboard, end: true },
     ],
   },
   {
     title: "торги",
+    defaultOpen: true,
     items: [
-      { to: "/torgi", label: "Сводка торгов", icon: Gavel, end: true },
+      { to: "/torgi/objects", label: "Недвижимость", icon: Home, end: false },
       { to: "/torgi/cars", label: "Машины", icon: Car, end: false },
       { to: "/torgi/plates", label: "Номера", icon: Hash, end: false },
+    ],
+  },
+  {
+    // москварталы по умолчанию свёрнуты: основная работа идёт в торгах
+    title: "mosres",
+    defaultOpen: false,
+    items: [
+      { to: "/aparts", label: "Квартиры", icon: Table2, end: false },
+      { to: "/buildings", label: "Дома", icon: Building2, end: true },
+      { to: "/map", label: "Карта", icon: MapIcon, end: false },
+      { to: "/mortgage", label: "Ипотека", icon: Calculator, end: false },
     ],
   },
 ];
@@ -87,19 +102,66 @@ export function NavGroups({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
       {groups.map((group, i) => (
-        <div key={group.title} className={cn(i > 0 && "mt-3")}>
-          <div className="px-2.5 pb-1 text-[10px] font-medium tracking-wider text-muted-foreground uppercase">
-            {group.title}
-          </div>
-          {group.items.map(({ to, label, icon: Icon, end }) => (
-            <NavLink key={to} to={to} end={end} onClick={onNavigate} className={linkCls}>
-              <Icon size={16} strokeWidth={2} />
-              {label}
-            </NavLink>
-          ))}
-        </div>
+        <NavGroup
+          key={group.title}
+          group={group}
+          onNavigate={onNavigate}
+          className={cn(i > 0 && "mt-2")}
+        />
       ))}
     </>
+  );
+}
+
+/** Группа-источник: заголовок со стрелкой, по клику разворачивается список
+ *  разделов. Состояние запоминается, но группа текущей страницы открыта
+ *  всегда — иначе после перехода меню выглядело бы пустым. */
+function NavGroup({
+  group,
+  onNavigate,
+  className,
+}: {
+  group: (typeof groups)[number];
+  onNavigate?: () => void;
+  className?: string;
+}) {
+  const { pathname } = useLocation();
+  const key = `mosres-nav:${group.title}`;
+  const hasActive = group.items.some(({ to, end }) =>
+    end ? pathname === to : pathname.startsWith(to),
+  );
+  const [open, setOpen] = useState(() => {
+    const stored = localStorage.getItem(key);
+    return stored === null ? group.defaultOpen : stored === "1";
+  });
+  useEffect(() => {
+    localStorage.setItem(key, open ? "1" : "0");
+  }, [key, open]);
+
+  const expanded = open || hasActive;
+
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        onClick={() => setOpen(!expanded)}
+        aria-expanded={expanded}
+        className="flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-medium tracking-wider text-muted-foreground uppercase transition-colors hover:bg-secondary hover:text-foreground"
+      >
+        <ChevronRight
+          size={13}
+          className={cn("transition-transform", expanded && "rotate-90")}
+        />
+        {group.title}
+      </button>
+      {expanded &&
+        group.items.map(({ to, label, icon: Icon, end }) => (
+          <NavLink key={to} to={to} end={end} onClick={onNavigate} className={linkCls}>
+            <Icon size={16} strokeWidth={2} />
+            {label}
+          </NavLink>
+        ))}
+    </div>
   );
 }
 

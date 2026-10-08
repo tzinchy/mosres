@@ -24,6 +24,7 @@ async def upsert_with_except_from_temp_table(
     columns: list[str],
     data: list[dict[str, Any]],
     session: AsyncSession,
+    coalesce_columns: tuple[str, ...] = (),
 ):
     insert_query_to_temp = create_insert_query_for_table(
         table=temp_table, columns=columns, on_conflict_column=on_conflict_column
@@ -34,6 +35,7 @@ async def upsert_with_except_from_temp_table(
             columns=columns,
             temp_table=temp_table,
             on_conflict_column=on_conflict_column,
+            coalesce_columns=coalesce_columns,
         )
     )
     clear_temp = create_truncate_query(table=temp_table)
@@ -109,6 +111,9 @@ async def get_aparts_table(
     favorites_only: bool,
     discount_only: bool,
     price_drop_only: bool,
+    price_rise_only: bool,
+    new_only: bool,
+    changed_only: bool,
     reserved_only: bool,
     available_only: bool,
     family_only: bool,
@@ -132,6 +137,9 @@ async def get_aparts_table(
             "favorites_only": favorites_only,
             "discount_only": discount_only,
             "price_drop_only": price_drop_only,
+            "price_rise_only": price_rise_only,
+            "new_only": new_only,
+            "changed_only": changed_only,
             "reserved_only": reserved_only,
             "available_only": available_only,
             "family_only": family_only,
@@ -211,6 +219,18 @@ async def list_favorites(*, session: AsyncSession) -> list[int]:
         {"u": current_user_id()},
     )
     return [row[0] for row in result.all()]
+
+
+async def create_user(*, username: str, password_hash: str, session: AsyncSession):
+    """id нового пользователя или None, если логин занят."""
+    result = await session.execute(
+        text(
+            "INSERT INTO users (username, password_hash) VALUES (:n, :h)"
+            " ON CONFLICT (username) DO NOTHING RETURNING id"
+        ),
+        {"n": username, "h": password_hash},
+    )
+    return result.scalar_one_or_none()
 
 
 async def get_user_by_username(*, username: str, session: AsyncSession):
@@ -520,3 +540,104 @@ async def get_torgi_pivot(*, key_expr: str, session: AsyncSession):
     template = await read_from_sql_folder("torgi_pivot")
     result = await session.execute(text(template.replace("{key}", key_expr)), _p())
     return result.mappings().all()
+
+
+# --- лоты недвижимости torgi.mos.ru ---------------------------------------
+
+
+async def get_torgi_objects(
+    *,
+    lot_id: int | None = None,
+    object_type: str | None = None,
+    district: str | None = None,
+    region: str | None = None,
+    fav_only: bool = False,
+    live_only: bool = False,
+    sold_only: bool = False,
+    price_drop_only: bool = False,
+    min_price: float | None = None,
+    max_price: float | None = None,
+    min_area: float | None = None,
+    max_area: float | None = None,
+    rooms: int | None = None,
+    q: str | None = None,
+    limit: int = 500,
+    session: AsyncSession,
+):
+    sql = await read_from_sql_folder("torgi_objects")
+    result = await session.execute(
+        text(sql),
+        _p(**{
+            "lot_id": lot_id,
+            "object_type": object_type or None,
+            "district": district or None,
+            "region": region or None,
+            "fav_only": fav_only,
+            "live_only": live_only,
+            "sold_only": sold_only,
+            "price_drop_only": price_drop_only,
+            "min_price": min_price,
+            "max_price": max_price,
+            "min_area": min_area,
+            "max_area": max_area,
+            "rooms": rooms,
+            "q": q,
+            "q_like": f"%{q}%" if q else None,
+            "limit": limit,
+        }),
+    )
+    return result.mappings().all()
+
+
+async def get_torgi_objects_breakdown(
+    *, dimension_sql: str, object_type: str | None, session: AsyncSession
+):
+    """dimension_sql приходит из словаря сервиса, не из запроса пользователя."""
+    sql = await read_from_sql_folder("torgi_objects_breakdown")
+    result = await session.execute(
+        text(sql.replace("{dimension}", dimension_sql)),
+        {"object_type": object_type or None},
+    )
+    return result.mappings().all()
+
+
+async def get_torgi_objects_stats(*, session: AsyncSession):
+    sql = await read_from_sql_folder("torgi_objects_stats")
+    result = await session.execute(text(sql), _p())
+    return result.mappings().all()
+
+
+async def get_torgi_object_versions(*, lot_id: int, session: AsyncSession):
+    sql = await read_from_sql_folder("torgi_object_versions")
+    result = await session.execute(text(sql), {"lot_id": lot_id})
+    return result.mappings().all()
+
+
+async def add_torgi_object_favorite(*, lot_id: int, session: AsyncSession) -> None:
+    await session.execute(
+        text(
+            "INSERT INTO torgi_object_favorites (lot_id, user_id) VALUES (:i, :u) "
+            "ON CONFLICT DO NOTHING"
+        ),
+        {"i": lot_id, "u": current_user_id()},
+    )
+
+
+async def remove_torgi_object_favorite(*, lot_id: int, session: AsyncSession) -> None:
+    await session.execute(
+        text(
+            "DELETE FROM torgi_object_favorites WHERE lot_id = :i AND user_id = :u"
+        ),
+        {"i": lot_id, "u": current_user_id()},
+    )
+
+
+async def list_torgi_object_favorites(*, session: AsyncSession) -> list[int]:
+    result = await session.execute(
+        text(
+            "SELECT lot_id FROM torgi_object_favorites WHERE user_id = :u "
+            "ORDER BY lot_id"
+        ),
+        {"u": current_user_id()},
+    )
+    return [row[0] for row in result.all()]

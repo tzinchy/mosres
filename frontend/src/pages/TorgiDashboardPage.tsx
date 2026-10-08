@@ -189,7 +189,10 @@ export function TorgiDashboardPage() {
       <p className="text-xs text-muted-foreground">
         Данные торгов обновлены {relTime(d?.last_refresh)}.{" "}
         <Link to="/torgi/cars" className="text-primary hover:underline">
-          Таблица лотов →
+          Таблица транспорта →
+        </Link>{" "}
+        <Link to="/dash/objects" className="text-primary hover:underline">
+          Сводка по недвижимости →
         </Link>
       </p>
     </div>

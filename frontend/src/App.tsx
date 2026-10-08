@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +17,9 @@ import { PlateWatchesPage } from "@/pages/PlateWatchesPage";
 import { TorgiCarsPage } from "@/pages/TorgiCarsPage";
 import { TorgiDashboardPage } from "@/pages/TorgiDashboardPage";
 import { TorgiLotPage } from "@/pages/TorgiLotPage";
+import { TorgiObjectPage } from "@/pages/TorgiObjectPage";
+import { TorgiObjectsDashboardPage } from "@/pages/TorgiObjectsDashboardPage";
+import { TorgiObjectsPage } from "@/pages/TorgiObjectsPage";
 import { getToken } from "@/lib/auth";
 
 const qc = new QueryClient({
@@ -44,7 +47,9 @@ export default function App() {
         <BrowserRouter>
           <AppShell>
             <Routes>
-              <Route path="/" element={<DashboardPage />} />
+              {/* стартовая страница — сводка торгов; москварталы живут на /mosres */}
+              <Route path="/" element={<TorgiDashboardPage />} />
+              <Route path="/mosres" element={<DashboardPage />} />
               <Route path="/aparts" element={<ApartsPage />} />
               <Route path="/aparts/:id" element={<ApartPage />} />
               <Route path="/buildings" element={<BuildingsListPage />} />
@@ -52,10 +57,16 @@ export default function App() {
               <Route path="/map" element={<MapPage />} />
               <Route path="/mortgage" element={<MortgagePage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/torgi" element={<TorgiDashboardPage />} />
+              <Route path="/torgi" element={<Navigate to="/" replace />} />
               <Route path="/torgi/cars" element={<TorgiCarsPage />} />
               <Route path="/torgi/cars/:lotId" element={<TorgiLotPage />} />
               <Route path="/torgi/plates" element={<PlateWatchesPage />} />
+              <Route
+                path="/dash/objects"
+                element={<TorgiObjectsDashboardPage />}
+              />
+              <Route path="/torgi/objects" element={<TorgiObjectsPage />} />
+              <Route path="/torgi/objects/:lotId" element={<TorgiObjectPage />} />
             </Routes>
           </AppShell>
         </BrowserRouter>

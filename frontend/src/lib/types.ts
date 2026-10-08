@@ -395,3 +395,87 @@ export interface TorgiNotification {
   status_changed: boolean;
   sold: boolean;
 }
+
+/** Лот недвижимости torgi.mos.ru: квартиры, машино-места, нежилые, ЗУ и прочее. */
+export interface TorgiObjectRow {
+  lot_id: number;
+  object_type_name: string | null;
+  name: string | null;
+  url: string | null;
+  address: string | null;
+  short_address: string | null;
+  region_name: string | null;
+  district_name: string | null;
+  object_area: number | null;
+  living_area: number | null;
+  kitchen_area: number | null;
+  rooms_count: number | null;
+  room_floor: number | null;
+  floors: number | null;
+  build_year: number | null;
+  house_type: string | null;
+  purpose: string | null;
+  cadastral_number: string | null;
+  start_price: number | null;
+  price_per_square: number | null;
+  deposit: number | null;
+  auction_step: number | null;
+  final_price: number | null;
+  start_price_prev: number | null;
+  start_price_delta_pct: number | null;
+  final_price_delta_pct: number | null;
+  status_text: string | null;
+  request_start_date: string | null;
+  request_end_date: string | null;
+  tender_date: string | null;
+  final_date: string | null;
+  days_left: number | null;
+  is_live: boolean;
+  platform_link: string | null;
+  torgi_gov_link: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  photos: string[];
+  photos_count: number;
+  metro: { name?: string; walk?: number; transport?: number }[];
+  details: Record<string, string | null> | null;
+  portal_views: number | null;
+  is_favorite: boolean;
+  version: number;
+  updated_at: string | null;
+  source_updated_at: string | null;
+}
+
+export interface TorgiObjectStat {
+  object_type_name: string;
+  lots: number;
+  live_lots: number;
+  sold_lots: number;
+  avg_start_price: number | null;
+  sum_start_price: number | null;
+  avg_price_per_square: number | null;
+  avg_area: number | null;
+  favorites: number;
+}
+
+export interface TorgiObjectVersion {
+  version: number;
+  updated_at: string | null;
+  status_text: string | null;
+  start_price: number | null;
+  final_price: number | null;
+  deposit: number | null;
+  request_end_date: string | null;
+  tender_date: string | null;
+  start_price_prev: number | null;
+  status_text_prev: string | null;
+}
+
+export interface TorgiObjectBreakdownRow {
+  label: string;
+  lots: number;
+  live_lots: number;
+  avg_start_price: number | null;
+  avg_price_per_square: number | null;
+  avg_area: number | null;
+}

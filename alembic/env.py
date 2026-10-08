@@ -6,15 +6,25 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from src.models import Base, Building, NewApart, District, MunicipalDistrict, TorgiLot
+from src.models import (
+    Base,
+    Building,
+    NewApart,
+    District,
+    MunicipalDistrict,
+    TorgiLot,
+    TorgiObject,
+)
 from src.config import settings
 from src.pg_definitions import (
     buildings_history_trigger,
     insert_buildings_history_func,
     insert_new_apart_history_func,
     insert_torgi_lots_history_func,
+    insert_torgi_objects_history_func,
     new_apart_trigger,
     torgi_lots_history_trigger,
+    torgi_objects_history_trigger,
 )
 from alembic_utils.replaceable_entity import register_entities
 # this is the Alembic Config object, which provides
@@ -30,10 +40,16 @@ register_entities(
         insert_buildings_history_func,
         insert_new_apart_history_func,
         insert_torgi_lots_history_func,
+        insert_torgi_objects_history_func,
     ]
 )
 register_entities(
-    [buildings_history_trigger, new_apart_trigger, torgi_lots_history_trigger]
+    [
+        buildings_history_trigger,
+        new_apart_trigger,
+        torgi_lots_history_trigger,
+        torgi_objects_history_trigger,
+    ]
 )
 # add your model's MetaData object here
 # for 'autogenerate' support

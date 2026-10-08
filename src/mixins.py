@@ -127,3 +127,73 @@ class TorgiLotMixing:
     # версий не участвует, иначе история пухнет на каждый прогон
     portal_views: saorm.Mapped[int | None]
     source_updated_at: saorm.Mapped[datetime.datetime | None]
+
+
+class TorgiObjectMixing:
+    """Лот torgi.mos.ru из разделов недвижимости и имущества: квартиры, комнаты,
+    машино-места, нежилые помещения, здания, земельные участки, территории,
+    акции/доли.
+
+    Транспорт живёт отдельно (`torgi_lots`) — у него своя карточка с госномером
+    и VIN и свой разбор номеров.
+
+    Списочный эндпоинт портала отдаёт почти всё: адрес, площади, этаж, цену,
+    округ, район, метро и координаты. Только из карточки приходят статус,
+    кадастровый номер, год постройки, задаток, шаг аукциона и итоговая цена,
+    поэтому карточки читаются не для всех лотов (см. src/torgi_objects.py).
+    Разнородные поля карточки (их набор свой у каждого типа объекта) целиком
+    складываются в `details`, чтобы новый ярлык портала не требовал миграции.
+    """
+
+    object_type_code: saorm.Mapped[str | None]
+    object_type_name: saorm.Mapped[str | None]
+    # nsi:tender_type_portal:* — продажа, аренда и прочие формы сделки
+    tender_type_code: saorm.Mapped[str | None]
+    name: saorm.Mapped[str | None]
+    url: saorm.Mapped[str | None]
+    address: saorm.Mapped[str | None]
+    short_address: saorm.Mapped[str | None]
+    object_address: saorm.Mapped[str | None]
+    region_name: saorm.Mapped[str | None]
+    district_name: saorm.Mapped[str | None]
+    unom: saorm.Mapped[int | None]
+    object_area: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    living_area: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    kitchen_area: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    rooms_count: saorm.Mapped[int | None]
+    room_floor: saorm.Mapped[int | None]
+    floors: saorm.Mapped[int | None]
+    start_price: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    price_per_square: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    request_start_date: saorm.Mapped[datetime.datetime | None]
+    request_end_date: saorm.Mapped[datetime.datetime | None]
+    tender_date: saorm.Mapped[datetime.datetime | None]
+    final_date: saorm.Mapped[datetime.datetime | None]
+    platform_link: saorm.Mapped[str | None]
+    torgi_gov_link: saorm.Mapped[str | None]
+    latitude: saorm.Mapped[str | None]
+    longitude: saorm.Mapped[str | None]
+    photos: saorm.Mapped[list[str] | None] = saorm.mapped_column(
+        sapg.ARRAY(sa.String), default=None
+    )
+    # [{"name": "Верхние Лихоборы", "walk": 9, "transport": 9}, …]
+    metro: saorm.Mapped[list[dict] | None] = saorm.mapped_column(
+        sapg.JSONB, default=None
+    )
+    # --- только из карточки лота ---
+    status_text: saorm.Mapped[str | None]
+    cadastral_number: saorm.Mapped[str | None]
+    build_year: saorm.Mapped[int | None]
+    house_type: saorm.Mapped[str | None]
+    purpose: saorm.Mapped[str | None]
+    deposit: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    auction_step: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    final_price: saorm.Mapped[Decimal | None] = saorm.mapped_column(sa.Numeric)
+    # весь objectInfo карточки как есть: {"Тип дома": "Крупнопанельные", …}
+    details: saorm.Mapped[dict | None] = saorm.mapped_column(sapg.JSONB, default=None)
+    # портал крутит счётчик просмотров на каждом обновлении — в сравнении
+    # версий не участвует, иначе история пухнет на каждый прогон
+    portal_views: saorm.Mapped[int | None]
+    source_updated_at: saorm.Mapped[datetime.datetime | None]
+    # когда последний раз читали карточку: архив карточками не перечитывается
+    detail_fetched_at: saorm.Mapped[datetime.datetime | None]

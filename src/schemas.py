@@ -76,6 +76,11 @@ class LoginIn(BaseModel):
     password: str = Field(min_length=1, max_length=256)
 
 
+class RegisterIn(BaseModel):
+    username: str = Field(min_length=3, max_length=64, pattern=r"^[\w.-]+$")
+    password: str = Field(min_length=6, max_length=256)
+
+
 class TokenOut(BaseModel):
     token: str
     username: str
@@ -428,7 +433,196 @@ def naive_utc(value) -> datetime.datetime | None:
             return None
     if parsed.tzinfo is not None:
         parsed = parsed.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+    # портал ставит 9999-12-31 вместо «даты нет»; asyncpg пишет такое в
+    # timestamp как infinity, и лот навсегда остаётся «ещё не отторгованным»
+    if parsed.year >= 2100:
+        return None
     return parsed
+
+
+class TorgiObjectRow(BaseModel):
+    """Строка таблицы лотов недвижимости (см. src/sql/torgi_objects.sql)."""
+
+    lot_id: int
+    object_type_name: str | None = None
+    name: str | None = None
+    url: str | None = None
+    address: str | None = None
+    short_address: str | None = None
+    region_name: str | None = None
+    district_name: str | None = None
+    object_area: float | None = None
+    living_area: float | None = None
+    kitchen_area: float | None = None
+    rooms_count: int | None = None
+    room_floor: int | None = None
+    floors: int | None = None
+    build_year: int | None = None
+    house_type: str | None = None
+    purpose: str | None = None
+    cadastral_number: str | None = None
+    start_price: float | None = None
+    price_per_square: float | None = None
+    deposit: float | None = None
+    auction_step: float | None = None
+    final_price: float | None = None
+    start_price_prev: float | None = None
+    start_price_delta_pct: float | None = None
+    final_price_delta_pct: float | None = None
+    status_text: str | None = None
+    request_start_date: datetime.datetime | None = None
+    request_end_date: datetime.datetime | None = None
+    tender_date: datetime.datetime | None = None
+    final_date: datetime.datetime | None = None
+    days_left: int | None = None
+    is_live: bool = False
+    platform_link: str | None = None
+    torgi_gov_link: str | None = None
+    latitude: str | None = None
+    longitude: str | None = None
+    photos: list[str] = []
+    photos_count: int = 0
+    metro: list[dict] = []
+    details: dict | None = None
+    portal_views: int | None = None
+    is_favorite: bool = False
+    version: int
+    updated_at: datetime.datetime | None = None
+    source_updated_at: datetime.datetime | None = None
+
+
+class TorgiObjectStat(BaseModel):
+    """Строка сводки по типу объекта (src/sql/torgi_objects_stats.sql)."""
+
+    object_type_name: str
+    lots: int
+    live_lots: int
+    sold_lots: int
+    avg_start_price: float | None = None
+    sum_start_price: float | None = None
+    avg_price_per_square: float | None = None
+    avg_area: float | None = None
+    favorites: int
+
+
+class TorgiObjectBreakdownRow(BaseModel):
+    """Строка разреза по округу/району/типу (src/sql/torgi_objects_breakdown.sql)."""
+
+    label: str
+    lots: int
+    live_lots: int
+    avg_start_price: float | None = None
+    avg_price_per_square: float | None = None
+    avg_area: float | None = None
+
+
+class TorgiObjectVersion(BaseModel):
+    version: int
+    updated_at: datetime.datetime | None = None
+    status_text: str | None = None
+    start_price: float | None = None
+    final_price: float | None = None
+    deposit: float | None = None
+    request_end_date: datetime.datetime | None = None
+    tender_date: datetime.datetime | None = None
+    start_price_prev: float | None = None
+    status_text_prev: str | None = None
+
+
+class TorgiObjectFavoriteToggleResult(BaseModel):
+    lot_id: int
+    is_favorite: bool
+
+
+class TorgiObjectSchema(BaseModel):
+    """Строка для вставки в torgi_objects: собирается из списочного эндпоинта
+    портала и (не всегда) карточки лота — см. src/torgi_objects.py."""
+
+    model_config = ConfigDict(extra="ignore", coerce_numbers_to_str=True)
+
+    lot_id: int
+    object_type_code: str | None = None
+    object_type_name: str | None = None
+    tender_type_code: str | None = None
+    name: str | None = None
+    url: str | None = None
+    address: str | None = None
+    short_address: str | None = None
+    object_address: str | None = None
+    region_name: str | None = None
+    district_name: str | None = None
+    unom: int | None = None
+    object_area: Decimal | None = None
+    living_area: Decimal | None = None
+    kitchen_area: Decimal | None = None
+    rooms_count: int | None = None
+    room_floor: int | None = None
+    floors: int | None = None
+    start_price: Decimal | None = None
+    price_per_square: Decimal | None = None
+    request_start_date: datetime.datetime | None = None
+    request_end_date: datetime.datetime | None = None
+    tender_date: datetime.datetime | None = None
+    final_date: datetime.datetime | None = None
+    platform_link: str | None = None
+    torgi_gov_link: str | None = None
+    latitude: str | None = None
+    longitude: str | None = None
+    photos: list[str] | None = None
+    metro: list[dict] | None = None
+    status_text: str | None = None
+    cadastral_number: str | None = None
+    build_year: int | None = None
+    house_type: str | None = None
+    purpose: str | None = None
+    deposit: Decimal | None = None
+    auction_step: Decimal | None = None
+    final_price: Decimal | None = None
+    details: dict | None = None
+    portal_views: int | None = None
+    source_updated_at: datetime.datetime | None = None
+    detail_fetched_at: datetime.datetime | None = None
+
+    @field_validator(
+        "unom", "rooms_count", "room_floor", "floors", "build_year", "portal_views",
+        mode="before",
+    )
+    @classmethod
+    def _parse_int(cls, value):
+        return _digits(value)
+
+    @field_validator(
+        "object_area", "living_area", "kitchen_area", "start_price",
+        "price_per_square", "deposit", "auction_step", "final_price",
+        mode="before",
+    )
+    @classmethod
+    def _parse_money(cls, value):
+        return _money(value)
+
+    @field_validator(
+        "request_start_date", "request_end_date", "tender_date", "final_date",
+        "source_updated_at", "detail_fetched_at",
+        mode="before",
+    )
+    @classmethod
+    def _parse_dt(cls, value):
+        return naive_utc(value)
+
+    @field_validator(
+        "name", "address", "short_address", "object_address", "region_name",
+        "district_name", "status_text", "cadastral_number", "house_type", "purpose",
+        "object_type_name", mode="before",
+    )
+    @classmethod
+    def _blank_to_none(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+            # карточка портала пишет «Не указано» вместо пустого значения
+            if value.lower() in ("", "не указано", "не определено", "нет данных"):
+                return None
+            return value
+        return value
 
 
 class TorgiLotSchema(BaseModel):

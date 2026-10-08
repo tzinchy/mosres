@@ -7,6 +7,7 @@ from loguru import logger
 from src.config import settings
 from src.service import MosResService
 from src.torgi import TorgiService
+from src.torgi_objects import TorgiObjectsService
 
 
 async def _run_refresh() -> None:
@@ -28,6 +29,19 @@ async def _run_torgi_refresh() -> None:
         logger.info("scheduled torgi refresh done")
     except Exception:
         logger.exception("scheduled torgi refresh failed")
+
+
+async def _run_torgi_objects_refresh() -> None:
+    """Лоты недвижимости torgi.mos.ru — третья независимая джоба. Карточки
+    архива дочитываются порциями, поэтому первые прогоны идут долго."""
+    logger.info("scheduled torgi objects refresh start")
+    try:
+        result = await TorgiObjectsService().update_all_data(
+            detail_budget=settings.TORGI_OBJECTS_DETAIL_BUDGET
+        )
+        logger.info(f"scheduled torgi objects refresh done: {result}")
+    except Exception:
+        logger.exception("scheduled torgi objects refresh failed")
 
 
 def build_scheduler() -> AsyncIOScheduler:
@@ -56,5 +70,19 @@ def build_scheduler() -> AsyncIOScheduler:
             # на минуту позже первой джобы, чтобы два источника не стартовали
             # одновременно на холодном старте
             next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=70),
+        )
+    if settings.TORGI_OBJECTS_ENABLED:
+        scheduler.add_job(
+            _run_torgi_objects_refresh,
+            trigger=IntervalTrigger(
+                minutes=settings.TORGI_OBJECTS_REFRESH_INTERVAL_MINUTES
+            ),
+            id="periodic-torgi-objects-refresh",
+            coalesce=True,
+            max_instances=1,
+            misfire_grace_time=600,
+            replace_existing=True,
+            # ещё минутой позже: три источника не стартуют одновременно
+            next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=130),
         )
     return scheduler

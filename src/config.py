@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     # поэтому опрашиваем часто — номера разбирают по горячим следам.
     TORGI_ENABLED: bool = True
     TORGI_REFRESH_INTERVAL_MINUTES: int = 15
+    # Лоты недвижимости torgi.mos.ru (квартиры, машино-места, нежилые, ЗУ и
+    # прочее). Прогон тяжелее транспортного: список — весь архив портала
+    # (~280 тыс. лотов, ~280 запросов), поэтому интервал больше. Карточки
+    # архивных лотов дочитываются порциями не более DETAIL_BUDGET за прогон.
+    TORGI_OBJECTS_ENABLED: bool = True
+    TORGI_OBJECTS_REFRESH_INTERVAL_MINUTES: int = 180
+    TORGI_OBJECTS_DETAIL_BUDGET: int = 2000
     # рыночная ипотека ≈ ключевая ставка ЦБ + столько процентных пунктов
     MARKET_RATE_DELTA: float = 4.0
     # льготная (семейная) ипотека — фиксирована госпрограммой

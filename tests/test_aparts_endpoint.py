@@ -71,6 +71,33 @@ async def test_price_drop_only_filter(client, db):
     assert {x["new_apart_id"] for x in r.json()} == {1}
 
 
+async def test_price_rise_only_filter(client, db):
+    await seed_building(db)
+    await seed_apart(db, new_apart_id=1, price="12000000")
+    await db.execute(text("UPDATE new_aparts SET price='11000000' WHERE new_apart_id=1"))
+    await seed_apart(db, new_apart_id=2, price="9000000")
+    await db.execute(text("UPDATE new_aparts SET price='9500000' WHERE new_apart_id=2"))
+    await db.commit()
+    r = await client.get("/aparts", params={"price_rise_only": "true"})
+    assert {x["new_apart_id"] for x in r.json()} == {2}
+
+
+async def test_new_and_changed_today_filters(client, db):
+    """Плитки дашборда «Новых» и «Изменений» ведут на эти фильтры."""
+    await seed_building(db)
+    await seed_apart(db, new_apart_id=1, price="12000000")
+    await seed_apart(db, new_apart_id=2, price="9000000")
+    # вторая квартира получает новую версию — значит, изменилась, а не новая
+    await db.execute(text("UPDATE new_aparts SET price='9500000' WHERE new_apart_id=2"))
+    await db.commit()
+
+    new_only = await client.get("/aparts", params={"new_only": "true"})
+    assert {x["new_apart_id"] for x in new_only.json()} == {1}
+
+    changed = await client.get("/aparts", params={"changed_only": "true"})
+    assert {x["new_apart_id"] for x in changed.json()} == {2}
+
+
 async def test_reserve_family_metro_plan_fields(client, db):
     await seed_building(db, metro=["Тёплый Стан"], family_hypotec=1)
     await seed_apart(

@@ -11,14 +11,21 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.auth import (
     current_user_id,
+    hash_password,
     make_token,
     parse_token,
     set_current_user_id,
     verify_password,
 )
 from src.config import settings
-from src.depends import get_mosres_service, get_torgi_service, MosResService
+from src.depends import (
+    get_mosres_service,
+    get_torgi_objects_service,
+    get_torgi_service,
+    MosResService,
+)
 from src.torgi import TorgiService
+from src.torgi_objects import TorgiObjectsService
 from src.scheduler import build_scheduler
 from src.schemas import (
     ApartRow,
@@ -29,6 +36,7 @@ from src.schemas import (
     CommentIn,
     LoginIn,
     Me,
+    RegisterIn,
     TokenOut,
     DashboardChange,
     DashboardMetrics,
@@ -52,6 +60,11 @@ from src.schemas import (
     TorgiFavoriteToggleResult,
     TorgiLotRow,
     TorgiLotVersion,
+    TorgiObjectBreakdownRow,
+    TorgiObjectFavoriteToggleResult,
+    TorgiObjectRow,
+    TorgiObjectStat,
+    TorgiObjectVersion,
     TorgiNotification,
     TorgiPivotRow,
     TorgiPoint,
@@ -88,7 +101,14 @@ app.add_middleware(
 
 
 # Открытые пути: всё остальное требует заголовок Authorization: Bearer <token>.
-PUBLIC_PATHS = {"/", "/auth/login", "/docs", "/redoc", "/openapi.json"}
+PUBLIC_PATHS = {
+    "/",
+    "/auth/login",
+    "/auth/register",
+    "/docs",
+    "/redoc",
+    "/openapi.json",
+}
 
 
 @app.middleware("http")
@@ -115,6 +135,19 @@ async def login(
     if user is None or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Неверный логин или пароль")
     return TokenOut(token=make_token(user["id"]), username=user["username"])
+
+
+@app.post("/auth/register", tags=["auth"], response_model=TokenOut)
+async def register(
+    payload: RegisterIn, mosres_service: MosResService = Depends(get_mosres_service)
+):
+    """Самостоятельная регистрация: сразу выдаёт токен, как и /auth/login."""
+    user_id = await mosres_service.create_user(
+        payload.username, hash_password(payload.password)
+    )
+    if user_id is None:
+        raise HTTPException(status_code=409, detail="Такой логин уже занят")
+    return TokenOut(token=make_token(user_id), username=payload.username)
 
 
 @app.get("/auth/me", tags=["auth"], response_model=Me)
@@ -158,6 +191,9 @@ async def get_aparts(
     favorites_only: bool = False,
     discount_only: bool = False,
     price_drop_only: bool = False,
+    price_rise_only: bool = False,
+    new_only: bool = False,
+    changed_only: bool = False,
     reserved_only: bool = False,
     available_only: bool = False,
     family_only: bool = False,
@@ -177,6 +213,9 @@ async def get_aparts(
         favorites_only=favorites_only,
         discount_only=discount_only,
         price_drop_only=price_drop_only,
+        price_rise_only=price_rise_only,
+        new_only=new_only,
+        changed_only=changed_only,
         reserved_only=reserved_only,
         available_only=available_only,
         family_only=family_only,
@@ -639,3 +678,131 @@ async def get_torgi_lot_versions(
     lot_id: int, torgi_service: TorgiService = Depends(get_torgi_service)
 ):
     return await torgi_service.get_lot_history(lot_id)
+
+
+@dataclass
+class TorgiObjectFilters:
+    """Фильтры таблицы лотов недвижимости (см. src/sql/torgi_objects.sql)."""
+
+    object_type: str | None = None
+    district: str | None = None
+    region: str | None = None
+    fav_only: bool = False
+    live_only: bool = False
+    sold_only: bool = False
+    price_drop_only: bool = False
+    min_price: float | None = None
+    max_price: float | None = None
+    min_area: float | None = None
+    max_area: float | None = None
+    rooms: int | None = None
+    q: str | None = None
+    # архив портала — сотни тысяч лотов, поэтому выдача всегда ограничена
+    limit: int = 500
+
+
+@app.get("/torgi/objects", tags=["torgi-недвижимость"], response_model=list[TorgiObjectRow])
+async def get_torgi_objects_route(
+    filters: TorgiObjectFilters = Depends(),
+    service: TorgiObjectsService = Depends(get_torgi_objects_service),
+):
+    """Лоты недвижимости torgi.mos.ru: квартиры, комнаты, машино-места,
+    нежилые помещения, здания, земельные участки и прочее. По умолчанию — весь
+    архив, живые лоты идут первыми; `live_only=true` оставляет только те, где
+    приём заявок ещё идёт или торги впереди."""
+    return await service.list_objects(**asdict(filters))
+
+
+@app.get(
+    "/torgi/objects/stats",
+    tags=["torgi-недвижимость"],
+    response_model=list[TorgiObjectStat],
+)
+async def get_torgi_objects_stats_route(
+    service: TorgiObjectsService = Depends(get_torgi_objects_service),
+):
+    """Сводка по типам объектов: сколько лотов, сколько живых, средняя цена."""
+    return await service.get_stats()
+
+
+@app.get(
+    "/torgi/objects/breakdown",
+    tags=["torgi-недвижимость"],
+    response_model=list[TorgiObjectBreakdownRow],
+)
+async def get_torgi_objects_breakdown_route(
+    dimension: Literal["region", "district", "object_type", "house_type", "rooms"],
+    object_type: str | None = None,
+    service: TorgiObjectsService = Depends(get_torgi_objects_service),
+):
+    """Топ-20 значений измерения: сколько лотов, сколько живых, средние цены."""
+    return await service.get_breakdown(dimension, object_type)
+
+
+@app.get(
+    "/torgi/objects/favorites", tags=["torgi-недвижимость"], response_model=list[int]
+)
+async def get_torgi_object_favorites(
+    service: TorgiObjectsService = Depends(get_torgi_objects_service),
+):
+    return await service.list_favorites()
+
+
+@app.post(
+    "/torgi/objects/favorites/{lot_id}",
+    tags=["torgi-недвижимость"],
+    response_model=TorgiObjectFavoriteToggleResult,
+)
+async def add_torgi_object_favorite_route(
+    lot_id: int, service: TorgiObjectsService = Depends(get_torgi_objects_service)
+):
+    return await service.add_favorite(lot_id)
+
+
+@app.delete(
+    "/torgi/objects/favorites/{lot_id}",
+    tags=["torgi-недвижимость"],
+    response_model=TorgiObjectFavoriteToggleResult,
+)
+async def remove_torgi_object_favorite_route(
+    lot_id: int, service: TorgiObjectsService = Depends(get_torgi_objects_service)
+):
+    return await service.remove_favorite(lot_id)
+
+
+@app.get("/torgi/objects/update_data", tags=["torgi-недвижимость"])
+async def update_torgi_objects_data(
+    detail_budget: int | None = None,
+    service: TorgiObjectsService = Depends(get_torgi_objects_service),
+):
+    """Прогон вручную. Список читается целиком, карточки — по очереди: живые
+    лоты, затем недавно отторгованные без итоговой цены, затем архив без
+    карточки. detail_budget ограничивает число карточек за прогон."""
+    return await service.update_all_data(
+        detail_budget=detail_budget or settings.TORGI_OBJECTS_DETAIL_BUDGET
+    )
+
+
+@app.get(
+    "/torgi/objects/{lot_id}",
+    tags=["torgi-недвижимость"],
+    response_model=TorgiObjectRow,
+)
+async def get_torgi_object(
+    lot_id: int, service: TorgiObjectsService = Depends(get_torgi_objects_service)
+):
+    row = await service.get_object(lot_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Лот не найден")
+    return row
+
+
+@app.get(
+    "/torgi/objects/{lot_id}/versions",
+    tags=["torgi-недвижимость"],
+    response_model=list[TorgiObjectVersion],
+)
+async def get_torgi_object_versions_route(
+    lot_id: int, service: TorgiObjectsService = Depends(get_torgi_objects_service)
+):
+    return await service.get_versions(lot_id)
