@@ -14,7 +14,9 @@ SELECT
     round(avg(o.price_per_square) FILTER (WHERE o.price_per_square > 0))
                                                                     AS avg_price_per_square,
     round(avg(o.object_area) FILTER (WHERE o.object_area > 0), 1)    AS avg_area,
-    count(*) FILTER (WHERE fav.lot_id IS NOT NULL)                  AS favorites
+    count(*) FILTER (WHERE fav.lot_id IS NOT NULL)                  AS favorites,
+    sum(o.portal_views)                                             AS sum_views,
+    round(avg(o.portal_views) FILTER (WHERE o.portal_views > 0))     AS avg_views
 FROM torgi_objects o
 LEFT JOIN torgi_object_favorites fav
     ON fav.lot_id = o.lot_id AND fav.user_id = :user_id

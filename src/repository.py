@@ -613,6 +613,18 @@ async def get_torgi_object_versions(*, lot_id: int, session: AsyncSession):
     return result.mappings().all()
 
 
+async def get_torgi_object_views(*, lot_id: int, session: AsyncSession):
+    sql = await read_from_sql_folder("torgi_object_views")
+    result = await session.execute(text(sql), {"lot_id": lot_id})
+    return result.mappings().all()
+
+
+async def get_torgi_object_views_series(*, lot_ids: list[int], session: AsyncSession):
+    sql = await read_from_sql_folder("torgi_object_views_series")
+    result = await session.execute(text(sql), {"ids": lot_ids})
+    return result.mappings().all()
+
+
 async def add_torgi_object_favorite(*, lot_id: int, session: AsyncSession) -> None:
     await session.execute(
         text(

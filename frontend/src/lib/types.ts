@@ -456,6 +456,8 @@ export interface TorgiObjectStat {
   avg_price_per_square: number | null;
   avg_area: number | null;
   favorites: number;
+  sum_views: number | null;
+  avg_views: number | null;
 }
 
 export interface TorgiObjectVersion {
@@ -471,6 +473,62 @@ export interface TorgiObjectVersion {
   status_text_prev: string | null;
 }
 
+export interface TorgiObjectViewPoint {
+  day: string;
+  views: number;
+}
+
+export interface TorgiObjectSegment {
+  object_type_name: string;
+  region_name: string;
+  finished: number;
+  sold: number;
+  sold_share: number | null;
+  median_final_ppm: number | null;
+  median_premium: number | null;
+  at_start_share: number | null;
+  median_views: number | null;
+  live_lots: number;
+}
+
+export interface TorgiObjectDeal {
+  lot_id: number;
+  object_type_name: string | null;
+  short_address: string | null;
+  region_name: string | null;
+  district_name: string | null;
+  object_area: number | null;
+  start_price: number | null;
+  start_ppm: number;
+  bench_ppm: number;
+  bench_level: "house" | "district" | "region";
+  bench_n: number;
+  discount: number;
+  est_final_price: number | null;
+  deposit: number | null;
+  request_end_date: string | null;
+  tender_date: string | null;
+  portal_views: number | null;
+  p_sold: number | null;
+  p_competed: number | null;
+}
+
+/** Шанс живого лота по скорости просмотров (src/sql/torgi_objects_odds.sql). */
+export interface TorgiObjectOdds {
+  lot_id: number;
+  object_type_name: string | null;
+  views_per_day: number;
+  bucket: number;
+  p_sold: number;
+  p_competed: number | null;
+  n: number;
+}
+
+export interface TorgiObjectInvest {
+  segments: TorgiObjectSegment[];
+  deals: TorgiObjectDeal[];
+}
+
 export interface TorgiObjectBreakdownRow {
   label: string;
   lots: number;
@@ -478,4 +536,158 @@ export interface TorgiObjectBreakdownRow {
   avg_start_price: number | null;
   avg_price_per_square: number | null;
   avg_area: number | null;
+  sum_views: number | null;
+  avg_views: number | null;
+}
+
+/* --- Сводка по недвижимости: контракт GET /torgi/objects/dashboard --- */
+
+export interface TorgiObjectKpi {
+  lots: number;
+  live_lots: number;
+  sold_lots: number;
+  object_types: number;
+  avg_start_price: number | null;
+  sum_start_price: number | null;
+  sum_final_price: number | null;
+  /** сумма начальных цен только у проданных лотов — с ней сравнивается итог */
+  sum_start_price_sold: number | null;
+  sold_share: number | null;
+  at_start_share: number | null;
+  apartment_median_ppm: number | null;
+  median_final_delta_pct: number | null;
+  avg_area: number | null;
+  avg_price_per_square: number | null;
+  avg_days_request_to_tender: number | null;
+  photos_coverage_pct: number | null;
+  changed_24h: number;
+  sum_portal_views: number | null;
+  avg_portal_views: number | null;
+  median_portal_views: number | null;
+  max_portal_views: number | null;
+}
+
+/** Заполненность полей процентами 0–100. `card` — доля дочитанных карточек портала. */
+export interface TorgiObjectDataQuality {
+  lots: number;
+  address: number | null;
+  area: number | null;
+  rooms: number | null;
+  cadastral: number | null;
+  build_year: number | null;
+  photos: number | null;
+  coords: number | null;
+  metro: number | null;
+  /** сколько лотов вошло в знаменатель: поле считается по типам, где оно бывает */
+  rooms_of: number | null;
+  cadastral_of: number | null;
+  build_year_of: number | null;
+  metro_of: number | null;
+  card: number | null;
+}
+
+export interface TorgiObjectTimePoint {
+  month: string;
+  lots: number;
+  sum_final_price: number | null;
+  avg_delta_pct: number | null;
+  avg_price_per_square: number | null;
+}
+
+export interface TorgiObjectDeadlineRow {
+  lot_id: number;
+  name: string | null;
+  object_type_name: string | null;
+  short_address: string | null;
+  status_text: string | null;
+  request_end_date: string;
+  days_left: number;
+  start_price: number | null;
+  object_area: number | null;
+}
+
+export interface TorgiObjectChange {
+  lot_id: number;
+  name: string | null;
+  object_type_name: string | null;
+  version: number;
+  updated_at: string;
+  status_text: string | null;
+  prev_status_text: string | null;
+  start_price: number | null;
+  prev_start_price: number | null;
+  final_price: number | null;
+  delta_pct: number | null;
+  price_down: boolean;
+  price_up: boolean;
+  status_changed: boolean;
+  sold: boolean;
+}
+
+export interface TorgiObjectTopLot {
+  lot_id: number;
+  name: string | null;
+  object_type_name: string | null;
+  short_address: string | null;
+  object_area: number | null;
+  start_price: number | null;
+  prev_start_price: number | null;
+  final_price: number | null;
+  price_per_square: number | null;
+  delta_pct: number | null;
+  portal_views: number | null;
+}
+
+/** Точка карты/скаттера: координаты портал отдаёт строками. */
+export interface TorgiObjectPoint {
+  lot_id: number;
+  object_type_name: string | null;
+  short_address: string | null;
+  latitude: string | null;
+  longitude: string | null;
+  start_price: number | null;
+  price_per_square: number | null;
+  object_area: number | null;
+  rooms_count: number | null;
+  portal_views: number | null;
+  is_live: boolean;
+}
+
+/* Структуры, общие со сводкой транспорта (src/schemas.py: Torgi*). */
+export interface TorgiFunnelStage {
+  status: string | null;
+  lots: number;
+}
+export interface TorgiSeasonPoint {
+  month_of_year: number;
+  lots: number;
+}
+export interface TorgiHistBin {
+  bucket: string | number | null;
+  lots: number;
+}
+export interface TorgiVersionActivity {
+  versions: { bucket: string | number | null; lots: number }[];
+  changes_by_day: { day: string; changes: number }[];
+}
+
+export interface TorgiObjectDashboard {
+  last_refresh: string | null;
+  kpi: TorgiObjectKpi;
+  types: TorgiObjectStat[];
+  regions: TorgiObjectBreakdownRow[];
+  funnel: TorgiFunnelStage[];
+  timeseries: TorgiObjectTimePoint[];
+  seasonality: TorgiSeasonPoint[];
+  deadlines: TorgiObjectDeadlineRow[];
+  changes: TorgiObjectChange[];
+  area_hist: TorgiHistBin[];
+  price_per_square_hist: TorgiHistBin[];
+  premium_hist: TorgiHistBin[];
+  views_hist: TorgiHistBin[];
+  top_drop: TorgiObjectTopLot[];
+  top_premium: TorgiObjectTopLot[];
+  top_views: TorgiObjectTopLot[];
+  data_quality: TorgiObjectDataQuality;
+  version_activity: TorgiVersionActivity;
 }

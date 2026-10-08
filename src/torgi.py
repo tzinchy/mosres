@@ -58,6 +58,10 @@ from src.schemas import (
     TorgiLotSchema,
     TorgiLotVersion,
     TorgiNotification,
+    TorgiObjectDeal,
+    TorgiObjectInvest,
+    TorgiObjectOdds,
+    TorgiObjectSegment,
     TorgiPivotRow,
     TorgiPlateFlavor,
     TorgiPoint,
@@ -497,6 +501,36 @@ class TorgiService:
                 "torgi_notifications", days=days, session=session
             )
         return [TorgiNotification.model_validate(dict(row)) for row in rows]
+
+    async def get_odds(self) -> list[TorgiObjectOdds]:
+        """Шанс продажи и борьбы по каждому живому лоту: по просмотрам в день.
+        Формат общий с недвижимостью — фронт рисует их одним компонентом."""
+        async with Session() as session:
+            rows = await get_torgi_block("torgi_cars_odds", session=session)
+        return [TorgiObjectOdds.model_validate(dict(r)) for r in rows]
+
+    async def get_invest(self) -> TorgiObjectInvest:
+        """Где торги по транспорту окупаются: сегменты «категория × возраст» и
+        живые лоты дешевле типичного итога (см. src/sql/torgi_cars_*.sql)."""
+        async with Session() as session:
+            segments = await get_torgi_block("torgi_cars_segments", session=session)
+            deals = await get_torgi_block("torgi_cars_deals", session=session)
+        odds = {o.lot_id: o for o in await self.get_odds()}
+        return TorgiObjectInvest(
+            segments=[TorgiObjectSegment.model_validate(dict(r)) for r in segments],
+            deals=[
+                TorgiObjectDeal.model_validate(
+                    {
+                        **dict(r),
+                        "p_sold": odds[r["lot_id"]].p_sold if r["lot_id"] in odds else None,
+                        "p_competed": (
+                            odds[r["lot_id"]].p_competed if r["lot_id"] in odds else None
+                        ),
+                    }
+                )
+                for r in deals
+            ],
+        )
 
     async def get_dashboard(self) -> TorgiDashboard:
         presets = list(PRESETS)

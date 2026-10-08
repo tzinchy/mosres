@@ -503,6 +503,8 @@ class TorgiObjectStat(BaseModel):
     avg_price_per_square: float | None = None
     avg_area: float | None = None
     favorites: int
+    sum_views: int | None = None
+    avg_views: float | None = None
 
 
 class TorgiObjectBreakdownRow(BaseModel):
@@ -514,6 +516,8 @@ class TorgiObjectBreakdownRow(BaseModel):
     avg_start_price: float | None = None
     avg_price_per_square: float | None = None
     avg_area: float | None = None
+    sum_views: int | None = None
+    avg_views: float | None = None
 
 
 class TorgiObjectVersion(BaseModel):
@@ -527,6 +531,68 @@ class TorgiObjectVersion(BaseModel):
     tender_date: datetime.datetime | None = None
     start_price_prev: float | None = None
     status_text_prev: str | None = None
+
+
+class TorgiObjectViewPoint(BaseModel):
+    """Просмотры карточки за день (последнее значение), см. torgi_object_views."""
+
+    day: datetime.date
+    views: int
+
+
+class TorgiObjectSegment(BaseModel):
+    """Итоги торгов по сегменту «тип объекта × округ»."""
+
+    object_type_name: str
+    region_name: str
+    finished: int
+    sold: int
+    sold_share: float | None = None
+    median_final_ppm: float | None = None
+    median_premium: float | None = None
+    at_start_share: float | None = None
+    median_views: float | None = None
+    live_lots: int
+
+
+class TorgiObjectDeal(BaseModel):
+    """Живой лот, у которого стартовая цена за м² ниже типичного итога
+    похожих лотов. Скидка к итогам торгов — не прибыль перепродажи."""
+
+    lot_id: int
+    object_type_name: str | None = None
+    short_address: str | None = None
+    region_name: str | None = None
+    district_name: str | None = None
+    object_area: float | None = None
+    start_price: float | None = None
+    start_ppm: float
+    bench_ppm: float
+    bench_level: str
+    bench_n: int
+    discount: float
+    est_final_price: float | None = None
+    deposit: float | None = None
+    request_end_date: datetime.datetime | None = None
+    tender_date: datetime.datetime | None = None
+    portal_views: int | None = None
+
+
+class TorgiObjectOdds(BaseModel):
+    """Шансы живого лота по скорости просмотров (см. torgi_objects_odds.sql)."""
+
+    lot_id: int
+    object_type_name: str | None = None
+    views_per_day: float
+    bucket: int
+    p_sold: float
+    p_competed: float | None = None
+    n: int
+
+
+class TorgiObjectInvest(BaseModel):
+    segments: list[TorgiObjectSegment] = []
+    deals: list[TorgiObjectDeal] = []
 
 
 class TorgiObjectFavoriteToggleResult(BaseModel):
@@ -1013,3 +1079,138 @@ class TorgiPoint(BaseModel):
     plate_region: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+
+
+class TorgiObjectKpi(BaseModel):
+    lots: int
+    live_lots: int
+    sold_lots: int
+    object_types: int
+    avg_start_price: float | None = None
+    sum_start_price: float | None = None
+    sum_final_price: float | None = None
+    sum_start_price_sold: float | None = None
+    sold_share: float | None = None
+    at_start_share: float | None = None
+    apartment_median_ppm: float | None = None
+    median_final_delta_pct: float | None = None
+    avg_area: float | None = None
+    avg_price_per_square: float | None = None
+    avg_days_request_to_tender: float | None = None
+    photos_coverage_pct: float | None = None
+    changed_24h: int
+    sum_portal_views: int | None = None
+    avg_portal_views: float | None = None
+    median_portal_views: float | None = None
+    max_portal_views: int | None = None
+
+
+class TorgiObjectDataQuality(BaseModel):
+    """Заполненность полей процентами 0–100 (не долями)."""
+
+    lots: int
+    address: float | None = None
+    area: float | None = None
+    rooms: float | None = None
+    cadastral: float | None = None
+    build_year: float | None = None
+    photos: float | None = None
+    coords: float | None = None
+    metro: float | None = None
+    # у части полей полнота считается только по типам, где поле бывает;
+    # *_of — сколько лотов вошло в знаменатель
+    rooms_of: int | None = None
+    cadastral_of: int | None = None
+    build_year_of: int | None = None
+    metro_of: int | None = None
+    # доля лотов с прочитанной карточкой портала: архив дочитывается порциями
+    card: float | None = None
+
+
+class TorgiObjectTimePoint(BaseModel):
+    month: datetime.date
+    lots: int
+    sum_final_price: float | None = None
+    avg_delta_pct: float | None = None
+    avg_price_per_square: float | None = None
+
+
+class TorgiObjectDeadlineRow(BaseModel):
+    lot_id: int
+    name: str | None = None
+    object_type_name: str | None = None
+    short_address: str | None = None
+    status_text: str | None = None
+    request_end_date: datetime.datetime
+    days_left: int
+    start_price: float | None = None
+    object_area: float | None = None
+
+
+class TorgiObjectChange(BaseModel):
+    lot_id: int
+    name: str | None = None
+    object_type_name: str | None = None
+    version: int
+    updated_at: datetime.datetime
+    status_text: str | None = None
+    prev_status_text: str | None = None
+    start_price: float | None = None
+    prev_start_price: float | None = None
+    final_price: float | None = None
+    delta_pct: float | None = None
+    price_down: bool = False
+    price_up: bool = False
+    status_changed: bool = False
+    sold: bool = False
+
+
+class TorgiObjectTopLot(BaseModel):
+    lot_id: int
+    name: str | None = None
+    object_type_name: str | None = None
+    short_address: str | None = None
+    object_area: float | None = None
+    start_price: float | None = None
+    prev_start_price: float | None = None
+    final_price: float | None = None
+    price_per_square: float | None = None
+    delta_pct: float | None = None
+    portal_views: int | None = None
+
+
+class TorgiObjectPoint(BaseModel):
+    lot_id: int
+    object_type_name: str | None = None
+    short_address: str | None = None
+    latitude: str | None = None
+    longitude: str | None = None
+    start_price: float | None = None
+    price_per_square: float | None = None
+    object_area: float | None = None
+    rooms_count: int | None = None
+    portal_views: int | None = None
+    is_live: bool = False
+
+
+class TorgiObjectDashboard(BaseModel):
+    """Composite-ответ сводки по недвижимости: один запрос вместо десятка."""
+
+    last_refresh: datetime.datetime | None = None
+    kpi: TorgiObjectKpi
+    types: list[TorgiObjectStat] = []
+    regions: list[TorgiObjectBreakdownRow] = []
+    funnel: list[TorgiFunnelStage] = []
+    timeseries: list[TorgiObjectTimePoint] = []
+    seasonality: list[TorgiSeasonPoint] = []
+    deadlines: list[TorgiObjectDeadlineRow] = []
+    changes: list[TorgiObjectChange] = []
+    area_hist: list[TorgiHistBin] = []
+    price_per_square_hist: list[TorgiHistBin] = []
+    premium_hist: list[TorgiHistBin] = []
+    views_hist: list[TorgiHistBin] = []
+    top_drop: list[TorgiObjectTopLot] = []
+    top_premium: list[TorgiObjectTopLot] = []
+    top_views: list[TorgiObjectTopLot] = []
+    data_quality: TorgiObjectDataQuality
+    version_activity: TorgiVersionActivity

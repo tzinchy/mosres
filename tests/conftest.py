@@ -27,6 +27,7 @@ _CLEAN_TABLES = (
     "torgi_favorites",
     "torgi_lots",
     "torgi_lots_temp",
+    "torgi_object_views",
     "torgi_objects_history",
     "torgi_object_favorites",
     "torgi_objects",

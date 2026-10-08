@@ -1,5 +1,4 @@
 import { ArrowLeft, ExternalLink, MapPin, Star, Video } from "lucide-react";
-import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   CartesianGrid,
@@ -11,7 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import { PriceDelta } from "@/components/cells";
-import { RemoteImg } from "@/components/RemoteImg";
+import { Gallery } from "@/components/Gallery";
 import {
   Dim,
   FinalDeltaBadge,
@@ -22,7 +21,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTorgiLot, useTorgiLotVersions } from "@/hooks/useTorgi";
+import { useTorgiCarsOdds } from "@/hooks/useTorgiDashboard";
 import { useToggleTorgiFavorite } from "@/hooks/useTorgiFavorites";
+import { OddsPanel } from "@/components/torgi-objects/RowCharts";
 import { money, moneyShort, relTime, shortDate } from "@/lib/format";
 import type { TorgiLotRow } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -65,37 +66,6 @@ function Block({
       </h2>
       <div className="divide-y divide-border/60">{children}</div>
     </section>
-  );
-}
-
-function Gallery({ photos }: { photos: string[] }) {
-  const [i, setI] = useState(0);
-  if (photos.length === 0) return null;
-  return (
-    <div className="space-y-2">
-      <a href={photos[i]} target="_blank" rel="noreferrer" className="block">
-        <RemoteImg
-          src={photos[i]}
-          alt={`Фото ${i + 1}`}
-          className="block h-80 w-full rounded-xl border border-border bg-secondary object-contain"
-        />
-      </a>
-      {photos.length > 1 && (
-        <div className="flex flex-wrap gap-1.5">
-          {photos.map((p, idx) => (
-            <button key={p + idx} type="button" onClick={() => setI(idx)}>
-              <RemoteImg
-                src={p}
-                className={cn(
-                  "block size-14 rounded border object-cover",
-                  idx === i ? "border-primary" : "border-border",
-                )}
-              />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -240,6 +210,7 @@ export function TorgiLotPage() {
   const id = Number(lotId);
   const { data: lot, isLoading, isError } = useTorgiLot(id);
   const toggle = useToggleTorgiFavorite();
+  const odds = useTorgiCarsOdds();
 
   if (isLoading)
     return (
@@ -304,10 +275,10 @@ export function TorgiLotPage() {
         </div>
       </header>
 
+      <Gallery photos={lot.photos} />
+
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-4">
-          <Gallery photos={lot.photos} />
-
           <Block title="Цены">
             <Row label="Начальная цена">
               <span className="tnum font-semibold">{money(lot.start_price)} ₽</span>
@@ -463,6 +434,8 @@ export function TorgiLotPage() {
           <LotLinks lot={lot} />
         </div>
       </div>
+
+      <OddsPanel odds={odds.data?.get(id)} />
 
       <PriceByVersion lotId={id} />
     </div>

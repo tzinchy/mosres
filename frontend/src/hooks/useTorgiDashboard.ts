@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiGet } from "@/lib/api";
+import type { TorgiObjectInvest, TorgiObjectOdds } from "@/lib/types";
 
 // Типы дашборда торгов живут здесь, а не в lib/types.ts: таблицу лотов пишет
 // другой автор, пересекаться в одном файле незачем.
@@ -213,3 +214,21 @@ export function useTorgiRefresh() {
     onError: (e) => toast.error(`Не удалось обновить: ${String(e)}`),
   });
 }
+
+/** Где торги по транспорту окупаются — тот же формат, что у недвижимости. */
+export const useTorgiInvest = () =>
+  useQuery({
+    queryKey: ["torgi-invest"],
+    queryFn: () => apiGet<TorgiObjectInvest>("/torgi/invest"),
+    staleTime: 10 * 60_000,
+  });
+
+export const useTorgiCarsOdds = () =>
+  useQuery({
+    queryKey: ["torgi-cars-odds"],
+    queryFn: async () => {
+      const rows = await apiGet<TorgiObjectOdds[]>("/torgi/odds");
+      return new Map(rows.map((o) => [o.lot_id, o]));
+    },
+    staleTime: 10 * 60_000,
+  });

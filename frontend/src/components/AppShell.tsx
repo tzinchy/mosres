@@ -23,14 +23,13 @@ import { cn } from "@/lib/utils";
 /** Навигация сгруппирована по источнику данных: москварталы и torgi.mos.ru. */
 const groups = [
   {
-    // дашборды всех источников в одной раскрывающейся группе: по одному
-    // экрану на тему, чтобы разнородные сводки не сваливались в одну страницу
+    // по одному дашборду на тему, чтобы разнородные сводки не сваливались
+    // в одну страницу; сводка москварталов живёт в своей группе
     title: "дашборды",
     defaultOpen: true,
     items: [
       { to: "/", label: "Торги: транспорт", icon: Gavel, end: true },
       { to: "/dash/objects", label: "Торги: недвижимость", icon: Home, end: true },
-      { to: "/mosres", label: "Москварталы", icon: LayoutDashboard, end: true },
     ],
   },
   {
@@ -47,6 +46,7 @@ const groups = [
     title: "mosres",
     defaultOpen: false,
     items: [
+      { to: "/mosres", label: "Сводка", icon: LayoutDashboard, end: true },
       { to: "/aparts", label: "Квартиры", icon: Table2, end: false },
       { to: "/buildings", label: "Дома", icon: Building2, end: true },
       { to: "/map", label: "Карта", icon: MapIcon, end: false },

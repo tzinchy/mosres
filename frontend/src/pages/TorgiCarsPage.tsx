@@ -5,6 +5,7 @@ import { TorgiToolbar } from "@/components/TorgiToolbar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useTorgiLots, type TorgiFilters } from "@/hooks/useTorgi";
+import { useTorgiCarsOdds } from "@/hooks/useTorgiDashboard";
 import { useToggleTorgiFavorite } from "@/hooks/useTorgiFavorites";
 
 const BOOL_KEYS: (keyof TorgiFilters)[] = [
@@ -40,6 +41,8 @@ export function TorgiCarsPage() {
     }
     const q = params.get("q");
     if (q) f.q = q;
+    // зашли без фильтров в адресе — сразу показываем актуальные лоты
+    if (params.toString() === "") f.open_only = true;
     return f;
   });
   const cols = useTorgiCols();
@@ -47,6 +50,7 @@ export function TorgiCarsPage() {
   const effective = useMemo<TorgiFilters>(() => ({ ...filters, q }), [filters, q]);
   const { data, isLoading, error } = useTorgiLots(effective);
   const toggle = useToggleTorgiFavorite();
+  const odds = useTorgiCarsOdds();
 
   return (
     <div className="space-y-4 p-5 md:p-8">
@@ -69,6 +73,7 @@ export function TorgiCarsPage() {
         <TorgiTable
           rows={data}
           cols={cols}
+          odds={odds.data}
           onToggleFavorite={(id, next) => toggle.mutate({ id, next })}
           onSelect={(row) => navigate(`/torgi/cars/${row.lot_id}`)}
         />

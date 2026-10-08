@@ -3,9 +3,14 @@ import { toast } from "sonner";
 import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import type {
   TorgiObjectBreakdownRow,
+  TorgiObjectDashboard,
+  TorgiObjectInvest,
+  TorgiObjectOdds,
+  TorgiObjectPoint,
   TorgiObjectRow,
   TorgiObjectStat,
   TorgiObjectVersion,
+  TorgiObjectViewPoint,
 } from "@/lib/types";
 
 /** Фильтры /torgi/objects — имена совпадают с параметрами эндпоинта. */
@@ -54,10 +59,73 @@ export function useTorgiObjectVersions(lotId: number) {
   });
 }
 
+export function useTorgiObjectViews(lotId: number) {
+  return useQuery({
+    queryKey: ["torgi-object-views", lotId],
+    queryFn: () => apiGet<TorgiObjectViewPoint[]>(`/torgi/objects/${lotId}/views`),
+    enabled: Number.isFinite(lotId),
+  });
+}
+
+/** Считается по всему архиву — тяжелее сводки, поэтому отдельным запросом. */
+export function useTorgiObjectsInvest() {
+  return useQuery({
+    queryKey: ["torgi-objects-invest"],
+    queryFn: () => apiGet<TorgiObjectInvest>("/torgi/objects/invest"),
+    staleTime: 10 * 60_000,
+  });
+}
+
+/** Шансы всех живых лотов одним запросом: словарь по lot_id. */
+export function useTorgiObjectsOdds() {
+  return useQuery({
+    queryKey: ["torgi-objects-odds"],
+    queryFn: async () => {
+      const rows = await apiGet<TorgiObjectOdds[]>("/torgi/objects/odds");
+      return new Map(rows.map((o) => [o.lot_id, o]));
+    },
+    staleTime: 10 * 60_000,
+  });
+}
+
+/** Ряды просмотров для лотов, которые сейчас видны в таблице. */
+export function useTorgiObjectsViewsSeries(ids: number[]) {
+  const key = ids.join(",");
+  return useQuery({
+    queryKey: ["torgi-objects-views-series", key],
+    queryFn: () =>
+      apiGet<Record<number, TorgiObjectViewPoint[]>>(
+        `/torgi/objects/views-series?ids=${key}`,
+      ),
+    enabled: ids.length > 0,
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useTorgiObjectsStats() {
   return useQuery({
     queryKey: ["torgi-objects-stats"],
     queryFn: () => apiGet<TorgiObjectStat[]>("/torgi/objects/stats"),
+  });
+}
+
+/** Вся сводка одним запросом — иначе страница дёргает десяток эндпоинтов. */
+export function useTorgiObjectsDashboard() {
+  return useQuery({
+    queryKey: ["torgi-objects-dashboard"],
+    queryFn: () => apiGet<TorgiObjectDashboard>("/torgi/objects/dashboard"),
+  });
+}
+
+/** Точки для карты и скаттера: выдача тяжёлая, держим в кэше 5 минут. */
+export function useTorgiObjectPoints(objectType?: string) {
+  return useQuery({
+    queryKey: ["torgi-object-points", objectType ?? null],
+    queryFn: () =>
+      apiGet<TorgiObjectPoint[]>("/torgi/objects/points", {
+        object_type: objectType,
+      }),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

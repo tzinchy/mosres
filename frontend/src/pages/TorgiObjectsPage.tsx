@@ -1,6 +1,7 @@
-import { Star } from "lucide-react";
+import { ArrowDown, ArrowUp, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { OddsChip, ViewsCell } from "@/components/torgi-objects/RowCharts";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -13,12 +14,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useToggleTorgiObjectFavorite,
   useTorgiObjects,
+  useTorgiObjectsOdds,
   useTorgiObjectsStats,
+  useTorgiObjectsViewsSeries,
   type TorgiObjectFilters,
 } from "@/hooks/useTorgiObjects";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { money, moneyShort, pct, shortDate } from "@/lib/format";
-import type { TorgiObjectRow } from "@/lib/types";
+import type { TorgiObjectOdds, TorgiObjectRow, TorgiObjectViewPoint } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const TOGGLES: { key: keyof TorgiObjectFilters; label: string }[] = [
@@ -39,13 +42,34 @@ export function TorgiObjectsPage() {
     if (type) f.object_type = type;
     const rooms = params.get("rooms");
     if (rooms) f.rooms = Number(rooms);
+    // зашли без фильтров в адресе — сразу показываем актуальные лоты
+    if (params.toString() === "") f.live_only = true;
     return f;
   });
   const q = useDebouncedValue(filters.q, 300);
   const effective = useMemo(() => ({ ...filters, q }), [filters, q]);
   const { data, isLoading, error } = useTorgiObjects(effective);
   const stats = useTorgiObjectsStats();
+  const odds = useTorgiObjectsOdds();
   const toggleFav = useToggleTorgiObjectFavorite();
+  // сортировка по просмотрам — на клиенте: бэкенд отдаёт выдачу своим порядком
+  const [viewsSort, setViewsSort] = useState<"desc" | "asc" | null>(null);
+
+  const rows = useMemo(() => {
+    if (!data || !viewsSort) return data;
+    const sign = viewsSort === "desc" ? -1 : 1;
+    return [...data].sort(
+      (a, b) => sign * ((a.portal_views ?? -1) - (b.portal_views ?? -1)),
+    );
+  }, [data, viewsSort]);
+
+  const viewsSeries = useTorgiObjectsViewsSeries(
+    useMemo(() => (rows ?? []).slice(0, 200).map((r) => r.lot_id), [rows]),
+  );
+  const maxViews = useMemo(
+    () => Math.max(1, ...(rows ?? []).map((r) => r.portal_views ?? 0)),
+    [rows],
+  );
 
   const set = <K extends keyof TorgiObjectFilters>(
     key: K,
@@ -68,6 +92,15 @@ export function TorgiObjectsPage() {
       <div className="flex flex-wrap items-center gap-2">
         <Select
           value={filters.object_type || ANY}
+          items={{
+            [ANY]: "Все типы",
+            ...Object.fromEntries(
+              (stats.data ?? []).map((s) => [
+                s.object_type_name,
+                `${s.object_type_name} · ${s.lots.toLocaleString("ru-RU")}`,
+              ]),
+            ),
+          }}
           onValueChange={(v) => set("object_type", !v || v === ANY ? undefined : v)}
         >
           <SelectTrigger className="w-56">
@@ -118,7 +151,7 @@ export function TorgiObjectsPage() {
           </p>
           {/* широкая таблица скроллится внутри себя, страница — нет */}
           <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-[980px] text-sm">
+            <table className="w-full min-w-[1180px] text-sm">
               <thead className="bg-secondary/50 text-xs text-muted-foreground">
                 <tr>
                   <th className="w-10 px-2 py-2" />
@@ -129,15 +162,40 @@ export function TorgiObjectsPage() {
                   <th className="px-3 py-2 text-right font-medium">Этаж</th>
                   <th className="px-3 py-2 text-right font-medium">Цена</th>
                   <th className="px-3 py-2 text-right font-medium">₽/м²</th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setViewsSort((s) =>
+                          s === "desc" ? "asc" : s === "asc" ? null : "desc",
+                        )
+                      }
+                      className="ml-auto flex items-center gap-1 hover:text-foreground"
+                      title="Сортировать по числу просмотров карточки на портале"
+                    >
+                      Просмотров
+                      {viewsSort === "desc" && <ArrowDown size={12} />}
+                      {viewsSort === "asc" && <ArrowUp size={12} />}
+                    </button>
+                  </th>
+                  <th
+                    className="px-3 py-2 text-right font-medium"
+                    title="Шанс, что торги состоятся, и что итог будет выше начальной цены. По скорости просмотров, только для живых лотов."
+                  >
+                    Шанс
+                  </th>
                   <th className="px-3 py-2 text-left font-medium">Срок заявок</th>
                   <th className="px-3 py-2 text-left font-medium">Статус</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {data.map((row) => (
+                {(rows ?? []).map((row) => (
                   <Row
                     key={row.lot_id}
                     row={row}
+                    maxViews={maxViews}
+                    series={viewsSeries.data?.[row.lot_id]}
+                    odds={odds.data?.get(row.lot_id)}
                     onToggleFavorite={(id, next) => toggleFav.mutate({ id, next })}
                   />
                 ))}
@@ -152,9 +210,15 @@ export function TorgiObjectsPage() {
 
 function Row({
   row,
+  maxViews,
+  series,
+  odds,
   onToggleFavorite,
 }: {
   row: TorgiObjectRow;
+  maxViews: number;
+  series?: TorgiObjectViewPoint[];
+  odds?: TorgiObjectOdds;
   onToggleFavorite: (id: number, next: boolean) => void;
 }) {
   return (
@@ -219,6 +283,12 @@ function Row({
       </td>
       <td className="tnum px-3 py-2 text-right">
         {row.price_per_square ? moneyShort(row.price_per_square) : "—"}
+      </td>
+      <td className="px-3 py-2">
+        <ViewsCell views={row.portal_views} max={maxViews} series={series} />
+      </td>
+      <td className="px-3 py-2">
+        <OddsChip odds={odds} />
       </td>
       <td className="px-3 py-2">
         {row.request_end_date ? (

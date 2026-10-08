@@ -10,6 +10,7 @@ import { TorgiFunnel } from "@/components/torgi/TorgiFunnel";
 import { TorgiHistograms } from "@/components/torgi/TorgiHistograms";
 import { TorgiKpiTiles } from "@/components/torgi/TorgiKpiTiles";
 import { TorgiMap } from "@/components/torgi/TorgiMap";
+import { TorgiCarsInvest } from "@/components/torgi-objects/TorgiObjectInvest";
 import { TorgiPivot } from "@/components/torgi/TorgiPivot";
 import { TorgiPlateFlavors } from "@/components/torgi/TorgiPlateFlavors";
 import { TorgiPlateRegions } from "@/components/torgi/TorgiPlateRegions";
@@ -63,6 +64,13 @@ export function TorgiDashboardPage() {
       {d && (
         <>
           <TorgiKpiTiles kpi={d.kpi} />
+
+          <Section
+            title="Где окупаются торги"
+            help="Аналитика по завершённым торгам транспорта: в каких категориях и возрастных группах торги чаще всего заканчиваются продажей, где покупают без борьбы и какие живые лоты стоят дешевле того, за что уходили похожие."
+          >
+            <TorgiCarsInvest />
+          </Section>
 
           <Section
             title="Категории транспорта"

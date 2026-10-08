@@ -29,8 +29,11 @@ from sqlalchemy import text
 from src.database import Session
 from src.repository import (
     add_torgi_object_favorite,
+    get_torgi_block,
     get_torgi_objects_breakdown,
     get_torgi_object_versions,
+    get_torgi_object_views,
+    get_torgi_object_views_series,
     get_torgi_objects,
     get_torgi_objects_stats,
     list_torgi_object_favorites,
@@ -38,12 +41,31 @@ from src.repository import (
     upsert_with_except_from_temp_table,
 )
 from src.schemas import (
+    TorgiFunnelStage,
+    TorgiHistBin,
     TorgiObjectBreakdownRow,
+    TorgiObjectChange,
+    TorgiObjectDashboard,
+    TorgiObjectDataQuality,
+    TorgiObjectDeadlineRow,
+    TorgiObjectDeal,
     TorgiObjectFavoriteToggleResult,
+    TorgiObjectInvest,
+    TorgiObjectKpi,
+    TorgiObjectOdds,
+    TorgiObjectPoint,
     TorgiObjectRow,
     TorgiObjectSchema,
+    TorgiObjectSegment,
     TorgiObjectStat,
+    TorgiObjectTimePoint,
+    TorgiObjectTopLot,
     TorgiObjectVersion,
+    TorgiObjectViewPoint,
+    TorgiSeasonPoint,
+    TorgiVersionActivity,
+    TorgiVersionBin,
+    TorgiVersionDay,
     naive_utc,
 )
 
@@ -68,7 +90,9 @@ TRANSPORT_TYPE_CODE = "nsi:41:99021071"
 # укладывается в таймаут и даёт 280 страниц на весь архив
 PAGE_SIZE = 1000
 LIST_CONCURRENCY = 4
-DETAIL_CONCURRENCY = 8
+# замерено на портале: 8 параллельных карточек — 21 req/s, 16 — 38, 32 — 50,
+# 64 — те же 50 (упираемся в портал), 429 ни на одном уровне не прилетало
+DETAIL_CONCURRENCY = 32
 # сколько дней после торгов ещё ждём появления итоговой цены в карточке
 FINAL_PRICE_GRACE_DAYS = 30
 
@@ -180,6 +204,12 @@ def _detail_columns(detail: dict) -> dict:
         if column:
             row[column] = item.get("value")
     return row
+
+
+# Плановая джоба и ручной вызов /torgi/objects/update_data живут в одном
+# процессе, поэтому хватает asyncio-замка: два одновременных прогона читали бы
+# один и тот же список дважды и зря долбили портал.
+_RUN_LOCK = asyncio.Lock()
 
 
 def _jsonb(row: dict) -> dict:
@@ -357,6 +387,19 @@ class TorgiObjectsService:
         стоят в очереди первыми и под бюджет попадают всегда, архив
         дочитывается в следующие прогоны.
         """
+        if _RUN_LOCK.locked():
+            logger.info("torgi objects: прогон уже идёт, повторный пропущен")
+            return {
+                "status": "busy",
+                "lots": 0,
+                "details_fetched": 0,
+                "details_pending": 0,
+            }
+
+        async with _RUN_LOCK:
+            return await self._update_all_data(detail_budget)
+
+    async def _update_all_data(self, detail_budget: int | None) -> dict:
         now = datetime.datetime.now()
         budget = detail_budget
         written = 0
@@ -459,10 +502,149 @@ class TorgiObjectsService:
             rows = await get_torgi_objects_stats(session=session)
         return [TorgiObjectStat.model_validate(dict(row)) for row in rows]
 
+    async def get_dashboard(self) -> TorgiObjectDashboard:
+        async with Session() as session:
+            kpi_row = dict(
+                (await get_torgi_block("torgi_objects_dashboard", session=session))[0]
+            )
+            types = await get_torgi_objects_stats(session=session)
+            regions = await get_torgi_objects_breakdown(
+                dimension_sql=self.BREAKDOWN_DIMS["region"],
+                object_type=None,
+                session=session,
+            )
+            funnel = await get_torgi_block("torgi_objects_funnel", session=session)
+            timeseries = await get_torgi_block(
+                "torgi_objects_timeseries", session=session
+            )
+            deadlines = await get_torgi_block(
+                "torgi_objects_deadlines", session=session
+            )
+            changes = await get_torgi_block("torgi_objects_changes", session=session)
+            hists = await get_torgi_block("torgi_objects_hists", session=session)
+            tops = await get_torgi_block("torgi_objects_tops", session=session)
+            versions = await get_torgi_block("torgi_objects_versions", session=session)
+
+        def hist(kind: str) -> list[TorgiHistBin]:
+            return [
+                TorgiHistBin.model_validate(dict(r)) for r in hists if r["kind"] == kind
+            ]
+
+        def top(kind: str) -> list[TorgiObjectTopLot]:
+            return [
+                TorgiObjectTopLot.model_validate(dict(r))
+                for r in tops
+                if r["kind"] == kind
+            ]
+
+        # сезонность — агрегат того же месячного ряда по месяцу года
+        season: dict[int, int] = {}
+        for row in timeseries:
+            season[row["month"].month] = season.get(row["month"].month, 0) + row["lots"]
+
+        return TorgiObjectDashboard(
+            last_refresh=kpi_row["last_refresh"],
+            kpi=TorgiObjectKpi.model_validate(kpi_row),
+            data_quality=TorgiObjectDataQuality.model_validate(kpi_row),
+            types=[TorgiObjectStat.model_validate(dict(r)) for r in types],
+            regions=[TorgiObjectBreakdownRow.model_validate(dict(r)) for r in regions],
+            funnel=[TorgiFunnelStage.model_validate(dict(r)) for r in funnel],
+            timeseries=[
+                TorgiObjectTimePoint.model_validate(dict(r)) for r in timeseries
+            ],
+            seasonality=[
+                TorgiSeasonPoint(month_of_year=month, lots=lots)
+                for month, lots in sorted(season.items())
+            ],
+            deadlines=[
+                TorgiObjectDeadlineRow.model_validate(dict(r)) for r in deadlines
+            ],
+            changes=[TorgiObjectChange.model_validate(dict(r)) for r in changes],
+            area_hist=hist("area"),
+            price_per_square_hist=hist("price_per_square"),
+            premium_hist=hist("premium"),
+            views_hist=hist("views"),
+            top_drop=top("top_drop"),
+            top_premium=top("top_premium"),
+            top_views=top("top_views"),
+            version_activity=TorgiVersionActivity(
+                versions=[
+                    TorgiVersionBin(bucket=str(r["versions"]), lots=r["lots"])
+                    for r in versions
+                    if r["day"] is None
+                ],
+                changes_by_day=[
+                    TorgiVersionDay(day=r["day"], changes=r["lots"])
+                    for r in versions
+                    if r["day"] is not None
+                ],
+            ),
+        )
+
+    async def get_points(
+        self, object_type: str | None = None
+    ) -> list[TorgiObjectPoint]:
+        async with Session() as session:
+            rows = await get_torgi_block(
+                "torgi_objects_points",
+                object_type=object_type or None,
+                session=session,
+            )
+        return [TorgiObjectPoint.model_validate(dict(row)) for row in rows]
+
     async def get_versions(self, lot_id: int) -> list[TorgiObjectVersion]:
         async with Session() as session:
             rows = await get_torgi_object_versions(lot_id=lot_id, session=session)
         return [TorgiObjectVersion.model_validate(dict(row)) for row in rows]
+
+    async def get_views(self, lot_id: int) -> list[TorgiObjectViewPoint]:
+        async with Session() as session:
+            rows = await get_torgi_object_views(lot_id=lot_id, session=session)
+        return [TorgiObjectViewPoint.model_validate(dict(row)) for row in rows]
+
+    async def get_views_series(
+        self, lot_ids: list[int]
+    ) -> dict[int, list[TorgiObjectViewPoint]]:
+        async with Session() as session:
+            rows = await get_torgi_object_views_series(
+                lot_ids=lot_ids[:1000], session=session
+            )
+        series: dict[int, list[TorgiObjectViewPoint]] = {}
+        for row in rows:
+            series.setdefault(row["lot_id"], []).append(
+                TorgiObjectViewPoint(day=row["day"], views=row["views"])
+            )
+        return series
+
+    async def get_invest(self) -> TorgiObjectInvest:
+        """Где торги окупаются: итоги по сегментам и живые лоты дешевле
+        типичного итога. Считается по всему архиву, поэтому отдельным запросом,
+        а не частью дашборда."""
+        async with Session() as session:
+            segments = await get_torgi_block("torgi_objects_segments", session=session)
+            deals = await get_torgi_block("torgi_objects_deals", session=session)
+        odds = {o.lot_id: o for o in await self.get_odds()}
+        return TorgiObjectInvest(
+            segments=[TorgiObjectSegment.model_validate(dict(r)) for r in segments],
+            deals=[
+                TorgiObjectDeal.model_validate(
+                    {
+                        **dict(r),
+                        "p_sold": odds[r["lot_id"]].p_sold if r["lot_id"] in odds else None,
+                        "p_competed": (
+                            odds[r["lot_id"]].p_competed if r["lot_id"] in odds else None
+                        ),
+                    }
+                )
+                for r in deals
+            ],
+        )
+
+    async def get_odds(self) -> list[TorgiObjectOdds]:
+        """Шанс продажи и борьбы по каждому живому лоту: по просмотрам в день."""
+        async with Session() as session:
+            rows = await get_torgi_block("torgi_objects_odds", session=session)
+        return [TorgiObjectOdds.model_validate(dict(r)) for r in rows]
 
     async def list_favorites(self) -> list[int]:
         async with Session() as session:

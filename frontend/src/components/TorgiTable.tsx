@@ -21,8 +21,9 @@ import {
   rowSignal,
   rowSignalClass,
 } from "@/components/torgiCells";
+import { OddsChip, ViewsCell } from "@/components/torgi-objects/RowCharts";
 import { money } from "@/lib/format";
-import type { TorgiLotRow } from "@/lib/types";
+import type { TorgiLotRow, TorgiObjectOdds } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** Колонки, которые пользователь прячет через существующий ColumnsMenu. */
@@ -55,6 +56,7 @@ export const TORGI_COL_LABELS: Record<string, string> = {
   final_date: "Дата итогов",
   photos: "Фото",
   views: "Просмотры",
+  odds: "Шанс торгов и борьбы",
   version: "Версия",
   updated: "Обновлено",
 };
@@ -75,7 +77,6 @@ const DEFAULTS: VisibilityState = {
   step: false,
   request_end: false,
   final_date: false,
-  views: false,
   version: false,
   updated: false,
 };
@@ -109,6 +110,7 @@ const NUMERIC = new Set([
   "step",
   "final_price",
   "views",
+  "odds",
   "version",
 ]);
 
@@ -120,7 +122,10 @@ export function TorgiTable({
   onToggleFavorite,
   onSelect,
   cols,
+  odds,
 }: {
+  /** шансы живых лотов по просмотрам; без них колонка пустая */
+  odds?: Map<number, TorgiObjectOdds>;
   rows: TorgiLotRow[];
   onToggleFavorite: (id: number, next: boolean) => void;
   onSelect: (row: TorgiLotRow) => void;
@@ -132,6 +137,8 @@ export function TorgiTable({
   ]);
   const fallback = useTorgiCols();
   const { visibility, setVisibility } = cols ?? fallback;
+
+  const maxViews = Math.max(1, ...rows.map((r) => r.portal_views ?? 0));
 
   const columns = [
     col.accessor("is_favorite", {
@@ -188,6 +195,13 @@ export function TorgiTable({
       header: "Статус",
       size: 170,
       cell: (c) => <TorgiStatusCell row={c.row.original} />,
+    }),
+    col.display({
+      id: "odds",
+      header: "Шанс",
+      size: 100,
+      enableSorting: false,
+      cell: (c) => <OddsChip odds={odds?.get(c.row.original.lot_id)} />,
     }),
     col.accessor("transport_category", {
       id: "category",
@@ -400,7 +414,9 @@ export function TorgiTable({
       id: "views",
       header: "Просмотры",
       size: 110,
-      cell: (c) => <Dim value={c.getValue()} mono />,
+      cell: (c) => (
+        <ViewsCell views={c.getValue()} max={maxViews} />
+      ),
     }),
     col.accessor("version", {
       id: "version",

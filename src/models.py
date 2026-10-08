@@ -238,6 +238,21 @@ class TorgiObjectTemp(Base, TorgiObjectMixing):
     lot_id: saorm.Mapped[int] = saorm.mapped_column(primary_key=True)
 
 
+# Просмотры карточки на портале: последнее значение за день. Пишет триггер
+# torgi_objects (см. src/pg_definitions.py): портал крутит счётчик на каждом
+# обновлении, а версия лота из-за него не растёт. Таблица без created_at /
+# updated_at / notes из Base — строк по лоту на каждый день, лишние колонки
+# здесь только раздувают. Без FK: триггер пишет снимок раньше, чем в
+# torgi_objects появляется строка.
+torgi_object_views = sa.Table(
+    "torgi_object_views",
+    Base.metadata,
+    sa.Column("lot_id", sa.Integer, primary_key=True),
+    sa.Column("day", sa.Date, primary_key=True),
+    sa.Column("views", sa.Integer, nullable=False),
+)
+
+
 class TorgiObjectFavorite(Base):
     __tablename__ = "torgi_object_favorites"
 

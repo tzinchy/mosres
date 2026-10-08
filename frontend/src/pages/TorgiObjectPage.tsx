@@ -1,11 +1,23 @@
 import { ArrowLeft, ExternalLink, Star } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { RemoteImg } from "@/components/RemoteImg";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { Gallery } from "@/components/Gallery";
+import { OddsPanel } from "@/components/torgi-objects/RowCharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useToggleTorgiObjectFavorite,
   useTorgiObject,
+  useTorgiObjectsOdds,
   useTorgiObjectVersions,
+  useTorgiObjectViews,
 } from "@/hooks/useTorgiObjects";
 import { money, moneyShort, pct, relTime, shortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -83,6 +95,8 @@ export function TorgiObjectPage() {
         </div>
       </header>
 
+      <Gallery photos={lot.photos} />
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Tile label="Начальная цена" value={lot.start_price ? `${money(lot.start_price)} ₽` : "—"}>
           {lot.start_price_delta_pct != null && (
@@ -110,7 +124,7 @@ export function TorgiObjectPage() {
         </Tile>
       </div>
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_320px]">
+      <section>
         <div className="space-y-4">
           <Block title="Характеристики">
             <Facts
@@ -185,6 +199,10 @@ export function TorgiObjectPage() {
             </div>
           </Block>
 
+          <OddsBlock lotId={id} />
+
+          <ViewsByDay lotId={id} />
+
           {versions && versions.length > 1 && (
             <Block title={`История изменений · ${versions.length} версий`}>
               <div className="overflow-x-auto">
@@ -231,18 +249,6 @@ export function TorgiObjectPage() {
           )}
         </div>
 
-        {lot.photos.length > 0 && (
-          <div className="space-y-2">
-            {lot.photos.slice(0, 8).map((src) => (
-              <RemoteImg
-                key={src}
-                src={src}
-                alt={lot.name ?? "Фото лота"}
-                className="w-full rounded-lg border border-border object-cover"
-              />
-            ))}
-          </div>
-        )}
       </section>
     </div>
   );
@@ -263,6 +269,83 @@ function Tile({
       <div className="tnum mt-1 text-lg font-medium">{value}</div>
       {children && <div className="mt-0.5 text-xs">{children}</div>}
     </div>
+  );
+}
+
+function OddsBlock({ lotId }: { lotId: number }) {
+  const { data } = useTorgiObjectsOdds();
+  return <OddsPanel odds={data?.get(lotId)} />;
+}
+
+/** Просмотры карточки на портале по дням. Ряд копится с момента запуска
+ *  истории просмотров, поэтому у свежих лотов точек пока мало. */
+function ViewsByDay({ lotId }: { lotId: number }) {
+  const { data } = useTorgiObjectViews(lotId);
+  if (!data || data.length === 0) return null;
+
+  const day = (iso: string) => shortDate(`${iso}T00:00:00`);
+  const first = data[0];
+  const last = data[data.length - 1];
+
+  return (
+    <Block title="Просмотры по дням">
+      {data.length < 2 ? (
+        <p className="text-sm text-muted-foreground">
+          Ряд копится с {day(first.day)}: пока одна точка — {first.views} просм.
+        </p>
+      ) : (
+        <>
+          <p className="mb-2 text-xs text-muted-foreground">
+            +{last.views - first.views} просм. с {day(first.day)} (сейчас{" "}
+            {last.views})
+          </p>
+          <div className="h-44 w-full">
+            <ResponsiveContainer>
+              <LineChart
+                data={data.map((p) => ({ date: day(p.day), views: p.views }))}
+                margin={{ left: 6, right: 10, top: 4, bottom: 4 }}
+              >
+                <CartesianGrid
+                  stroke="var(--border)"
+                  strokeDasharray="2 4"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "var(--border)" }}
+                  minTickGap={24}
+                />
+                <YAxis
+                  width={44}
+                  domain={["dataMin", "dataMax"]}
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  formatter={(x) => [Number(x).toLocaleString("ru-RU"), "просмотров"]}
+                  contentStyle={{
+                    background: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 10,
+                    fontSize: 12,
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="views"
+                  stroke="#4f7686"
+                  strokeWidth={2}
+                  dot={{ r: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
+    </Block>
   );
 }
 

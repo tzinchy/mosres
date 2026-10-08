@@ -34,7 +34,10 @@ class Settings(BaseSettings):
     # архивных лотов дочитываются порциями не более DETAIL_BUDGET за прогон.
     TORGI_OBJECTS_ENABLED: bool = True
     TORGI_OBJECTS_REFRESH_INTERVAL_MINUTES: int = 180
-    TORGI_OBJECTS_DETAIL_BUDGET: int = 2000
+    # ~50 карточек/с при DETAIL_CONCURRENCY=32, то есть 20 000 карточек — это
+    # около семи минут. Полный разбор архива: один прогон вручную с
+    # ?detail_budget=100000 либо несколько прогонов по расписанию.
+    TORGI_OBJECTS_DETAIL_BUDGET: int = 20000
     # рыночная ипотека ≈ ключевая ставка ЦБ + столько процентных пунктов
     MARKET_RATE_DELTA: float = 4.0
     # льготная (семейная) ипотека — фиксирована госпрограммой

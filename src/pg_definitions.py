@@ -276,10 +276,38 @@ TORGI_OBJECT_HISTORY_COLUMNS = (
 )
 
 
-def torgi_objects_history_func(compared: tuple[str, ...]) -> PGFunction:
+_VIEWS_SNAPSHOT = """
+                    INSERT INTO torgi_object_views (lot_id, day, views)
+                    VALUES (NEW.lot_id, current_date, NEW.portal_views)
+                    ON CONFLICT (lot_id, day) DO UPDATE SET views = EXCLUDED.views;
+"""
+
+
+def torgi_objects_history_func(
+    compared: tuple[str, ...], track_views: bool = False
+) -> PGFunction:
+    """track_views: просмотры лота — не часть версии, но их динамика копится
+    отдельно (torgi_object_views, последнее значение за день). Без флага
+    функция ровно та, что была до появления таблицы — для downgrade миграции."""
     history = (
         "lot_id", "version", "created_at", "updated_at", "notes", "portal_views",
         "source_updated_at", "detail_fetched_at", *compared,
+    )
+    # менялись только просмотры: версию не заводим, но значение и снимок
+    # сохраняем (NULL от списка без счётчика значение не затирает)
+    views_only = (
+        f"""IF NEW.portal_views IS NOT NULL
+                           AND NEW.portal_views IS DISTINCT FROM OLD.portal_views THEN
+                            {_VIEWS_SNAPSHOT}
+                            RETURN NEW;
+                        END IF;"""
+        if track_views
+        else ""
+    )
+    snapshot = (
+        f"IF NEW.portal_views IS NOT NULL THEN {_VIEWS_SNAPSHOT} END IF;"
+        if track_views
+        else ""
     )
     return PGFunction(
         schema="public",
@@ -298,6 +326,7 @@ def torgi_objects_history_func(compared: tuple[str, ...]) -> PGFunction:
                     IF ROW({_row("OLD", compared)})
                        IS NOT DISTINCT FROM
                        ROW({_row("NEW", compared)}) THEN
+                        {views_only}
                         RETURN NULL;
                     END IF;
                     NEW.updated_at := now();
@@ -310,7 +339,7 @@ def torgi_objects_history_func(compared: tuple[str, ...]) -> PGFunction:
                 ) VALUES (
                     {_row("NEW", history)}
                 );
-
+                {snapshot}
                 RETURN NEW;
             END;
             $function$
@@ -319,7 +348,7 @@ def torgi_objects_history_func(compared: tuple[str, ...]) -> PGFunction:
 
 
 insert_torgi_objects_history_func = torgi_objects_history_func(
-    TORGI_OBJECT_COMPARED_COLUMNS
+    TORGI_OBJECT_COMPARED_COLUMNS, track_views=True
 )
 
 torgi_objects_history_trigger = PGTrigger(

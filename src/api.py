@@ -61,10 +61,15 @@ from src.schemas import (
     TorgiLotRow,
     TorgiLotVersion,
     TorgiObjectBreakdownRow,
+    TorgiObjectDashboard,
     TorgiObjectFavoriteToggleResult,
+    TorgiObjectPoint,
     TorgiObjectRow,
     TorgiObjectStat,
+    TorgiObjectInvest,
+    TorgiObjectOdds,
     TorgiObjectVersion,
+    TorgiObjectViewPoint,
     TorgiNotification,
     TorgiPivotRow,
     TorgiPoint,
@@ -633,6 +638,18 @@ async def get_torgi_dashboard(
     return await torgi_service.get_dashboard()
 
 
+@app.get("/torgi/invest", tags=["torgi"], response_model=TorgiObjectInvest)
+async def get_torgi_invest(torgi_service: TorgiService = Depends(get_torgi_service)):
+    """Где торги по транспорту окупаются: сегменты и лоты дешевле типичного итога."""
+    return await torgi_service.get_invest()
+
+
+@app.get("/torgi/odds", tags=["torgi"], response_model=list[TorgiObjectOdds])
+async def get_torgi_odds(torgi_service: TorgiService = Depends(get_torgi_service)):
+    """Шансы живых лотов транспорта по скорости просмотров."""
+    return await torgi_service.get_odds()
+
+
 @app.get("/torgi/pivot", tags=["torgi"], response_model=list[TorgiPivotRow])
 async def get_torgi_pivot_route(
     dimension: str,
@@ -784,6 +801,68 @@ async def update_torgi_objects_data(
 
 
 @app.get(
+    "/torgi/objects/dashboard",
+    tags=["torgi-недвижимость"],
+    response_model=TorgiObjectDashboard,
+)
+async def get_torgi_objects_dashboard(
+    service: TorgiObjectsService = Depends(get_torgi_objects_service),
+):
+    """Вся сводка по недвижимости одним ответом: KPI, заполненность полей,
+    воронка, месячный ряд, сезонность, дедлайны, изменения, гистограммы и топы."""
+    return await service.get_dashboard()
+
+
+@app.get(
+    "/torgi/objects/invest",
+    tags=["torgi-недвижимость"],
+    response_model=TorgiObjectInvest,
+)
+async def get_torgi_objects_invest(
+    service: TorgiObjectsService = Depends(get_torgi_objects_service),
+):
+    return await service.get_invest()
+
+
+@app.get(
+    "/torgi/objects/odds",
+    tags=["torgi-недвижимость"],
+    response_model=list[TorgiObjectOdds],
+)
+async def get_torgi_objects_odds(
+    service: TorgiObjectsService = Depends(get_torgi_objects_service),
+):
+    return await service.get_odds()
+
+
+@app.get(
+    "/torgi/objects/views-series",
+    tags=["torgi-недвижимость"],
+    response_model=dict[int, list[TorgiObjectViewPoint]],
+)
+async def get_torgi_objects_views_series(
+    ids: str = "",
+    service: TorgiObjectsService = Depends(get_torgi_objects_service),
+):
+    """Ряды просмотров для набора лотов: `ids` — id через запятую."""
+    lot_ids = [int(i) for i in ids.split(",") if i.strip().isdigit()]
+    return await service.get_views_series(lot_ids) if lot_ids else {}
+
+
+@app.get(
+    "/torgi/objects/points",
+    tags=["torgi-недвижимость"],
+    response_model=list[TorgiObjectPoint],
+)
+async def get_torgi_objects_points(
+    object_type: str | None = None,
+    service: TorgiObjectsService = Depends(get_torgi_objects_service),
+):
+    """Тонкий массив под карту и scatter «площадь — цена»."""
+    return await service.get_points(object_type)
+
+
+@app.get(
     "/torgi/objects/{lot_id}",
     tags=["torgi-недвижимость"],
     response_model=TorgiObjectRow,
@@ -806,3 +885,14 @@ async def get_torgi_object_versions_route(
     lot_id: int, service: TorgiObjectsService = Depends(get_torgi_objects_service)
 ):
     return await service.get_versions(lot_id)
+
+
+@app.get(
+    "/torgi/objects/{lot_id}/views",
+    tags=["torgi-недвижимость"],
+    response_model=list[TorgiObjectViewPoint],
+)
+async def get_torgi_object_views_route(
+    lot_id: int, service: TorgiObjectsService = Depends(get_torgi_objects_service)
+):
+    return await service.get_views(lot_id)
